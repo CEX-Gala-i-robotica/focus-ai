@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -21,15 +23,24 @@ namespace focus_ai
         private static readonly Color CardDoneBg      = Color.FromRgb(14,  30,  14);
         private static readonly Color CardDoneBorder  = Color.FromRgb(34, 197, 94);
 
+        // ─── Calea relativă către scriptul Python ───────────────────────────────
+        // StartTest.cs se află în:  <solution>\focus_ai\
+        // MonitorTracking.py se află în:  <solution>\EyeTracker-main\Webcam3DTracker\
+        // Deci relativ față de directorul EXE-ului (bin\Debug\net8.0-windows\) ajungem
+        // cu 3 niveluri în sus la rădăcina soluției, apoi intrăm în sub-folder.
+        private static readonly string EyeTrackerDir = Path.GetFullPath(
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                         @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
+
+        private const string PythonScript = "MonitorTracking.py";
+
         public StartTest(Dashboard dashboard, bool isDark)
         {
             InitializeComponent();
             _dashboard = dashboard;
             _isDark    = isDark;
 
-            // Asigură tema corectă (aplicația folosește DynamicResource)
             ThemeManager.Apply(_isDark);
-
             RefreshUI();
 
             _timer.Interval = TimeSpan.FromSeconds(1);
@@ -99,27 +110,154 @@ namespace focus_ai
             }
         }
 
+        // ════════════════════════════════════════════
+        //  LANSARE FERESTRE / SUBPROCESE
+        // ════════════════════════════════════════════
+
         private bool LaunchStepWindow(int stepIndex)
         {
-            // TODO: înlocuiți cu ferestrele reale
             switch (stepIndex)
             {
                 case 1:
-                    MessageBox.Show("Etapa 1 – Urmărirea privirii\n\n(Placeholder – implementează fereastra testului)",
-                        "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return true;
+                    return RunEyeTracker();
+
                 case 2:
                     MessageBox.Show("Etapa 2 – Reacție la vibrație\n\n(Placeholder – implementează fereastra testului)",
                         "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
                     return true;
+
                 case 3:
                     MessageBox.Show("Etapa 3 – Reacție vizuală GO/NO-GO\n\n(Placeholder – implementează fereastra testului)",
                         "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
                     return true;
+
                 default:
                     return false;
             }
         }
+
+        /// <summary>
+        /// Rulează MonitorTracking.py ca subprocess, citește stdout-ul (coordonatele gaze)
+        /// și le afișează într-un MessageBox. Returnează true dacă scriptul s-a încheiat
+        /// fără erori fatale.
+        /// </summary>
+        private bool RunEyeTracker()
+        {
+            // ── 1. Verifică că folderul și scriptul există ────────────────────
+            string scriptPath = Path.Combine(EyeTrackerDir, PythonScript);
+
+            if (!Directory.Exists(EyeTrackerDir))
+            {
+                MessageBox.Show(
+                    $"Directorul eye-tracker nu a fost găsit:\n{EyeTrackerDir}\n\n" +
+                    "Verifică calea EyeTrackerDir din StartTest.cs.",
+                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+
+            if (!File.Exists(scriptPath))
+            {
+                MessageBox.Show(
+                    $"Scriptul Python nu a fost găsit:\n{scriptPath}",
+                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+
+            // ── 2. Configurează procesul ──────────────────────────────────────
+            var psi = new ProcessStartInfo
+            {
+                FileName               = "py",   // sau "python3" pe unele sisteme
+                Arguments              = $"\"{PythonScript}\"",
+                WorkingDirectory       = EyeTrackerDir,
+
+                // Capturăm stdout (coordonatele) și stderr (loguri/erori)
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true,       // fără fereastră consolă separată
+            };
+
+            string stdoutData = string.Empty;
+            string stderrData = string.Empty;
+
+            try
+            {
+                using var process = new Process { StartInfo = psi };
+
+                process.Start();
+
+                // Citim stdout și stderr sincron după ce procesul se termină
+                // (MonitorTracking.py scrie o singură linie pe stdout când finalizează)
+                stdoutData = process.StandardOutput.ReadToEnd();
+                stderrData = process.StandardError.ReadToEnd();
+
+                process.WaitForExit();
+
+                int exitCode = process.ExitCode;
+
+                // ── 3. Afișează rezultatele ───────────────────────────────────
+                if (!string.IsNullOrWhiteSpace(stdoutData))
+                {
+                    // stdoutData = "mx,my;mx,my;..." — exact formatul din MonitorTracking.py
+                    string[] points   = stdoutData.Trim().Split(';');
+                    int       count   = points.Length;
+
+                    // Construiește un rezumat vizual (primele 10 puncte + total)
+                    int previewCount = Math.Min(count, 10);
+                    var preview = new System.Text.StringBuilder();
+                    for (int i = 0; i < previewCount; i++)
+                        preview.AppendLine($"  [{i + 1}]  {points[i]}");
+                    if (count > previewCount)
+                        preview.AppendLine($"  ... și încă {count - previewCount} puncte");
+
+                    string msg =
+                        $"✅ Etapa 1 – Urmărirea privirii finalizată!\n\n" +
+                        $"Total puncte gaze captate: {count}\n\n" +
+                        $"Primele {previewCount} coordonate (mx, my):\n" +
+                        preview.ToString() +
+                        (exitCode != 0 ? $"\n⚠️ Cod ieșire Python: {exitCode}" : string.Empty);
+
+                    MessageBox.Show(msg, "Focus AI – Rezultate Eye Tracker",
+                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                    return true;
+                }
+                else
+                {
+                    // Niciun output pe stdout — posibil eroare Python
+                    string errorInfo = string.IsNullOrWhiteSpace(stderrData)
+                        ? "(niciun mesaj de eroare)"
+                        : stderrData.Trim();
+
+                    MessageBox.Show(
+                        $"⚠️ Scriptul MonitorTracking.py nu a returnat coordonate.\n\n" +
+                        $"Cod ieșire: {exitCode}\n\nStderr:\n{errorInfo}",
+                        "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return false;
+                }
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+                when (ex.NativeErrorCode == 2 /* ERROR_FILE_NOT_FOUND */)
+            {
+                // Python nu este în PATH
+                MessageBox.Show(
+                    "Nu s-a putut lansa Python.\n\n" +
+                    "Asigură-te că 'python' (sau 'python3') este instalat și adăugat în PATH.\n\n" +
+                    $"Detalii: {ex.Message}",
+                    "Eroare – Python lipsă", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Eroare neașteptată la lansarea eye tracker-ului:\n\n{ex.Message}",
+                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                return false;
+            }
+        }
+
+        // ════════════════════════════════════════════
+        //  MARCARE ETAPĂ FINALIZATĂ
+        // ════════════════════════════════════════════
 
         private void MarkStepDone(int stepIndex)
         {
@@ -170,7 +308,6 @@ namespace focus_ai
             }
             else
             {
-                // Culorile sunt preluate din resursele dinamice (actualizate de ThemeManager)
                 border.Background      = (SolidColorBrush)FindResource("BgCard");
                 border.BorderBrush     = (SolidColorBrush)FindResource("BgSep");
                 border.BorderThickness = new Thickness(1.5);
