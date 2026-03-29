@@ -1,50 +1,727 @@
 ﻿<Window x:Class="focus_ai.Dashboard"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Focus AI - Dashboard" Height="450" Width="800"
-        WindowStartupLocation="CenterScreen"
-        Background="#F0F2F5">
-    <Grid>
-        <Border Background="White"
-                Width="600"
-                Height="300"
-                CornerRadius="20"
-                Padding="30"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Effect="{Binding Source={x:Static SystemParameters.DropShadow}}">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="Bun venit în Focus AI!"
-                           FontSize="28"
-                           FontWeight="SemiBold"
-                           Foreground="#1A1A1A"
-                           Margin="0,0,0,10"
-                           TextAlignment="Center"/>
-                <TextBlock Text="Aceasta este pagina principală a aplicației."
-                           FontSize="16"
-                           Foreground="#666"
-                           Margin="0,0,0,30"
-                           TextAlignment="Center"/>
-                <Button x:Name="LogoutButton"
-                        Content="Deconectare"
-                        Height="40"
-                        Width="150"
-                        Background="#D32F2F"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        Click="LogoutButton_Click">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="8">
-                                <ContentPresenter HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"/>
+        Title="Focus AI - Dashboard" Height="640" Width="980"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+
+        <!-- NavTab -->
+        <Style x:Key="NavTabStyle" TargetType="RadioButton">
+            <Setter Property="Background"  Value="Transparent"/>
+            <Setter Property="Foreground"  Value="{DynamicResource TxtSecondary}"/>
+            <Setter Property="FontSize"    Value="13"/>
+            <Setter Property="FontWeight"  Value="Medium"/>
+            <Setter Property="Cursor"      Value="Hand"/>
+            <Setter Property="Padding"     Value="0"/>
+            <Setter Property="Margin"      Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="TabBorder" Background="Transparent"
+                                CornerRadius="10" Padding="14,10">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                <ContentPresenter Content="{TemplateBinding Tag}"
+                                                  VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background"
+                                        Value="{DynamicResource BgNavActive}"/>
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource TxtNavActive}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background"
+                                        Value="{DynamicResource BgNavHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- PrimaryButton -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="18,10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- SecondaryButton -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentSecBg}"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentSecFg}"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="18,10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentSecHov}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- GameCard -->
+        <Style x:Key="GameCardStyle" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource BgCard}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="16" Padding="20">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background"
+                                        Value="{DynamicResource BgCardHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- IconButton -->
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource BgToggle}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background"
+                                        Value="{DynamicResource BgNavActive}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid" Background="{DynamicResource BgRoot}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="224"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ══════════════ SIDEBAR ══════════════ -->
+        <Border x:Name="SidebarBorder" Grid.Column="0"
+                Background="{DynamicResource BgSidebar}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Logo + Theme Toggle -->
+                <Grid Grid.Row="0" Margin="20,24,16,28">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="10"
+                                Background="#3B82F6" Margin="0,0,10,0">
+                            <TextBlock Text="F" FontSize="16" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel>
+                            <TextBlock x:Name="AppTitle" Text="Focus AI"
+                                       FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource TxtPrimary}"/>
+                            <TextBlock Text="v1.0.0" FontSize="10"
+                                       Foreground="{DynamicResource TxtVersion}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Button x:Name="ThemeToggleBtn" Grid.Column="1"
+                            Style="{StaticResource IconButtonStyle}"
+                            ToolTip="Comută tema"
+                            Click="ThemeToggle_Click"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ThemeIcon" Text="☀️" FontSize="16"/>
+                    </Button>
+                </Grid>
+
+                <!-- Separator -->
+                <Rectangle Grid.Row="0" VerticalAlignment="Bottom" Height="1"
+                           Margin="20,0" Fill="{DynamicResource BgSep}"/>
+
+                <!-- Nav -->
+                <StackPanel Grid.Row="1" Margin="12,20,12,0">
+                    <TextBlock Text="MENIU" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TxtMuted}"
+                               Margin="10,0,0,12"/>
+                    <RadioButton x:Name="TabProfil" Content="Profilul meu"
+                                 GroupName="NavTabs" IsChecked="True"
+                                 Style="{StaticResource NavTabStyle}"
+                                 Tag="👤" Checked="Tab_Checked"/>
+                    <RadioButton x:Name="TabTestari" Content="Testările mele"
+                                 GroupName="NavTabs"
+                                 Style="{StaticResource NavTabStyle}"
+                                 Tag="📋" Margin="0,4,0,0" Checked="Tab_Checked"/>
+                    <RadioButton x:Name="TabActivitati" Content="Activitățile mele"
+                                 GroupName="NavTabs"
+                                 Style="{StaticResource NavTabStyle}"
+                                 Tag="🎮" Margin="0,4,0,0" Checked="Tab_Checked"/>
+                </StackPanel>
+
+                <!-- User bar -->
+                <Border x:Name="UserBarBorder" Grid.Row="2"
+                        Margin="12,0,12,20" Padding="10,10"
+                        CornerRadius="12"
+                        Background="{DynamicResource BgUserBar}">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="34" Height="34" CornerRadius="17"
+                                Background="{DynamicResource AccentSecBg}"
+                                Margin="0,0,10,0">
+                            <TextBlock x:Name="SidebarInitials" Text="U"
+                                       FontSize="13" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentSecFg}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center" Width="88">
+                            <TextBlock x:Name="SidebarEmail" Text="user@mail.com"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TxtSecondary}"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="Conectat" FontSize="10"
+                                       Foreground="{DynamicResource TxtOnline}"/>
+                        </StackPanel>
+                        <Button x:Name="LogoutButton" Content="↩"
+                                Width="28" Height="28"
+                                Background="#EF4444" Foreground="White"
+                                FontSize="14" BorderThickness="0"
+                                Cursor="Hand" ToolTip="Deconectare"
+                                Click="LogoutButton_Click"
+                                VerticalAlignment="Center">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="7">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#DC2626"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ══════════════ MAIN CONTENT ══════════════ -->
+        <Border x:Name="MainBorder" Grid.Column="1"
+                Background="{DynamicResource BgMain}"
+                Padding="36,30">
+            <Grid>
+
+                <!-- ── TAB: PROFIL ── -->
+                <ScrollViewer x:Name="PanelProfil" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock x:Name="TitleProfil" Text="Profilul meu"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource TxtPrimary}"
+                                   Margin="0,0,0,6"/>
+                        <TextBlock Text="Statisticile și informațiile contului tău"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TxtSecondary}"
+                                   Margin="0,0,0,26"/>
+
+                        <!-- Profile Card -->
+                        <Border x:Name="ProfileCard" CornerRadius="18"
+                                Padding="26,22" Margin="0,0,0,22"
+                                Background="{DynamicResource BgCard}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="70" Height="70" CornerRadius="35"
+                                        Background="{DynamicResource AccentSecBg}"
+                                        Margin="0,0,22,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ProfileInitials" Text="U"
+                                               FontSize="24" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentSecFg}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ProfileFullName" Text="Utilizator"
+                                               FontSize="18" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,3"/>
+                                    <TextBlock x:Name="ProfileEmail" Text="email@example.com"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               Margin="0,0,0,3"/>
+                                    <TextBlock x:Name="ProfilePhone" Text=""
+                                               FontSize="12"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               Margin="0,0,0,10"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Background="{DynamicResource AccentSecBg}"
+                                                CornerRadius="20" Padding="10,4" Margin="0,0,8,0">
+                                            <TextBlock Text="Cont activ" FontSize="11"
+                                                       Foreground="{DynamicResource AccentSecFg}"
+                                                       FontWeight="SemiBold"/>
+                                        </Border>
+                                        <Border x:Name="DoctorBadge"
+                                                Background="{DynamicResource BgStatGreen}"
+                                                CornerRadius="20" Padding="10,4"
+                                                Visibility="Collapsed">
+                                            <TextBlock Text="Medic asociat" FontSize="11"
+                                                       Foreground="{DynamicResource TxtStatGreen}"
+                                                       FontWeight="SemiBold"/>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <Button Grid.Column="2" Content="✏️  Editează profilul"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        VerticalAlignment="Center"
+                                        Click="EditProfile_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Stats 2x2 -->
+                        <TextBlock Text="STATISTICI" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TxtMuted}"
+                                   Margin="0,0,0,14"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="14"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Column="0" Grid.Row="0"
+                                    Background="{DynamicResource BgStatBlue}"
+                                    CornerRadius="16" Padding="22,20">
+                                <StackPanel>
+                                    <TextBlock Text="📋" FontSize="22" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="StatNrTestari" Text="—"
+                                               FontSize="30" FontWeight="Bold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                    <TextBlock Text="Testări efectuate" FontSize="12"
+                                               Foreground="{DynamicResource TxtStatBlue}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
                             </Border>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-            </StackPanel>
+
+                            <Border Grid.Column="2" Grid.Row="0"
+                                    Background="{DynamicResource BgStatGreen}"
+                                    CornerRadius="16" Padding="22,20">
+                                <StackPanel>
+                                    <TextBlock Text="📊" FontSize="22" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="StatScorMediu" Text="—"
+                                               FontSize="30" FontWeight="Bold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                    <TextBlock Text="Scor mediu testări" FontSize="12"
+                                               Foreground="{DynamicResource TxtStatGreen}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="0" Grid.Row="2"
+                                    Background="{DynamicResource BgStatPurple}"
+                                    CornerRadius="16" Padding="22,20">
+                                <StackPanel>
+                                    <TextBlock Text="🎮" FontSize="22" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="StatNrActivitati" Text="—"
+                                               FontSize="30" FontWeight="Bold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                    <TextBlock Text="Activități jucate" FontSize="12"
+                                               Foreground="{DynamicResource TxtStatPurple}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2" Grid.Row="2"
+                                    Background="{DynamicResource BgStatOrange}"
+                                    CornerRadius="16" Padding="22,20">
+                                <StackPanel>
+                                    <TextBlock Text="🏆" FontSize="22" Margin="0,0,0,10"/>
+                                    <TextBlock x:Name="StatScorMaxActivitati" Text="—"
+                                               FontSize="30" FontWeight="Bold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                    <TextBlock Text="Scor maxim activități" FontSize="12"
+                                               Foreground="{DynamicResource TxtStatOrange}"
+                                               Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ── TAB: TESTĂRI ── -->
+                <ScrollViewer x:Name="PanelTestari" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,26">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock x:Name="TitleTestari" Text="Testările mele"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{DynamicResource TxtPrimary}"
+                                           Margin="0,0,0,6"/>
+                                <TextBlock Text="Istoricul sesiunilor de testare cognitivă"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TxtSecondary}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="＋  Test nou"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        VerticalAlignment="Center" Margin="0,0,10,0"
+                                        Click="NewTest_Click"/>
+                                <Button Content="⟳  Reîncarcă"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        VerticalAlignment="Center"
+                                        Click="RefreshTests_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,26">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatBlue}">
+                                <StackPanel>
+                                    <TextBlock Text="ULTIMA TESTARE" FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatBlue}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="LastTestDate" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatGreen}">
+                                <StackPanel>
+                                    <TextBlock Text="CEL MAI BUN SCOR" FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatGreen}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="BestScore" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatPurple}">
+                                <StackPanel>
+                                    <TextBlock Text="SCOR MEDIU" FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatPurple}"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="AvgScore" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border x:Name="TestLoadingState" CornerRadius="14" Padding="32"
+                                Background="{DynamicResource BgCard}" Visibility="Visible">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="⏳" FontSize="30"
+                                           HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                <TextBlock Text="Se încarcă testările..." FontSize="13"
+                                           Foreground="{DynamicResource TxtSecondary}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="TestEmptyState" CornerRadius="14" Padding="42"
+                                Background="{DynamicResource BgCard}" Visibility="Collapsed">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="📋" FontSize="38"
+                                           HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                                <TextBlock Text="Nicio testare înregistrată"
+                                           FontSize="15" FontWeight="Medium"
+                                           Foreground="{DynamicResource TxtPrimary}"
+                                           HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <TextBlock Text="Testările tale vor apărea aici."
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TxtSecondary}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="TestTableHeader" Visibility="Collapsed"
+                                Padding="18,10" Margin="0,0,0,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="50"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="#" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="1" Text="DATĂ ȘI ORĂ" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="2" Text="DURATĂ" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="3" Text="SCOR" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"
+                                           HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="4" Text="" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="5" Text="" FontSize="10"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel x:Name="TestRowsPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ── TAB: ACTIVITĂȚI ── -->
+                <ScrollViewer x:Name="PanelActivitati" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock x:Name="TitleActivitati" Text="Activitățile mele"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource TxtPrimary}"
+                                   Margin="0,0,0,6"/>
+                        <TextBlock Text="Alege un joc de antrenament cognitiv"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource TxtSecondary}"
+                                   Margin="0,0,0,28"/>
+                        <TextBlock Text="JOCURI DISPONIBILE" FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TxtMuted}"
+                                   Margin="0,0,0,14"/>
+
+                        <!-- Row 1: Memorie | Stroop Test | Visual Search -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Memorie -->
+                            <Button Grid.Column="0" Style="{StaticResource GameCardStyle}"
+                                    Click="GameMemorie_Click">
+                                <StackPanel>
+                                    <Border Width="54" Height="54" CornerRadius="14"
+                                            Background="{DynamicResource GameCard1Bg}"
+                                            HorizontalAlignment="Left" Margin="0,0,0,14">
+                                        <TextBlock Text="🧠" FontSize="26"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Memorie" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="Antrenează memoria de scurtă durată cu perechi de carduri."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <Border Background="{DynamicResource GameCard1Bg}"
+                                            CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="Ușor" FontSize="10"
+                                                   Foreground="{DynamicResource TxtStatBlue}"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Stroop Test -->
+                            <Button Grid.Column="2" Style="{StaticResource GameCardStyle}"
+                                    Click="GameStroop_Click">
+                                <StackPanel>
+                                    <Border Width="54" Height="54" CornerRadius="14"
+                                            Background="{DynamicResource GameCard2Bg}"
+                                            HorizontalAlignment="Left" Margin="0,0,0,14">
+                                        <TextBlock Text="🎨" FontSize="26"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Stroop Test" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="Identifică culoarea cuvântului, ignorând semnificația sa."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <Border Background="{DynamicResource GameCard2Bg}"
+                                            CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="Mediu" FontSize="10"
+                                                   Foreground="{DynamicResource TxtStatGreen}"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Visual Search -->
+                            <Button Grid.Column="4" Style="{StaticResource GameCardStyle}"
+                                    Click="GameVisualSearch_Click">
+                                <StackPanel>
+                                    <Border Width="54" Height="54" CornerRadius="14"
+                                            Background="{DynamicResource GameCard3Bg}"
+                                            HorizontalAlignment="Left" Margin="0,0,0,14">
+                                        <TextBlock Text="🔍" FontSize="26"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Visual Search" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="Găsește elementul diferit ascuns printre multe elemente similare."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <Border Background="{DynamicResource GameCard3Bg}"
+                                            CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="Dificil" FontSize="10"
+                                                   Foreground="{DynamicResource TxtStatPurple}"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- Row 2: Secvențe | Matematică rapidă -->
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="16"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Secvențe -->
+                            <Button Grid.Column="0" Style="{StaticResource GameCardStyle}"
+                                    Click="GameSecvente_Click">
+                                <StackPanel>
+                                    <Border Width="54" Height="54" CornerRadius="14"
+                                            Background="{DynamicResource GameCard4Bg}"
+                                            HorizontalAlignment="Left" Margin="0,0,0,14">
+                                        <TextBlock Text="🔢" FontSize="26"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Secvențe" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="Memorează și reproduce secvențe din ce în ce mai lungi."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <Border Background="{DynamicResource GameCard4Bg}"
+                                            CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="Mediu" FontSize="10"
+                                                   Foreground="{DynamicResource TxtStatOrange}"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Matematică rapidă -->
+                            <Button Grid.Column="2" Style="{StaticResource GameCardStyle}"
+                                    Click="GameMatematica_Click">
+                                <StackPanel>
+                                    <Border Width="54" Height="54" CornerRadius="14"
+                                            Background="{DynamicResource GameCard5Bg}"
+                                            HorizontalAlignment="Left" Margin="0,0,0,14">
+                                        <TextBlock Text="➕" FontSize="26"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Matematică rapidă" FontSize="15" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"
+                                               Margin="0,0,0,6"/>
+                                    <TextBlock Text="Rezolvă operații matematice cât mai repede posibil."
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TxtSecondary}"
+                                               TextWrapping="Wrap" Margin="0,0,0,14"/>
+                                    <Border Background="{DynamicResource GameCard5Bg}"
+                                            CornerRadius="6" Padding="8,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="Ușor" FontSize="10"
+                                                   Foreground="{DynamicResource TxtMuted}"
+                                                   FontWeight="SemiBold"/>
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Col 4 empty placeholder (keeps grid alignment) -->
+                            <Border Grid.Column="4" Visibility="Hidden"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+            </Grid>
         </Border>
     </Grid>
 </Window>

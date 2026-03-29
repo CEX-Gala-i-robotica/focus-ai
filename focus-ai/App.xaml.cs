@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace focus_ai
@@ -10,7 +11,9 @@ namespace focus_ai
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-
+            // Detectează tema sistemului Windows și aplică imediat
+            bool isDark = IsSystemDarkTheme();
+            ThemeManager.Apply(isDark);
             bool firstRun  = IsFirstRun();
             bool loggedIn  = IsLoggedIn();
 
@@ -61,6 +64,17 @@ namespace focus_ai
                 return loggedIn == "1" && !string.IsNullOrEmpty(idToken);
             }
             catch { return false; }
+        }
+        private static bool IsSystemDarkTheme()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var val = key?.GetValue("AppsUseLightTheme");
+                return val is int i && i == 0;
+            }
+            catch { return true; }
         }
     }
 }

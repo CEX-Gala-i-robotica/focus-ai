@@ -33,8 +33,7 @@ namespace focus_ai
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
                 var value = key?.GetValue("AppsUseLightTheme");
                 return value is int i && i == 0;
             }
@@ -50,26 +49,26 @@ namespace focus_ai
         private void ApplyLight()
         {
             WindowBackground.Color = (Color)FindResource("LightWindowBg");
-            SetBrush("CardBgBrush",      "LightCardBg");
+            SetBrush("CardBgBrush", "LightCardBg");
             SetBrush("TextPrimaryBrush", "LightTextPrimary");
-            SetBrush("TextSecBrush",     "LightTextSecondary");
-            SetBrush("BorderBrush",      "LightBorder");
-            SetBrush("InputBgBrush",     "LightInputBg");
-            SetBrush("DividerBrush",     "LightDivider");
-            CardShadow.Color   = Colors.Black;
+            SetBrush("TextSecBrush", "LightTextSecondary");
+            SetBrush("BorderBrush", "LightBorder");
+            SetBrush("InputBgBrush", "LightInputBg");
+            SetBrush("DividerBrush", "LightDivider");
+            CardShadow.Color = Colors.Black;
             CardShadow.Opacity = 0.12;
         }
 
         private void ApplyDark()
         {
             WindowBackground.Color = (Color)FindResource("DarkWindowBg");
-            SetBrush("CardBgBrush",      "DarkCardBg");
+            SetBrush("CardBgBrush", "DarkCardBg");
             SetBrush("TextPrimaryBrush", "DarkTextPrimary");
-            SetBrush("TextSecBrush",     "DarkTextSecondary");
-            SetBrush("BorderBrush",      "DarkBorder");
-            SetBrush("InputBgBrush",     "DarkInputBg");
-            SetBrush("DividerBrush",     "DarkDivider");
-            CardShadow.Color   = Colors.Black;
+            SetBrush("TextSecBrush", "DarkTextSecondary");
+            SetBrush("BorderBrush", "DarkBorder");
+            SetBrush("InputBgBrush", "DarkInputBg");
+            SetBrush("DividerBrush", "DarkDivider");
+            CardShadow.Color = Colors.Black;
             CardShadow.Opacity = 0.50;
         }
 
@@ -99,22 +98,37 @@ namespace focus_ai
             catch { }
         }
 
-        private void SaveSession(string email, string idToken, bool remember)
+        private void SaveSession(string email, string idToken, string uid, bool remember)
         {
             try
             {
                 using var key = Registry.CurrentUser.CreateSubKey(RegPath);
                 key.SetValue("RememberMe", remember ? "1" : "0");
-                key.SetValue("Email",      remember ? email : "");
-                key.SetValue("LoggedIn",   remember ? "1" : "0");
-                key.SetValue("IdToken",    remember ? idToken : "");
+                key.SetValue("Email", remember ? email : "");
+                key.SetValue("LoggedIn", "1");
+                key.SetValue("IdToken", remember ? idToken : "");
+                key.SetValue("Uid", remember ? uid : "");
+            }
+            catch { }
+        }
+
+        private void SaveSessionGoogle(string email, string idToken, string uid)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegPath);
+                key.SetValue("RememberMe", "1");
+                key.SetValue("Email", email);
+                key.SetValue("LoggedIn", "1");
+                key.SetValue("IdToken", idToken);
+                key.SetValue("Uid", uid);
             }
             catch { }
         }
 
         private async void LoginButton_Click(object sender, RoutedEventArgs e)
         {
-            string email    = EmailTextBox.Text.Trim();
+            string email = EmailTextBox.Text.Trim();
             string password = PasswordBox.Password;
 
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
@@ -129,7 +143,7 @@ namespace focus_ai
             try
             {
                 using var client = new HttpClient();
-                var url  = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FirebaseApiKey}";
+                var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FirebaseApiKey}";
                 var body = new { email, password, returnSecureToken = true };
 
                 var response = await client.PostAsync(url,
@@ -138,16 +152,19 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var parsed    = JObject.Parse(responseJson);
-                    string token  = parsed["idToken"]?.ToString() ?? "";
+                    var parsed = JObject.Parse(responseJson);
+                    string token = parsed["idToken"]?.ToString() ?? "";
+                    string uid = parsed["localId"]?.ToString() ?? "";
                     bool remember = RememberMeCheckBox.IsChecked == true;
-                    SaveSession(email, token, remember);
-                    new Dashboard().Show();
+
+                    SaveSession(email, token, uid, remember);
+
+                    await OpenDashboardOrSetup(token, uid);
                     Close();
                 }
                 else
                 {
-                    var error   = JObject.Parse(responseJson);
+                    var error = JObject.Parse(responseJson);
                     var message = error["error"]?["message"]?.ToString();
 
                     if (message == "EMAIL_NOT_FOUND" || message == "INVALID_PASSWORD" || message == "INVALID_LOGIN_CREDENTIALS")
@@ -177,11 +194,11 @@ namespace focus_ai
                 string googleIdToken = await GetGoogleIdTokenAsync();
 
                 using var client = new HttpClient();
-                var url  = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={FirebaseApiKey}";
+                var url = $"https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key={FirebaseApiKey}";
                 var body = new
                 {
-                    postBody          = $"id_token={googleIdToken}&providerId=google.com",
-                    requestUri        = "http://localhost",
+                    postBody = $"id_token={googleIdToken}&providerId=google.com",
+                    requestUri = "http://localhost",
                     returnSecureToken = true
                 };
 
@@ -191,11 +208,14 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var parsed           = JObject.Parse(responseJson);
-                    string email         = parsed["email"]?.ToString() ?? "";
+                    var parsed = JObject.Parse(responseJson);
+                    string email = parsed["email"]?.ToString() ?? "";
                     string firebaseToken = parsed["idToken"]?.ToString() ?? "";
-                    SaveSessionGoogle(email, firebaseToken);
-                    new Dashboard().Show();
+                    string uid = parsed["localId"]?.ToString() ?? "";
+
+                    SaveSessionGoogle(email, firebaseToken, uid);
+
+                    await OpenDashboardOrSetup(firebaseToken, uid);
                     Close();
                 }
                 else
@@ -211,51 +231,48 @@ namespace focus_ai
             }
             finally { SetUiBusy(false); }
         }
-        private void SaveSessionGoogle(string email, string idToken)
-        {
-            try
-            {
-                using var key = Registry.CurrentUser.CreateSubKey(RegPath);
-                key.SetValue("RememberMe", "1");
-                key.SetValue("Email",      email);
-                key.SetValue("LoggedIn",   "1");
-                key.SetValue("IdToken",    idToken);
-            }
-            catch { }
-        }
+
         private async Task<string> GetGoogleIdTokenAsync()
         {
             var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
             {
                 ClientSecrets = new ClientSecrets
                 {
-                    ClientId     = GoogleClientId,
+                    ClientId = GoogleClientId,
                     ClientSecret = GoogleClientSecret
                 },
                 Scopes = new[] { "openid", "email", "profile" }
             });
+
             var credential = await new AuthorizationCodeInstalledApp(flow, new LocalServerCodeReceiver())
                 .AuthorizeAsync("user", CancellationToken.None);
+
             if (string.IsNullOrEmpty(credential.Token.IdToken))
                 await credential.RefreshTokenAsync(CancellationToken.None);
+
             return credential.Token.IdToken;
         }
+
         private async void ForgotPasswordLink_Click(object sender, RoutedEventArgs e)
         {
             string email = EmailTextBox.Text.Trim();
+
             if (string.IsNullOrEmpty(email))
             {
                 MessageBox.Show("Introdu adresa de email pentru a reseta parola.", "Resetare parolă",
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
+
             try
             {
                 using var client = new HttpClient();
-                var url  = $"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FirebaseApiKey}";
+                var url = $"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={FirebaseApiKey}";
                 var body = new { requestType = "PASSWORD_RESET", email };
+
                 var response = await client.PostAsync(url,
                     new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
+
                 if (response.IsSuccessStatusCode)
                     MessageBox.Show("Email de resetare trimis! Verifică căsuța de email.", "Resetare parolă",
                                     MessageBoxButton.OK, MessageBoxImage.Information);
@@ -268,16 +285,55 @@ namespace focus_ai
                 MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private void SetUiBusy(bool busy)
         {
-            LoginButton.IsEnabled        = !busy;
+            LoginButton.IsEnabled = !busy;
             GoogleSignUpButton.IsEnabled = !busy;
-            LoginButton.Content          = busy ? "Se procesează…" : "Autentificare";
+            LoginButton.Content = busy ? "Se procesează…" : "Autentificare";
         }
+
         private void SignUpLink_Click(object sender, RoutedEventArgs e)
         {
             new SignUp().Show();
             Close();
+        }
+        private async Task OpenDashboardOrSetup(string token, string uid)
+        {
+            bool needsSetup = await CheckNeedsProfileSetup(token, uid);
+
+            if (needsSetup)
+            {
+                bool isDark = IsSystemDarkTheme();
+                var setup = new ProfileEditWindow(isDark, isSetupMode: true);
+                setup.Show();
+            }
+            else
+            {
+                new Dashboard().Show();
+            }
+        }
+
+        private async Task<bool> CheckNeedsProfileSetup(string token, string uid)
+        {
+            try
+            {
+                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string url = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+
+                using var client = new HttpClient();
+                string response = await client.GetStringAsync(url);
+
+                // setup == false sau null => trebuie configurare
+                if (response == "null" || response == "false" || string.IsNullOrWhiteSpace(response))
+                    return true;
+
+                return false;
+            }
+            catch
+            {
+                return false; // la eroare, mergi la Dashboard
+            }
         }
     }
 }

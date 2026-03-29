@@ -154,8 +154,11 @@ namespace focus_ai
                     var parsed = JObject.Parse(responseJson);
                     string email         = parsed["email"]?.ToString() ?? "";
                     string firebaseToken = parsed["idToken"]?.ToString() ?? "";
-                    SaveSession(email, firebaseToken);
-                    new Dashboard().Show();
+                    string uid           = parsed["localId"]?.ToString() ?? "";
+
+                    SaveSession(email, firebaseToken, uid);
+
+                    await OpenDashboardOrSetup(firebaseToken, uid);
                     Close();
                 }
                 else
@@ -171,7 +174,7 @@ namespace focus_ai
             finally { SetUiBusy(false); }
         }
 
-        private void SaveSession(string email, string idToken)
+        private void SaveSession(string email, string idToken, string uid)
         {
             try
             {
@@ -180,6 +183,7 @@ namespace focus_ai
                 key.SetValue("Email",      email);
                 key.SetValue("LoggedIn",   "1");
                 key.SetValue("IdToken",    idToken);
+                key.SetValue("Uid",        uid);
             }
             catch { }
         }
@@ -213,6 +217,43 @@ namespace focus_ai
         {
             new Login().Show();
             Close();
+        }
+        private async Task OpenDashboardOrSetup(string token, string uid)
+        {
+            bool needsSetup = await CheckNeedsProfileSetup(token, uid);
+
+            if (needsSetup)
+            {
+                bool isDark = IsSystemDarkTheme();
+                var setup = new ProfileEditWindow(isDark, isSetupMode: true);
+                setup.Show();
+            }
+            else
+            {
+                new Dashboard().Show();
+            }
+        }
+
+        private async Task<bool> CheckNeedsProfileSetup(string token, string uid)
+        {
+            try
+            {
+                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string url = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+
+                using var client = new HttpClient();
+                string response = await client.GetStringAsync(url);
+
+                // setup == false sau null => trebuie configurare
+                if (response == "null" || response == "false" || string.IsNullOrWhiteSpace(response))
+                    return true;
+
+                return false;
+            }
+            catch
+            {
+                return false; // la eroare, mergi la Dashboard
+            }
         }
     }
 }

@@ -2,5 +2,57 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
+
+        <!--
+            IMPORTANT: Toate brush-urile TREBUIE să existe aici înainte ca
+            orice fereastră să se deschidă. ThemeManager.Apply() va modifica
+            .Color pe aceste obiecte — DynamicResource se actualizează automat.
+            
+            Valorile de mai jos = tema DARK (default la startup).
+            App.xaml.cs apelează ThemeManager.Apply(isDark) în OnStartup.
+        -->
+
+        <!-- Fonduri -->
+        <SolidColorBrush x:Key="BgRoot"        Color="#0D0F18"/>
+        <SolidColorBrush x:Key="BgSidebar"     Color="#0A0C10"/>
+        <SolidColorBrush x:Key="BgMain"        Color="#0D0F18"/>
+        <SolidColorBrush x:Key="BgCard"        Color="#141824"/>
+        <SolidColorBrush x:Key="BgCardHover"   Color="#1A2236"/>
+        <SolidColorBrush x:Key="BgNavActive"   Color="#1A2236"/>
+        <SolidColorBrush x:Key="BgNavHover"    Color="#141824"/>
+        <SolidColorBrush x:Key="BgUserBar"     Color="#0F1220"/>
+        <SolidColorBrush x:Key="BgSep"         Color="#1E2840"/>
+        <SolidColorBrush x:Key="BgToggle"      Color="#1E3A5F"/>
+
+        <!-- Stat cards -->
+        <SolidColorBrush x:Key="BgStatBlue"    Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="BgStatGreen"   Color="#14532D"/>
+        <SolidColorBrush x:Key="BgStatPurple"  Color="#3B1F5E"/>
+        <SolidColorBrush x:Key="BgStatOrange"  Color="#7C2D12"/>
+
+        <!-- Texte -->
+        <SolidColorBrush x:Key="TxtPrimary"    Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="TxtSecondary"  Color="#8892A4"/>
+        <SolidColorBrush x:Key="TxtMuted"      Color="#4B5563"/>
+        <SolidColorBrush x:Key="TxtNavActive"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TxtOnline"     Color="#22C55E"/>
+
+        <!-- Stat labels -->
+        <SolidColorBrush x:Key="TxtStatBlue"   Color="#60A5FA"/>
+        <SolidColorBrush x:Key="TxtStatGreen"  Color="#4ADE80"/>
+        <SolidColorBrush x:Key="TxtStatPurple" Color="#A78BFA"/>
+        <SolidColorBrush x:Key="TxtStatOrange" Color="#FB923C"/>
+
+        <!-- Accent -->
+        <SolidColorBrush x:Key="AccentPrimary" Color="#3B82F6"/>
+        <SolidColorBrush x:Key="AccentHover"   Color="#2563EB"/>
+        <SolidColorBrush x:Key="AccentSecBg"   Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="AccentSecFg"   Color="#60A5FA"/>
+        <SolidColorBrush x:Key="AccentSecHov"  Color="#1E4080"/>
+
+        <!-- Rânduri tabel -->
+        <SolidColorBrush x:Key="RowBg"         Color="#141824"/>
+        <SolidColorBrush x:Key="RowNumBg"      Color="#1A2236"/>
+
     </Application.Resources>
 </Application>

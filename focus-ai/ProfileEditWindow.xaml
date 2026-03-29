@@ -1,0 +1,252 @@
+﻿<Window x:Class="focus_ai.ProfileEditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Editează profilul"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+
+        <Style x:Key="InputLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TxtSecondary}"/>
+            <Setter Property="Margin"     Value="0,0,0,6"/>
+        </Style>
+
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height"                   Value="38"/>
+            <Setter Property="Padding"                  Value="12,0"/>
+            <Setter Property="FontSize"                 Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+            <Setter Property="Background"               Value="Transparent"/>
+            <Setter Property="Foreground"               Value="{DynamicResource TxtPrimary}"/>
+            <Setter Property="CaretBrush"               Value="{DynamicResource TxtPrimary}"/>
+        </Style>
+
+        <Style x:Key="ErrorTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="#EF4444"/>
+            <Setter Property="Margin"     Value="0,4,0,0"/>
+            <Setter Property="Visibility" Value="Collapsed"/>
+        </Style>
+
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Height"          Value="40"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="9" Padding="20,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GhostBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TxtSecondary}"/>
+            <Setter Property="FontSize"        Value="13"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Height"          Value="40"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource BgInputBorder}"
+                                BorderThickness="1"
+                                CornerRadius="9" Padding="20,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource BgCardHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <Border x:Name="RootBorder" Background="{DynamicResource BgSection}" Padding="32">
+        <StackPanel>
+
+            <!-- Header -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
+                <Border Width="42" Height="42" CornerRadius="12"
+                        Background="{DynamicResource AccentSecBg}" Margin="0,0,14,0">
+                    <TextBlock x:Name="HeaderInitials" Text="U"
+                               FontSize="16" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentSecFg}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="HeaderTitle" Text="Editează profilul"
+                               FontSize="18" FontWeight="Bold"
+                               Foreground="{DynamicResource TxtPrimary}"/>
+                    <TextBlock x:Name="SubHeaderEmail" Text=""
+                               FontSize="11"
+                               Foreground="{DynamicResource TxtMuted}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Section: Date personale -->
+            <TextBlock Text="DATE PERSONALE" FontSize="10" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TxtMuted}" Margin="0,0,0,14"/>
+
+            <!-- Prenume + Nume -->
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Prenume" Style="{StaticResource InputLabelStyle}"/>
+                    <Border x:Name="BoxNameBorder"
+                            BorderBrush="{DynamicResource BgInputBorder}"
+                            BorderThickness="1" CornerRadius="9"
+                            Background="{DynamicResource BgInput}">
+                        <TextBox x:Name="BoxName" Style="{StaticResource TextBoxStyle}"
+                                 TextChanged="Name_Changed"/>
+                    </Border>
+                    <TextBlock x:Name="ErrName" Text="Prenumele este obligatoriu."
+                               Style="{StaticResource ErrorTextStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Nume" Style="{StaticResource InputLabelStyle}"/>
+                    <Border x:Name="BoxSurnameBorder"
+                            BorderBrush="{DynamicResource BgInputBorder}"
+                            BorderThickness="1" CornerRadius="9"
+                            Background="{DynamicResource BgInput}">
+                        <TextBox x:Name="BoxSurname" Style="{StaticResource TextBoxStyle}"
+                                 TextChanged="Name_Changed"/>
+                    </Border>
+                    <TextBlock x:Name="ErrSurname" Text="Numele este obligatoriu."
+                               Style="{StaticResource ErrorTextStyle}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Data nasterii -->
+            <StackPanel Margin="0,0,0,16">
+                <TextBlock Text="Data nașterii" Style="{StaticResource InputLabelStyle}"/>
+                <Border x:Name="BoxBirthBorder"
+                        BorderBrush="{DynamicResource BgInputBorder}"
+                        BorderThickness="1" CornerRadius="9"
+                        Background="{DynamicResource BgInput}" Padding="6,2">
+                    <DatePicker x:Name="BirthDatePicker"
+                                Background="Transparent" BorderThickness="0"
+                                FontSize="13"
+                                Foreground="{DynamicResource TxtPrimary}"
+                                SelectedDateChanged="BirthDate_Changed"
+                                VerticalAlignment="Center" Height="32">
+                        <DatePicker.Resources>
+                            <Style TargetType="DatePickerTextBox">
+                                <Setter Property="Background"               Value="Transparent"/>
+                                <Setter Property="Foreground"               Value="{DynamicResource TxtPrimary}"/>
+                                <Setter Property="BorderThickness"          Value="0"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            </Style>
+                        </DatePicker.Resources>
+                    </DatePicker>
+                </Border>
+                <TextBlock x:Name="ErrBirth" Text="Data nașterii este obligatorie."
+                           Style="{StaticResource ErrorTextStyle}"/>
+            </StackPanel>
+
+            <!-- Telefon -->
+            <StackPanel Margin="0,0,0,24">
+                <TextBlock Text="Număr de telefon" Style="{StaticResource InputLabelStyle}"/>
+                <Border x:Name="BoxPhoneBorder"
+                        BorderBrush="{DynamicResource BgInputBorder}"
+                        BorderThickness="1" CornerRadius="9"
+                        Background="{DynamicResource BgInput}">
+                    <TextBox x:Name="BoxPhone" Style="{StaticResource TextBoxStyle}"
+                             TextChanged="Phone_Changed"/>
+                </Border>
+                <TextBlock x:Name="ErrPhone" Text="Format invalid. Exemplu: +40 722 000 000"
+                           Style="{StaticResource ErrorTextStyle}"/>
+            </StackPanel>
+
+            <!-- Separator -->
+            <Border Height="1" Background="{DynamicResource BgSep}" Margin="0,0,0,24"/>
+
+            <!-- Section: Doctor -->
+            <TextBlock Text="DATE MEDIC" FontSize="10" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TxtMuted}" Margin="0,0,0,14"/>
+
+            <Grid Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Email medic" Style="{StaticResource InputLabelStyle}"/>
+                    <Border x:Name="BoxDoctorEmailBorder"
+                            BorderBrush="{DynamicResource BgInputBorder}"
+                            BorderThickness="1" CornerRadius="9"
+                            Background="{DynamicResource BgInput}">
+                        <TextBox x:Name="BoxDoctorEmail" Style="{StaticResource TextBoxStyle}"
+                                 TextChanged="DoctorEmail_Changed"/>
+                    </Border>
+                    <TextBlock x:Name="ErrDoctorEmail" Text="Format email invalid."
+                               Style="{StaticResource ErrorTextStyle}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Telefon medic" Style="{StaticResource InputLabelStyle}"/>
+                    <Border x:Name="BoxDoctorPhoneBorder"
+                            BorderBrush="{DynamicResource BgInputBorder}"
+                            BorderThickness="1" CornerRadius="9"
+                            Background="{DynamicResource BgInput}">
+                        <TextBox x:Name="BoxDoctorPhone" Style="{StaticResource TextBoxStyle}"
+                                 TextChanged="DoctorPhone_Changed"/>
+                    </Border>
+                    <TextBlock x:Name="ErrDoctorPhone"
+                               Text="Format invalid. Exemplu: +40 722 000 000"
+                               Style="{StaticResource ErrorTextStyle}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Buttons -->
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="CancelBtn" Grid.Column="0" Content="Anulează"
+                        Style="{StaticResource GhostBtn}"
+                        Click="Cancel_Click"/>
+                <Button x:Name="SaveBtn" Grid.Column="2" Content="Salvează modificările"
+                        Style="{StaticResource PrimaryBtn}"
+                        Click="Save_Click"/>
+            </Grid>
+
+        </StackPanel>
+    </Border>
+</Window>
