@@ -33,44 +33,36 @@ namespace focus_ai
         private bool _isDark = true;
 
         // ── Data ──
-        private List<TestEntry> _testsCache = new();
+        private List<TestEntry>     _testsCache      = new();
+        private List<ActivityEntry> _activitiesCache = new();
+
         private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw);
+        private record ActivityEntry(string Id, string DateTime, string Duration,
+                                     string Game, string Difficulty, double Scor);
 
         // ═══════════════════════════════════════════════════
         //  CONSTRUCTOR
         // ═══════════════════════════════════════════════════
-
         public Dashboard()
         {
             InitializeComponent();
 
-            // Determină tema sistemului
             _isDark = IsSystemDarkTheme();
-
-            // Aplică tema la nivelul întregii aplicații
             ThemeManager.Apply(_isDark);
-
-            // Actualizează pictograma butonului de temă
             ThemeIcon.Text = _isDark ? "☀️" : "🌙";
 
-            // Încarcă datele utilizatorului
             LoadUserInfoFromRegistry();
             _ = LoadProfileFromFirebaseAsync();
 
-            // Inițializează portul serial
             InitializeSerialPort();
-
-            // Înregistrează evenimentul de închidere
             this.Closing += Dashboard_Closing;
 
-            // Încarcă testările
             _ = LoadTestsFromFirebaseAsync();
         }
 
         // ═══════════════════════════════════════════════════
         //  THEME
         // ═══════════════════════════════════════════════════
-
         private static bool IsSystemDarkTheme()
         {
             try
@@ -89,15 +81,15 @@ namespace focus_ai
             ThemeManager.Apply(_isDark);
             ThemeIcon.Text = _isDark ? "☀️" : "🌙";
 
-            // Re‑randăm testele pentru a actualiza culorile rândurilor
             if (_testsCache.Count > 0)
                 RenderTests(_testsCache);
+            if (_activitiesCache.Count > 0)
+                RenderActivities(_activitiesCache);
         }
 
         // ═══════════════════════════════════════════════════
         //  TAB NAVIGATION
         // ═══════════════════════════════════════════════════
-
         private void Tab_Checked(object sender, RoutedEventArgs e)
         {
             if (PanelProfil == null) return;
@@ -105,15 +97,23 @@ namespace focus_ai
             PanelTestari.Visibility    = Visibility.Collapsed;
             PanelActivitati.Visibility = Visibility.Collapsed;
 
-            if      (sender == TabProfil)  PanelProfil.Visibility     = Visibility.Visible;
-            else if (sender == TabTestari) PanelTestari.Visibility    = Visibility.Visible;
-            else                           PanelActivitati.Visibility = Visibility.Visible;
+            if (sender == TabProfil)
+                PanelProfil.Visibility = Visibility.Visible;
+            else if (sender == TabTestari)
+                PanelTestari.Visibility = Visibility.Visible;
+            else
+            {
+                PanelActivitati.Visibility = Visibility.Visible;
+                // Încarcă activitățile prima dată când se deschide tab-ul
+                if (_activitiesCache.Count == 0 &&
+                    ActLoadingState.Visibility != Visibility.Visible)
+                    _ = LoadActivitiesFromFirebaseAsync();
+            }
         }
 
         // ═══════════════════════════════════════════════════
         //  USER INFO — REGISTRY
         // ═══════════════════════════════════════════════════
-
         private void LoadUserInfoFromRegistry()
         {
             try
@@ -135,7 +135,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  USER INFO — FIREBASE
         // ═══════════════════════════════════════════════════
-
         private async Task LoadProfileFromFirebaseAsync()
         {
             try
@@ -208,7 +207,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  EDIT PROFILE
         // ═══════════════════════════════════════════════════
-
         private void EditProfile_Click(object sender, RoutedEventArgs e)
         {
             var popup = new ProfileEditWindow(_isDark) { Owner = this };
@@ -219,7 +217,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  FIREBASE — TESTS
         // ═══════════════════════════════════════════════════
-
         private async Task LoadTestsFromFirebaseAsync()
         {
             string uid   = GetReg("Uid");
@@ -240,7 +237,7 @@ namespace focus_ai
 
                 if (string.IsNullOrEmpty(json) || json == "null")
                 {
-                    Dispatcher.Invoke(() => { ShowTestEmpty(); UpdateProfileStats(new()); });
+                    Dispatcher.Invoke(() => { ShowTestEmpty(); UpdateProfileStats(new(), new()); });
                     return;
                 }
 
@@ -260,7 +257,7 @@ namespace focus_ai
 
             foreach (var entry in doc.RootElement.EnumerateObject())
             {
-                var v     = entry.Value;
+                var v       = entry.Value;
                 string mapRaw = v.TryGetProperty("map",      out var mp)  ? mp.GetString()  ?? "" : "";
                 string dt     = v.TryGetProperty("dateTime", out var dtv) ? dtv.GetString() ?? "" : "";
                 string dur    = v.TryGetProperty("duration", out var dv)  ? dv.GetString()  ?? "" : "";
@@ -276,7 +273,7 @@ namespace focus_ai
             _testsCache = tests;
             TestRowsPanel.Children.Clear();
 
-            if (tests.Count == 0) { ShowTestEmpty(); UpdateProfileStats(tests); return; }
+            if (tests.Count == 0) { ShowTestEmpty(); UpdateProfileStats(tests, _activitiesCache); return; }
 
             TestLoadingState.Visibility = Visibility.Collapsed;
             TestEmptyState.Visibility   = Visibility.Collapsed;
@@ -289,12 +286,11 @@ namespace focus_ai
             for (int i = 0; i < tests.Count; i++)
                 TestRowsPanel.Children.Add(BuildTestRow(i + 1, tests[i]));
 
-            UpdateProfileStats(tests);
+            UpdateProfileStats(tests, _activitiesCache);
         }
 
         private Border BuildTestRow(int idx, TestEntry t)
         {
-            // Culorile sunt preluate din ThemeManager (prin resursele dinamice)
             var bgRow   = (SolidColorBrush)FindResource("RowBg");
             var bgNum   = (SolidColorBrush)FindResource("RowNumBg");
             var textPri = (SolidColorBrush)FindResource("TxtPrimary");
@@ -302,9 +298,7 @@ namespace focus_ai
             var btnBg   = _isDark
                 ? (SolidColorBrush)FindResource("BgNavActive")
                 : (SolidColorBrush)FindResource("BgCardHover");
-            var btnFg   = _isDark
-                ? (SolidColorBrush)FindResource("AccentSecFg")
-                : (SolidColorBrush)FindResource("AccentSecFg");
+            var btnFg   = (SolidColorBrush)FindResource("AccentSecFg");
 
             var scoreColor = t.Scor >= 80
                 ? (Color)ColorConverter.ConvertFromString("#22C55E")
@@ -321,16 +315,11 @@ namespace focus_ai
             };
 
             if (!_isDark)
-            {
                 row.Effect = new System.Windows.Media.Effects.DropShadowEffect
                 {
-                    Color       = (Color)ColorConverter.ConvertFromString("#1A2236"),
-                    BlurRadius  = 16,
-                    ShadowDepth = 1,
-                    Opacity     = 0.07,
-                    Direction   = 270
+                    Color = (Color)ColorConverter.ConvertFromString("#1A2236"),
+                    BlurRadius = 16, ShadowDepth = 1, Opacity = 0.07, Direction = 270
                 };
-            }
 
             var g = new Grid();
             int[] widths = { 50, -1, 90, 110, 80, 80 };
@@ -349,7 +338,7 @@ namespace focus_ai
             numBd.Child = new TextBlock
             {
                 Text = idx.ToString(), FontSize = 11, FontWeight = FontWeights.SemiBold,
-                Foreground          = textSec,
+                Foreground = textSec,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment   = VerticalAlignment.Center
             };
@@ -357,7 +346,6 @@ namespace focus_ai
 
             Add(1, new TextBlock { Text = t.DateTime, FontSize = 13,
                 Foreground = textPri, VerticalAlignment = VerticalAlignment.Center });
-
             Add(2, new TextBlock { Text = t.Duration, FontSize = 13,
                 Foreground = textSec, VerticalAlignment = VerticalAlignment.Center });
 
@@ -366,8 +354,7 @@ namespace focus_ai
                 Background = new SolidColorBrush(Color.FromArgb(
                     _isDark ? (byte)30 : (byte)20,
                     scoreColor.R, scoreColor.G, scoreColor.B)),
-                CornerRadius        = new CornerRadius(8),
-                Padding             = new Thickness(8, 4, 8, 4),
+                CornerRadius = new CornerRadius(8), Padding = new Thickness(8, 4, 8, 4),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment   = VerticalAlignment.Center
             };
@@ -380,15 +367,12 @@ namespace focus_ai
 
             var btn = new Button
             {
-                Content             = "Detalii",
-                FontSize            = 11, FontWeight = FontWeights.SemiBold,
-                Background          = btnBg,
-                Foreground          = btnFg,
-                BorderThickness     = new Thickness(0),
-                Cursor              = System.Windows.Input.Cursors.Hand,
-                VerticalAlignment   = VerticalAlignment.Center,
+                Content = "Detalii", FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Background = btnBg, Foreground = btnFg, BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Padding             = new Thickness(10, 4, 10, 4)
+                Padding = new Thickness(10, 4, 10, 4)
             };
             var tpl = new ControlTemplate(typeof(Button));
             var fef = new FrameworkElementFactory(typeof(Border));
@@ -415,14 +399,6 @@ namespace focus_ai
             return row;
         }
 
-        private void UpdateProfileStats(List<TestEntry> tests)
-        {
-            StatNrTestari.Text = tests.Count > 0 ? tests.Count.ToString() : "0";
-            StatScorMediu.Text = tests.Count > 0 ? $"{tests.Average(t => t.Scor):F1}" : "—";
-            if (StatNrActivitati.Text      == "—") StatNrActivitati.Text      = "0";
-            if (StatScorMaxActivitati.Text == "—") StatScorMaxActivitati.Text = "—";
-        }
-
         private void ShowTestLoading()
         {
             TestLoadingState.Visibility = Visibility.Visible;
@@ -442,20 +418,323 @@ namespace focus_ai
             => await LoadTestsFromFirebaseAsync();
 
         // ═══════════════════════════════════════════════════
+        //  FIREBASE — ACTIVITIES
+        // ═══════════════════════════════════════════════════
+        private async Task LoadActivitiesFromFirebaseAsync()
+        {
+            string uid   = GetReg("Uid");
+            string token = GetReg("IdToken");
+
+            if (string.IsNullOrEmpty(uid))
+            {
+                Dispatcher.Invoke(ShowActEmpty);
+                return;
+            }
+
+            Dispatcher.Invoke(ShowActLoading);
+
+            try
+            {
+                string json = await _http.GetStringAsync(
+                    $"{_dbUrl}/{uid}/activities.json?auth={token}");
+
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    Dispatcher.Invoke(() => { ShowActEmpty(); UpdateProfileStats(_testsCache, new()); });
+                    return;
+                }
+
+                var activities = ParseActivities(json);
+                Dispatcher.Invoke(() => RenderActivities(activities));
+            }
+            catch
+            {
+                Dispatcher.Invoke(ShowActEmpty);
+            }
+        }
+
+        private List<ActivityEntry> ParseActivities(string json)
+        {
+            var list = new List<ActivityEntry>();
+            using var doc = JsonDocument.Parse(json);
+
+            foreach (var entry in doc.RootElement.EnumerateObject())
+            {
+                var v = entry.Value;
+                string dt         = v.TryGetProperty("dateTime",   out var dtv) ? dtv.GetString()  ?? "" : "";
+                string dur        = v.TryGetProperty("duration",   out var dv)  ? dv.GetString()   ?? "" : "";
+                string game       = v.TryGetProperty("game",       out var gv)  ? gv.GetString()   ?? "" : "";
+                string difficulty = v.TryGetProperty("difficulty", out var dfv) ? dfv.GetString()  ?? "" : "";
+                double scor       = v.TryGetProperty("scor",       out var sv)  ? sv.GetDouble()        : 0;
+                list.Add(new ActivityEntry(entry.Name, dt, dur, game, difficulty, scor));
+            }
+
+            return list.OrderByDescending(a => a.DateTime).ToList();
+        }
+
+        private void RenderActivities(List<ActivityEntry> activities)
+        {
+            _activitiesCache = activities;
+            ActRowsPanel.Children.Clear();
+
+            if (activities.Count == 0)
+            {
+                ShowActEmpty();
+                UpdateProfileStats(_testsCache, activities);
+                return;
+            }
+
+            ActLoadingState.Visibility = Visibility.Collapsed;
+            ActEmptyState.Visibility   = Visibility.Collapsed;
+            ActTableHeader.Visibility  = Visibility.Visible;
+            ActGamesSep.Visibility     = Visibility.Collapsed;
+            ActGamesTitle.Visibility   = Visibility.Collapsed;
+            ActGamesRow1.Visibility    = Visibility.Collapsed;
+            ActGamesRow2.Visibility    = Visibility.Collapsed;
+
+            // Mini-statistici
+            ActLastDate.Text       = activities[0].DateTime;
+            ActBestScore.Text      = $"{activities.Max(a => a.Scor):F2}";
+            ActAvgScore.Text       = $"{activities.Average(a => a.Scor):F2}";
+            ActTotalSessions.Text  = activities.Count.ToString();
+
+            for (int i = 0; i < activities.Count; i++)
+                ActRowsPanel.Children.Add(BuildActivityRow(i + 1, activities[i]));
+
+            UpdateProfileStats(_testsCache, activities);
+        }
+
+        private Border BuildActivityRow(int idx, ActivityEntry a)
+        {
+            var bgRow   = (SolidColorBrush)FindResource("RowBg");
+            var bgNum   = (SolidColorBrush)FindResource("RowNumBg");
+            var textPri = (SolidColorBrush)FindResource("TxtPrimary");
+            var textSec = (SolidColorBrush)FindResource("TxtSecondary");
+
+            var scoreColor = a.Scor >= 80
+                ? (Color)ColorConverter.ConvertFromString("#22C55E")
+                : a.Scor >= 50
+                    ? (Color)ColorConverter.ConvertFromString("#FB923C")
+                    : (Color)ColorConverter.ConvertFromString("#EF4444");
+
+            // Culoare badge dificultate
+            var (diffBgHex, diffFgHex) = a.Difficulty switch
+            {
+                "Ușor"    => ("#3B82F620", "#3B82F6"),
+                "Mediu"   => ("#F59E0B20", "#F59E0B"),
+                "Dificil" => ("#EF444420", "#EF4444"),
+                _         => ("#64748B20", "#64748B")
+            };
+
+            // Emoji pentru joc
+            string gameIcon = a.Game switch
+            {
+                "Memorie"          => "🧠",
+                "Stroop Test"      => "🎨",
+                "Visual Search"    => "🔍",
+                "Secvențe"         => "🔢",
+                "Matematică rapidă"=> "➕",
+                _                  => "🎮"
+            };
+
+            var row = new Border
+            {
+                Background   = bgRow,
+                CornerRadius = new CornerRadius(10),
+                Padding      = new Thickness(18, 12, 18, 12),
+                Margin       = new Thickness(0, 0, 0, 8)
+            };
+
+            if (!_isDark)
+                row.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color = (Color)ColorConverter.ConvertFromString("#1A2236"),
+                    BlurRadius = 16, ShadowDepth = 1, Opacity = 0.07, Direction = 270
+                };
+
+            var g = new Grid();
+            // Coloane: # | Data | Durată | Joc | Dificultate | Scor
+            int[] widths = { 46, -1, 88, 100, 80, 110 };
+            foreach (var w in widths)
+                g.ColumnDefinitions.Add(w == -1
+                    ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
+                    : new ColumnDefinition { Width = new GridLength(w) });
+
+            void Add(int col, UIElement el) { Grid.SetColumn(el, col); g.Children.Add(el); }
+
+            // Col 0 — index
+            var numBd = new Border
+            {
+                Width = 28, Height = 28, CornerRadius = new CornerRadius(8),
+                Background = bgNum, VerticalAlignment = VerticalAlignment.Center
+            };
+            numBd.Child = new TextBlock
+            {
+                Text = idx.ToString(), FontSize = 11, FontWeight = FontWeights.SemiBold,
+                Foreground = textSec,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment   = VerticalAlignment.Center
+            };
+            Add(0, numBd);
+
+            // Col 1 — dată și oră
+            Add(1, new TextBlock
+            {
+                Text = a.DateTime, FontSize = 13,
+                Foreground = textPri, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Col 2 — durată
+            Add(2, new TextBlock
+            {
+                Text = a.Duration, FontSize = 13,
+                Foreground = textSec, VerticalAlignment = VerticalAlignment.Center
+            });
+
+            // Col 3 — joc (icon + nume)
+            var gamePanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            gamePanel.Children.Add(new TextBlock
+            {
+                Text = gameIcon, FontSize = 14, Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = _isDark
+                    ? new SolidColorBrush(Colors.White)
+                    : new SolidColorBrush(Colors.Black)
+            });
+            gamePanel.Children.Add(new TextBlock          // ← linia lipsă
+            {
+                Text = a.Game, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = textPri, VerticalAlignment = VerticalAlignment.Center
+            });
+            Add(3, gamePanel);
+
+            // Col 4 — dificultate (badge colorat)
+            if (!string.IsNullOrEmpty(a.Difficulty))
+            {
+                var diffBd = new Border
+                {
+                    Background = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(diffBgHex)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(8, 3, 8, 3),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    VerticalAlignment   = VerticalAlignment.Center
+                };
+                diffBd.Child = new TextBlock
+                {
+                    Text = a.Difficulty, FontSize = 11, FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(diffFgHex))
+                };
+                Add(4, diffBd);
+            }
+
+            // Col 5 — scor (badge colorat, aliniat dreapta)
+            var scoreBd = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(
+                    _isDark ? (byte)30 : (byte)20,
+                    scoreColor.R, scoreColor.G, scoreColor.B)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(8, 4, 8, 4),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment   = VerticalAlignment.Center
+            };
+            scoreBd.Child = new TextBlock
+            {
+                Text = $"{a.Scor:F2}", FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(scoreColor)
+            };
+            Add(5, scoreBd);
+
+            row.Child = g;
+            return row;
+        }
+
+        private void ShowActLoading()
+        {
+            ActLoadingState.Visibility = Visibility.Visible;
+            ActEmptyState.Visibility   = Visibility.Collapsed;
+            ActTableHeader.Visibility  = Visibility.Collapsed;
+            ActRowsPanel.Children.Clear();
+            ActGamesSep.Visibility   = Visibility.Collapsed;
+            ActGamesTitle.Visibility = Visibility.Collapsed;
+            ActGamesRow1.Visibility  = Visibility.Collapsed;
+            ActGamesRow2.Visibility  = Visibility.Collapsed;
+        }
+
+        private void ShowActEmpty()
+        {
+            ActLoadingState.Visibility = Visibility.Collapsed;
+            ActEmptyState.Visibility   = Visibility.Visible;
+            ActTableHeader.Visibility  = Visibility.Collapsed;
+            // Arată jocurile disponibile când nu există activități
+            ActGamesSep.Visibility   = Visibility.Visible;
+            ActGamesTitle.Visibility = Visibility.Visible;
+            ActGamesRow1.Visibility  = Visibility.Visible;
+            ActGamesRow2.Visibility  = Visibility.Visible;
+        }
+
+        private async void RefreshActivities_Click(object sender, RoutedEventArgs e)
+            => await LoadActivitiesFromFirebaseAsync();
+
+        private void GoToGames_Click(object sender, RoutedEventArgs e)
+        {
+            bool visible = ActGamesRow1.Visibility == Visibility.Visible;
+
+            ActGamesSep.Visibility   = visible ? Visibility.Collapsed : Visibility.Visible;
+            ActGamesTitle.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
+            ActGamesRow1.Visibility  = visible ? Visibility.Collapsed : Visibility.Visible;
+            ActGamesRow2.Visibility  = visible ? Visibility.Collapsed : Visibility.Visible;
+        }
+        // ═══════════════════════════════════════════════════
+        //  PROFILE STATS (actualizat cu activitățile)
+        // ═══════════════════════════════════════════════════
+        private void UpdateProfileStats(List<TestEntry> tests, List<ActivityEntry> activities)
+        {
+            StatNrTestari.Text = tests.Count > 0 ? tests.Count.ToString() : "0";
+            StatScorMediu.Text = tests.Count > 0 ? $"{tests.Average(t => t.Scor):F1}" : "—";
+
+            StatNrActivitati.Text = activities.Count > 0 ? activities.Count.ToString() : "0";
+            StatScorMaxActivitati.Text = activities.Count > 0
+                ? $"{activities.Max(a => a.Scor):F1}"
+                : "—";
+        }
+
+        // ═══════════════════════════════════════════════════
         //  GAMES
         // ═══════════════════════════════════════════════════
-
         private void GameMemorie_Click(object sender, RoutedEventArgs e)
-            => MessageBox.Show("Jocul Memorie — în curând!", "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+        {
+            var game = new MemorieGame(_isDark) { Owner = this };
+            game.Show();
+            this.Hide();
+        }
+
         private void GameSecvente_Click(object sender, RoutedEventArgs e)
             => MessageBox.Show("Secvențe — în curând!", "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
         private void GameMatematica_Click(object sender, RoutedEventArgs e)
             => MessageBox.Show("Matematică Rapidă — în curând!", "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+        private void GameStroop_Click(object sender, RoutedEventArgs e)
+        {
+            var game = new StroopGame(_isDark) { Owner = this };
+            game.Show();
+            this.Hide();
+        }
+        private void GameVisualSearch_Click(object sender, RoutedEventArgs e)
+        {
+            var game = new VisualSearchGame(_isDark) { Owner = this };
+            game.Show();
+            this.Hide();
+        }
 
         // ═══════════════════════════════════════════════════
         //  NEW TEST
         // ═══════════════════════════════════════════════════
-
         private void NewTest_Click(object sender, RoutedEventArgs e)
         {
             var startTest = new StartTest(this, _isDark);
@@ -466,7 +745,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  HELPERS
         // ═══════════════════════════════════════════════════
-
         private string GetReg(string key)
         {
             try
@@ -480,7 +758,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  SERIAL PORT
         // ═══════════════════════════════════════════════════
-
         private void InitializeSerialPort()
         {
             try
@@ -505,7 +782,6 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         //  CLOSING / LOGOUT
         // ═══════════════════════════════════════════════════
-
         private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _isRunning = false;
@@ -531,22 +807,11 @@ namespace focus_ai
             new Login().Show();
             Close();
         }
-
-        private void GameStroop_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Stroop Game — în curând!", "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private void GameVisualSearch_Click(object sender, RoutedEventArgs e)
-        {
-            MessageBox.Show("Visual Search — în curând!", "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
     }
 
     // ═══════════════════════════════════════════════════
     //  MODEL
     // ═══════════════════════════════════════════════════
-
     public class ProfileData
     {
         [JsonPropertyName("name")]

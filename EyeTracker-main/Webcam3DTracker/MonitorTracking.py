@@ -12,9 +12,6 @@ import keyboard
 import subprocess
 import sys
 
-# ============================================================
-#  SCREEN / MOUSE SETUP
-# ============================================================
 MONITOR_WIDTH, MONITOR_HEIGHT = pyautogui.size()
 CENTER_X = MONITOR_WIDTH // 2
 CENTER_Y = MONITOR_HEIGHT // 2
@@ -22,9 +19,6 @@ mouse_control_enabled = False
 filter_length = 10
 gaze_length = 350
 
-# ============================================================
-#  ORBIT CAMERA STATE (debug view)
-# ============================================================
 orbit_yaw    = -151.0
 orbit_pitch  =    0.0
 orbit_radius = 1500.0
@@ -35,17 +29,11 @@ orbit_pivot_frozen   = None
 
 gaze_markers = []
 
-# ============================================================
-#  3-D MONITOR PLANE STATE
-# ============================================================
 monitor_corners   = None
 monitor_center_w  = None
 monitor_normal_w  = None
 units_per_cm      = None
 
-# ============================================================
-#  MOUSE TARGET
-# ============================================================
 mouse_target = [CENTER_X, CENTER_Y]
 mouse_lock   = threading.Lock()
 
@@ -60,14 +48,11 @@ R_ref_nose     = [None]
 R_ref_forehead = [None]
 calibration_nose_scale = None
 
-# ============================================================
-#  MONITOR-CORNER TUNING
-# ============================================================
 CORNER_LABELS = [
-    "bottom-right (0,0)",
-    "bottom-left  (0,1)->X",
-    "top-left     (1,1)",
-    "top-right    (1,0)->Y",
+    "dreapta-jos (0,0)",
+    "stanga-jos  (0,1)->X",
+    "stanga-sus  (1,1)",
+    "dreapta-sus (1,0)->Y",
 ]
 corner_world_pts   = []
 corner_calib_step  = 0
@@ -121,9 +106,6 @@ def intersect_gaze_with_tuned_monitor(O, D):
     return get_monitor_coords_tuned(P)
 
 
-# ============================================================
-#  60-s RECORDING
-# ============================================================
 recording_active   = False
 recording_start_t  = None
 RECORDING_DURATION = 60.0
@@ -132,20 +114,14 @@ recorded_coords    = []
 
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ============================================================
-#  STIMULUS - PHASE CONSTANTS
-# ============================================================
-PHASE1_DURATION = 30.0   # primele 30s: imaginea NYC
-PHASE2_DURATION = 30.0   # ultimele 30s: puncte miscatoare
+PHASE1_DURATION = 30.0
+PHASE2_DURATION = 30.0
 
 STIMULUS_WIN_NAME = "Stimulus"
 STIMULUS_IMG_PATH = os.path.join(OUTPUT_DIR, "NYCSquare.jpg")
 _stimulus_img_raw  = None
 _stimulus_img_show = None
 
-# ============================================================
-#  MOVING DOTS
-# ============================================================
 NUM_DOTS          = 12
 DOT_RADIUS        = 18
 DOT_COLOR_BLUE    = (200, 80, 0)
@@ -231,11 +207,11 @@ def _build_dots_frame():
 def _load_stimulus_image():
     global _stimulus_img_raw, _stimulus_img_show
     if not os.path.isfile(STIMULUS_IMG_PATH):
-        print(f"[Stimulus] Fisierul nu a fost gasit: {STIMULUS_IMG_PATH}")
+        print(f"[Stimulus] Fisierul nu a fost gasit: {STIMULUS_IMG_PATH}", file=sys.stderr)
         return False
     img = cv2.imread(STIMULUS_IMG_PATH)
     if img is None:
-        print(f"[Stimulus] Nu s-a putut citi imaginea: {STIMULUS_IMG_PATH}")
+        print(f"[Stimulus] Nu s-a putut citi imaginea: {STIMULUS_IMG_PATH}", file=sys.stderr)
         return False
     _stimulus_img_raw = img
     ih, iw = img.shape[:2]
@@ -248,7 +224,7 @@ def _load_stimulus_image():
     y_off = (MONITOR_HEIGHT - new_h) // 2
     canvas[y_off:y_off+new_h, x_off:x_off+new_w] = resized
     _stimulus_img_show = canvas
-    print(f"[Stimulus] Imagine incarcata: {iw}x{ih} -> afisat {new_w}x{new_h}")
+    print(f"[Stimulus] Imagine incarcata: {iw}x{ih} -> afisat {new_w}x{new_h}", file=sys.stderr)
     return True
 
 
@@ -261,7 +237,7 @@ def show_stimulus_window():
     if _stimulus_img_show is not None:
         cv2.imshow(STIMULUS_WIN_NAME, _stimulus_img_show)
     cv2.setWindowProperty(STIMULUS_WIN_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    print("[Stimulus] Fereastra deschisa fullscreen.")
+    print("[Stimulus] Fereastra deschisa fullscreen.", file=sys.stderr)
 
 
 def hide_stimulus_window():
@@ -269,7 +245,7 @@ def hide_stimulus_window():
         cv2.destroyWindow(STIMULUS_WIN_NAME)
     except Exception:
         pass
-    print("[Stimulus] Fereastra inchisa.")
+    print("[Stimulus] Fereastra inchisa.", file=sys.stderr)
 
 
 def _update_stimulus_overlay():
@@ -298,7 +274,7 @@ def _update_stimulus_overlay():
     cv2.addWeighted(bar_bg, 0.75, overlay, 0.25, 0, overlay)
 
     font = cv2.FONT_HERSHEY_DUPLEX
-    hud  = f"REC  {remaining:.0f}s  |  {len(recorded_coords)} pts  |  {phase_label}"
+    hud  = f"INREG  {remaining:.0f}s  |  {len(recorded_coords)} pts  |  {phase_label}"
     (tw, th), _ = cv2.getTextSize(hud, font, 0.6, 1)
     tx = (MONITOR_WIDTH - tw) // 2
     ty = bar_y0 + bar_h + th + 6
@@ -311,68 +287,30 @@ def _update_stimulus_overlay():
 _load_stimulus_image()
 
 
-# ============================================================
-#  AUTO-SEND TO C# — trimite coordonatele automat prin stdout
-# ============================================================
-
-CSHARP_APP_PATH = os.path.join(OUTPUT_DIR, "TestFocusAI.exe")  # <-- schimba cu calea ta
+CSHARP_APP_PATH = os.path.join(OUTPUT_DIR, "TestFocusAI.exe")
 
 def format_coords_for_csharp(coords):
-    """
-    Converteste lista de (sec, mx, my) in sirul  "mx,my;mx,my;..."
-    exact formatul asteptat de aplicatia C#.
-    """
-    parts = [f"{mx:.3f},{my:.3f}" for (_, mx, my) in coords]
+    parts = [f"{mx*100:.3f},{my*100:.3f}" for (_, mx, my) in coords]
     return ";".join(parts)
 
 
 def send_coords_to_csharp(coords):
-    """
-    Trimite coordonatele la aplicatia C# in doua moduri:
-      1. Prin stdout (daca eye tracker-ul insusi e lansat de C# ca subprocess)
-      2. Prin subprocess (lanseaza exe-ul C# si ii trimite datele pe stdin)
-    """
     if not coords:
-        print("[Send] Nu exista coordonate de trimis.", file=sys.stderr)
         return
-
-    coords_str = format_coords_for_csharp(coords)
-    n = len(coords)
-    print(f"[Send] Trimit {n} puncte gaze catre C#...", file=sys.stderr)
-
-    # --- Metoda 1: stdout direct (daca C# a lansat acest script ca subprocess) ---
-    print(coords_str)          # C# citeste asta cu StandardOutput.ReadLine()
+    print(format_coords_for_csharp(coords))
     sys.stdout.flush()
-    print(f"[Send] Trimis pe stdout: {coords_str[:80]}{'...' if len(coords_str)>80 else ''}", file=sys.stderr)
-
-    # --- Metoda 2: lanseaza exe-ul C# si trimite pe stdin (decommenteaza daca ai nevoie) ---
-    # if os.path.isfile(CSHARP_APP_PATH):
-    #     try:
-    #         proc = subprocess.Popen(
-    #             [CSHARP_APP_PATH],
-    #             stdin=subprocess.PIPE,
-    #             stdout=subprocess.PIPE,
-    #             stderr=subprocess.PIPE,
-    #             text=True
-    #         )
-    #         stdout_data, stderr_data = proc.communicate(input=coords_str, timeout=10)
-    #         print(f"[Send] Raspuns C#: {stdout_data.strip()}", file=sys.stderr)
-    #     except Exception as e:
-    #         print(f"[Send] Eroare la lansarea C#: {e}", file=sys.stderr)
-    # else:
-    #     print(f"[Send] Exe C# negasit la: {CSHARP_APP_PATH}", file=sys.stderr)
 
 
 def start_recording():
     global recording_active, recording_start_t, last_record_second, recorded_coords
     if not monitor_tuned:
-        print("[Recording] Calibreaza mai intai colturele in ecranul de calibrare.")
+        print("[Inregistrare] Calibreaza mai intai colturile in ecranul de calibrare.", file=sys.stderr)
         return
     recording_active   = True
     recording_start_t  = time.time()
     last_record_second = -1
     recorded_coords    = []
-    print("[Recording] START — 60 de secunde (30s imagine + 30s puncte miscatoare).")
+    print("[Inregistrare] START - 60 de secunde (30s imagine + 30s puncte miscatoare).", file=sys.stderr)
     show_stimulus_window()
 
 
@@ -380,25 +318,23 @@ def stop_recording_and_save():
     global recording_active
     recording_active = False
     hide_stimulus_window()
-    print(f"[Recording] STOP — {len(recorded_coords)} coordonate salvate.")
+    print(f"[Inregistrare] STOP - {len(recorded_coords)} coordonate salvate.", file=sys.stderr)
     save_results()
-    # ★ TRIMITERE AUTOMATA — se executa imediat dupa salvare
     send_coords_to_csharp(recorded_coords)
 
 
 def save_results():
     if not recorded_coords:
-        print("[Save] Nu exista coordonate de salvat.")
+        print("[Salvare] Nu exista coordonate de salvat.", file=sys.stderr)
         return
     txt_path = os.path.join(OUTPUT_DIR, "gaze_coords.txt")
     with open(txt_path, "w", encoding="utf-8") as f:
-        f.write("# second, mx, my\n")
+        f.write("# secunda, mx, my\n")
         f.write("coords = [\n")
         for (sec, mx, my) in recorded_coords:
             f.write(f"    ({sec:3d}, {mx:.4f}, {my:.4f}),\n")
         f.write("]\n")
-    print(f"[Save] Salvat in: {txt_path}")
-    show_gaze_map(recorded_coords)
+    print(f"[Salvare] Salvat in: {txt_path}", file=sys.stderr)
 
 
 def show_gaze_map(coords):
@@ -409,10 +345,10 @@ def show_gaze_map(coords):
     ix0, iy0, ix1, iy1 = margin, margin, MAP_W-margin, MAP_H-margin
     cv2.rectangle(img, (ix0, iy0), (ix1, iy1), (80,80,80), 2)
     font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(img, "BR(0,0)", (ix1-70, iy1+18), font, 0.45, (120,120,120), 1)
-    cv2.putText(img, "BL",      (ix0,    iy1+18), font, 0.45, (120,120,120), 1)
-    cv2.putText(img, "TL",      (ix0,    iy0-6),  font, 0.45, (120,120,120), 1)
-    cv2.putText(img, "TR",      (ix1-30, iy0-6),  font, 0.45, (120,120,120), 1)
+    cv2.putText(img, "DR(0,0)", (ix1-70, iy1+18), font, 0.45, (120,120,120), 1)
+    cv2.putText(img, "DJ",      (ix0,    iy1+18), font, 0.45, (120,120,120), 1)
+    cv2.putText(img, "SS",      (ix0,    iy0-6),  font, 0.45, (120,120,120), 1)
+    cv2.putText(img, "DS",      (ix1-30, iy0-6),  font, 0.45, (120,120,120), 1)
     iw2, ih2 = ix1-ix0, iy1-iy0
 
     def to_px(mx, my):
@@ -430,20 +366,17 @@ def show_gaze_map(coords):
         col = (0, int(255*(1-t)), int(255*t))
         cv2.circle(img, (px,py), 6, col, -1)
         cv2.putText(img, str(sec), (px+7,py-4), font, 0.38, col, 1)
-    cv2.putText(img, "Harta Gaze (60s)", (MAP_W//2-100, 22), font, 0.7, (200,200,200), 1)
+    cv2.putText(img, "Harta Privire (60s)", (MAP_W//2-100, 22), font, 0.7, (200,200,200), 1)
     cv2.putText(img, f"{len(coords)} puncte", (MAP_W//2-60, MAP_H-12), font, 0.5, (160,160,160), 1)
-    cv2.imshow("Gaze Map", img)
+    cv2.imshow("Harta Privire", img)
 
 
-# ============================================================
-#  FULLSCREEN CALIBRATION UI
-# ============================================================
 calibration_mode    = True
 calibration_stage   = 0
 current_calib_index = 0
 screen_calib_points_world = []
 
-CALIB_WIN_NAME  = "Eye Tracker Calibration"
+CALIB_WIN_NAME  = "Calibrare Tracker Ocular"
 CALIB_MARGIN    = 100
 ORANGE_BGR      = (0, 140, 255)
 ORANGE_RING_BGR = (30, 180, 255)
@@ -472,9 +405,9 @@ CALIB_SCREEN_POINTS = _build_calib_points()
 N_CALIB_POINTS      = len(CALIB_SCREEN_POINTS)
 
 _CALIB_POINT_NAMES = [
-    "Center",
-    "Bottom-Right", "Bottom-Left", "Top-Left", "Top-Right",
-    "Top-Center", "Right-Center", "Bottom-Center", "Left-Center",
+    "Centru",
+    "Jos-Dreapta", "Jos-Stanga", "Sus-Stanga", "Sus-Dreapta",
+    "Sus-Centru", "Dreapta-Centru", "Jos-Centru", "Stanga-Centru",
 ]
 
 _CORNER_CALIB_INDICES = [1, 2, 3, 4]
@@ -502,20 +435,20 @@ def show_calibration_screen(avg_gaze_dir=None):
     if calibration_stage == 0:
         cx, cy = MONITOR_WIDTH//2, MONITOR_HEIGHT//2
         _draw_calibration_dot(img, cx, cy, pulse)
-        title = "EYE TRACKER CALIBRATION"
+        title = "CALIBRARE TRACKER OCULAR"
         (tw,_),_ = cv2.getTextSize(title, font, 1.0, 2)
         cv2.putText(img, title, ((MONITOR_WIDTH-tw)//2, cy-110), font, 1.0, (60,60,60), 2, cv2.LINE_AA)
-        sub = "Keep your head still and focus naturally on the orange dot"
+        sub = "Tine capul nemiscat si priveste natural spre punctul portocaliu"
         (sw,_),_ = cv2.getTextSize(sub, font, 0.6, 1)
         cv2.putText(img, sub, ((MONITOR_WIDTH-sw)//2, cy+65), font, 0.6, (100,100,100), 1, cv2.LINE_AA)
-        prompt = "Look at the center and press  C"
+        prompt = "Priveste centrul si apasa  C"
         (pw,ph),_ = cv2.getTextSize(prompt, font, 0.85, 2)
         px_pos = (MONITOR_WIDTH-pw)//2; py_pos = cy+105
         kw = cv2.getTextSize("C", font, 0.85, 2)[0][0]
         kx = px_pos+pw-kw-2
         cv2.rectangle(img, (kx-10,py_pos-ph-4), (kx+kw+10,py_pos+8), ORANGE_BGR, -1, cv2.LINE_AA)
         cv2.putText(img, prompt, (px_pos,py_pos), font, 0.85, DARK_BGR, 2, cv2.LINE_AA)
-        footer = "Stage 1 of 2  -  Center fixation"
+        footer = "Etapa 1 din 2  -  Fixare centru"
         (fw2,_),_ = cv2.getTextSize(footer, font, 0.5, 1)
         cv2.putText(img, footer, ((MONITOR_WIDTH-fw2)//2, MONITOR_HEIGHT-30), font, 0.5, (170,170,170), 1, cv2.LINE_AA)
 
@@ -528,10 +461,10 @@ def show_calibration_screen(avg_gaze_dir=None):
             cv2.rectangle(img, (CALIB_MARGIN,bar_y), (MONITOR_WIDTH-CALIB_MARGIN,bar_y+bar_h), (210,210,210), -1, cv2.LINE_AA)
             cv2.rectangle(img, (CALIB_MARGIN,bar_y),
                           (CALIB_MARGIN+int((MONITOR_WIDTH-2*CALIB_MARGIN)*progress),bar_y+bar_h), ORANGE_BGR, -1, cv2.LINE_AA)
-            prog_text = f"Point  {current_calib_index+1}  /  {N_CALIB_POINTS}"
+            prog_text = f"Punct  {current_calib_index+1}  /  {N_CALIB_POINTS}"
             (pt_w,_),_ = cv2.getTextSize(prog_text, font, 0.7, 1)
             cv2.putText(img, prog_text, ((MONITOR_WIDTH-pt_w)//2, 50), font, 0.7, (80,80,80), 1, cv2.LINE_AA)
-            instr = "Look at the orange dot, then press  M"
+            instr = "Priveste punctul portocaliu, apoi apasa  M"
             (iw2,ih2),_ = cv2.getTextSize(instr, font, 0.75, 1)
             iy = ty-70 if ty > MONITOR_HEIGHT//2 else ty+80
             km_w   = cv2.getTextSize("M", font, 0.75, 1)[0][0]
@@ -544,22 +477,22 @@ def show_calibration_screen(avg_gaze_dir=None):
             cv2.putText(img, lbl, (tx-lw//2, ty+42), font, 0.5, (130,130,130), 1, cv2.LINE_AA)
             if current_calib_index in _CORNER_CALIB_INDICES:
                 ci  = _CORNER_CALIB_INDICES.index(current_calib_index)
-                hint = f"Corner {ci+1}/4  -  {CORNER_LABELS[ci]}"
+                hint = f"Colt {ci+1}/4  -  {CORNER_LABELS[ci]}"
                 (hw2,_),_ = cv2.getTextSize(hint, font, 0.45, 1)
                 cv2.putText(img, hint, (tx-hw2//2, ty+62), font, 0.45, (0,140,255), 1, cv2.LINE_AA)
             for pi in range(current_calib_index):
                 px2, py2 = CALIB_SCREEN_POINTS[pi]
                 cv2.circle(img, (px2,py2), 6, (100,200,80), -1, cv2.LINE_AA)
-            footer = "Stage 2 of 2  -  Multi-point calibration"
+            footer = "Etapa 2 din 2  -  Calibrare multi-punct"
             (fw2,_),_ = cv2.getTextSize(footer, font, 0.5, 1)
             cv2.putText(img, footer, ((MONITOR_WIDTH-fw2)//2, MONITOR_HEIGHT-30), font, 0.5, (170,170,170), 1, cv2.LINE_AA)
 
     elif calibration_stage == 2:
         cx, cy = MONITOR_WIDTH//2, MONITOR_HEIGHT//2
-        done_text = "Calibration Complete!"
+        done_text = "Calibrare finalizata!"
         (dw,_),_ = cv2.getTextSize(done_text, font, 1.6, 3)
         cv2.putText(img, done_text, ((MONITOR_WIDTH-dw)//2, cy-20), font, 1.6, (30,160,80), 3, cv2.LINE_AA)
-        sub2 = "Starting eye tracking..."
+        sub2 = "Se porneste testul ocular..."
         (sw2,_),_ = cv2.getTextSize(sub2, font, 0.8, 1)
         cv2.putText(img, sub2, ((MONITOR_WIDTH-sw2)//2, cy+50), font, 0.8, (100,100,100), 1, cv2.LINE_AA)
         for pi, (px2,py2) in enumerate(CALIB_SCREEN_POINTS[:len(screen_calib_points_world)]):
@@ -604,16 +537,16 @@ def advance_calib_point_stage1(O, D):
 
     if hit is not None:
         screen_calib_points_world.append(hit)
-        print(f"[Calib] Point {current_calib_index+1}/{N_CALIB_POINTS} '{name}' -> {hit.round(2)}")
+        print(f"[Calib] Punct {current_calib_index+1}/{N_CALIB_POINTS} '{name}' -> {hit.round(2)}", file=sys.stderr)
         if current_calib_index in _CORNER_CALIB_INDICES and not monitor_tuned:
             corner_world_pts.append(hit.copy())
             corner_calib_step = len(corner_world_pts)
-            print(f"  [Corner] {corner_calib_step}/4 '{CORNER_LABELS[corner_calib_step-1]}' inregistrat.")
+            print(f"  [Colt] {corner_calib_step}/4 '{CORNER_LABELS[corner_calib_step-1]}' inregistrat.", file=sys.stderr)
             if corner_calib_step == 4:
                 monitor_tuned = True
-                print("  [Corner] Monitor CALIBRAT! T = start inregistrare.")
+                print("  [Colt] Monitor CALIBRAT!", file=sys.stderr)
     else:
-        print(f"[Calib] Point {current_calib_index+1}: fara intersectie.")
+        print(f"[Calib] Punct {current_calib_index+1}: fara intersectie.", file=sys.stderr)
         screen_calib_points_world.append(None)
 
     current_calib_index += 1
@@ -628,15 +561,13 @@ def _finish_calibration():
     cv2.waitKey(1800)
     calibration_mode = False
     cv2.destroyWindow(CALIB_WIN_NAME)
-    print("[Calib] Calibrare terminata. Eye tracking activ.")
+    print("[Calib] Calibrare terminata. Se porneste inregistrarea automat.", file=sys.stderr)
+    start_recording()
 
 
 _setup_calibration_window()
 
 
-# ============================================================
-#  MEDIAPIPE + WEBCAM
-# ============================================================
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
@@ -646,7 +577,7 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_tracking_confidence=0.5
 )
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
@@ -724,7 +655,7 @@ def update_orbit_from_keys():
     if keyboard.is_pressed('r'):  orbit_yaw=0.0; orbit_pitch=0.0; orbit_radius=600.0; changed=True
     orbit_pitch  = max(math.radians(-89), min(math.radians(89), orbit_pitch))
     orbit_radius = max(80.0, orbit_radius)
-    if changed: print(f"[Orbit] yaw={math.degrees(orbit_yaw):.1f} pitch={math.degrees(orbit_pitch):.1f} r={orbit_radius:.0f}")
+    if changed: print(f"[Orbita] unghi={math.degrees(orbit_yaw):.1f} elevatie={math.degrees(orbit_pitch):.1f} r={orbit_radius:.0f}", file=sys.stderr)
 
 
 def compute_scale(points_3d):
@@ -846,7 +777,7 @@ def render_debug_view_orbit(fh, fw, head_center3d=None,
 
     cross3(head_w,sz=12,col=(255,0,255),th=2)
     hc2d=pp(head_w)
-    if hc2d: cv2.putText(debug,"Head Center",(hc2d[0][0]+12,hc2d[0][1]-12),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,255),1,cv2.LINE_AA)
+    if hc2d: cv2.putText(debug,"Centru Cap",(hc2d[0][0]+12,hc2d[0][1]-12),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,255),1,cv2.LINE_AA)
     cross3(pivot_w,sz=8,col=(180,120,255),th=2)
     if monitor_center is not None:
         mc2d=pp(monitor_center); pv2d=pp(pivot_w)
@@ -917,7 +848,7 @@ def render_debug_view_orbit(fh, fw, head_center3d=None,
                     cv2.circle(debug,cp,rpx,(0,255,0),1,lineType=cv2.LINE_AA)
 
     corner_colors=[(0,60,255),(255,60,0),(0,200,100),(200,0,200)]
-    corner_names=["BR(0,0)","BL","TL","TR"]
+    corner_names=["DR(0,0)","DJ","SS","DS"]
     if corner_world_pts_arg:
         for ci,cpt in enumerate(corner_world_pts_arg):
             r=pp(cpt)
@@ -939,19 +870,16 @@ def render_debug_view_orbit(fh, fw, head_center3d=None,
         bw=fw-20; bx0,by0=10,fh-28
         cv2.rectangle(debug,(bx0,by0),(bx0+bw,by0+14),(60,60,60),-1)
         cv2.rectangle(debug,(bx0,by0),(bx0+int(pct*bw),by0+14),(0,200,80),-1)
-        phase_str = "IMG" if elapsed < PHASE1_DURATION else f"DOTS #{_dot_orange_idx+1}"
-        cv2.putText(debug,f"REC {remaining:.1f}s  |  {len(recorded_coords)} pts  |  {phase_str}",(bx0+4,by0+11),cv2.FONT_HERSHEY_SIMPLEX,0.45,(255,255,255),1)
+        phase_str = "IMG" if elapsed < PHASE1_DURATION else f"PUNCTE #{_dot_orange_idx+1}"
+        cv2.putText(debug,f"INREG {remaining:.1f}s  |  {len(recorded_coords)} pts  |  {phase_str}",(bx0+4,by0+11),cv2.FONT_HERSHEY_SIMPLEX,0.45,(255,255,255),1)
 
-    help_text=["C = calibrate eye spheres","T = start 60s recording","S = screen center calib",
-               "J/L=yaw I/K=pitch [ ]=zoom R=reset","X = add marker  Q = quit","F7 = toggle mouse"]
+    help_text=["C = calibreaza sfere oculare","T = porneste inregistrare 60s","S = calibrare centru ecran",
+               "J/L=unghi I/K=elevatie [ ]=zoom R=reset","X = adauga marker  Q = iesire","F7 = comuta mouse"]
     fs=cv2.FONT_HERSHEY_SIMPLEX; y0=fh-len(help_text)*18-20
     for i,t in enumerate(help_text): cv2.putText(debug,t,(10,y0+i*18),fs,0.45,(200,200,200),1,cv2.LINE_AA)
-    cv2.imshow("Head/Eye Debug", debug)
+    cv2.imshow("Debug Cap/Ochi", debug)
 
 
-# ============================================================
-#  MOUSE MOVER THREAD
-# ============================================================
 def mouse_mover():
     while True:
         if mouse_control_enabled:
@@ -961,9 +889,6 @@ def mouse_mover():
 
 threading.Thread(target=mouse_mover, daemon=True).start()
 
-# ============================================================
-#  EYE SPHERE STATE
-# ============================================================
 left_sphere_locked           = False
 left_sphere_local_offset     = None
 left_calibration_nose_scale  = None
@@ -972,9 +897,6 @@ right_sphere_locked          = False
 right_sphere_local_offset    = None
 right_calibration_nose_scale = None
 
-# ============================================================
-#  MAIN LOOP
-# ============================================================
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret: break
@@ -1013,7 +935,7 @@ while cap.isOpened():
                 avg_combined_direction /= np.linalg.norm(avg_combined_direction)
             update_orbit_from_keys()
 
-        cv2.imshow("Integrated Eye Tracking", frame)
+        cv2.imshow("Tracker Ocular", frame)
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('q'):
@@ -1021,7 +943,7 @@ while cap.isOpened():
         elif key == ord('c'):
             if calibration_stage == 0:
                 calibration_stage = 1; current_calib_index = 0
-                print(f"[Calib] Center confirmat. Incepe calibrarea {N_CALIB_POINTS} puncte.")
+                print(f"[Calib] Centru confirmat. Incepe calibrarea {N_CALIB_POINTS} puncte.", file=sys.stderr)
                 if results.multi_face_landmarks and 'head_center' in dir():
                     cns2 = compute_scale(nose_points_3d)
                     cdl  = R_final.T@np.array([0,0,1]); br2 = 20
@@ -1040,9 +962,9 @@ while cap.isOpened():
                     monitor_corners,monitor_center_w,monitor_normal_w,units_per_cm = create_monitor_plane(
                         head_center,R_final,face_landmarks,w,h,forward_hint=fwh,gaze_origin=goc,gaze_dir=fwh)
                     debug_world_frozen=True; orbit_pivot_frozen=monitor_center_w.copy()
-                    print("[Calib] Sfere blocate + plan monitor creat.")
+                    print("[Calib] Sfere blocate + plan monitor creat.", file=sys.stderr)
                 else:
-                    print("[Calib] Nu s-a detectat fata.")
+                    print("[Calib] Nu s-a detectat fata.", file=sys.stderr)
             else:
                 if results.multi_face_landmarks and 'head_center' in dir():
                     cns2=compute_scale(nose_points_3d); cdl=R_final.T@np.array([0,0,1]); br2=20
@@ -1061,17 +983,17 @@ while cap.isOpened():
                     monitor_corners,monitor_center_w,monitor_normal_w,units_per_cm=create_monitor_plane(
                         head_center,R_final,face_landmarks,w,h,forward_hint=fwh,gaze_origin=goc,gaze_dir=fwh)
                     debug_world_frozen=True; orbit_pivot_frozen=monitor_center_w.copy()
-                    print("[C] Sfere re-blocate.")
+                    print("[C] Sfere re-blocate.", file=sys.stderr)
         elif key == ord('m') and calibration_stage == 1:
             if not (left_sphere_locked and right_sphere_locked):
-                print("[Calib] Apasa C intai pentru a bloca sferele oculare.")
+                print("[Calib] Apasa C intai pentru a bloca sferele oculare.", file=sys.stderr)
             elif avg_combined_direction is None:
-                print("[Calib] Directia gaze nu e disponibila inca.")
+                print("[Calib] Directia privirii nu e disponibila inca.", file=sys.stderr)
             elif sphere_world_l is not None and sphere_world_r is not None:
                 O = (sphere_world_l+sphere_world_r)/2
                 advance_calib_point_stage1(O, avg_combined_direction)
             else:
-                print("[Calib] Sferele nu sunt inca in spatiu.")
+                print("[Calib] Sferele nu sunt inca in spatiu.", file=sys.stderr)
         elif key == ord('f'):
             prop = cv2.getWindowProperty(CALIB_WIN_NAME, cv2.WND_PROP_FULLSCREEN)
             if prop == cv2.WINDOW_FULLSCREEN:
@@ -1080,9 +1002,6 @@ while cap.isOpened():
                 cv2.setWindowProperty(CALIB_WIN_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         continue
 
-    # ============================================================
-    #  NORMAL EYE TRACKING
-    # ============================================================
     if results.multi_face_landmarks:
         face_landmarks = results.multi_face_landmarks[0].landmark
         left_iris  = face_landmarks[468]; right_iris = face_landmarks[473]
@@ -1130,9 +1049,7 @@ while cap.isOpened():
 
             if recording_active and monitor_tuned:
                 elapsed=time.time()-recording_start_t; cur_sec=int(elapsed)
-                if elapsed >= RECORDING_DURATION:
-                    stop_recording_and_save()   # ★ include trimitere automata
-                elif cur_sec > last_record_second:
+                if cur_sec > last_record_second:
                     O=(sphere_world_l+sphere_world_r)/2
                     res2=intersect_gaze_with_tuned_monitor(O,avg_combined_direction)
                     if res2 is not None:
@@ -1140,23 +1057,23 @@ while cap.isOpened():
                         phase = 1 if elapsed < PHASE1_DURATION else 2
                         recorded_coords.append((cur_sec,mx,my))
                         last_record_second=cur_sec
-                        dot_info = f"  dot=#{_dot_orange_idx+1}" if phase == 2 else ""
-                        print(f"  [REC t={cur_sec:3d}s P{phase}]  mx={mx:.3f}  my={my:.3f}{dot_info}")
+                        dot_info = f"  punct=#{_dot_orange_idx+1}" if phase == 2 else ""
+                        print(f"  [INREG t={cur_sec:3d}s F{phase}]  mx={mx:.3f}  my={my:.3f}{dot_info}", file=sys.stderr)
 
             if recording_active:
                 _update_stimulus_overlay()
 
-            texts=[f"Screen: ({sx}, {sy})"]
+            texts=[f"Ecran: ({sx}, {sy})"]
             if recording_active and recording_start_t is not None:
                 elapsed2=time.time()-recording_start_t
                 rem=max(0.0,RECORDING_DURATION-elapsed2)
-                phase_str="FAZA 1: Imagine" if elapsed2 < PHASE1_DURATION else f"FAZA 2: Dot #{_dot_orange_idx+1}"
-                texts.append(f"REC {rem:.1f}s  |  {phase_str}")
+                phase_str="FAZA 1: Imagine" if elapsed2 < PHASE1_DURATION else f"FAZA 2: Punct #{_dot_orange_idx+1}"
+                texts.append(f"INREG {rem:.1f}s  |  {phase_str}")
             for i,text in enumerate(texts):
                 (tw,_),_=cv2.getTextSize(text,cv2.FONT_HERSHEY_SIMPLEX,0.7,2)
                 cv2.putText(frame,text,((w-tw)//2,30+i*30),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,255,0),2)
 
-        status = "Monitor CALIBRAT  |  T = start REC" if monitor_tuned else f"Colturi: {corner_calib_step}/4"
+        status = "Monitor CALIBRAT  |  T = porneste INREG" if monitor_tuned else f"Colturi: {corner_calib_step}/4"
         cv2.putText(frame,status,(10,h-15),cv2.FONT_HERSHEY_SIMPLEX,0.55,(0,255,120) if monitor_tuned else (0,220,255),1,cv2.LINE_AA)
 
         for lm in face_landmarks: cv2.circle(frame,(int(lm.x*w),int(lm.y*h)),0,(255,255,255),-1)
@@ -1173,11 +1090,19 @@ while cap.isOpened():
             monitor_corners=monitor_corners,monitor_center=monitor_center_w,monitor_normal=monitor_normal_w,
             gaze_markers_arg=gaze_markers,corner_world_pts_arg=corner_world_pts,corner_calib_step_arg=corner_calib_step)
 
-    cv2.imshow("Integrated Eye Tracking", frame)
+    cv2.imshow("Tracker Ocular", frame)
+
+    if recording_active and recording_start_t is not None:
+        if time.time() - recording_start_t >= RECORDING_DURATION:
+            stop_recording_and_save()
+            cap.release()
+            cv2.destroyAllWindows()
+            sys.exit(0)
 
     if keyboard.is_pressed('f7'):
         mouse_control_enabled=not mouse_control_enabled
-        print(f"[Mouse] {'ON' if mouse_control_enabled else 'OFF'}"); time.sleep(0.3)
+        print(f"[Mouse] {'ACTIV' if mouse_control_enabled else 'INACTIV'}", file=sys.stderr)
+        time.sleep(0.3)
 
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'): break
@@ -1195,9 +1120,9 @@ while cap.isOpened():
         monitor_corners,monitor_center_w,monitor_normal_w,units_per_cm=create_monitor_plane(
             head_center,R_final,face_landmarks,w,h,forward_hint=fwh,gaze_origin=goc,gaze_dir=fwh)
         debug_world_frozen=True; orbit_pivot_frozen=monitor_center_w.copy()
-        print("[C] Sfere blocate. Plan monitor creat.")
+        print("[C] Sfere blocate. Plan monitor creat.", file=sys.stderr)
     elif key == ord('t'):
-        if recording_active: print("[T] Inregistrarea e deja activa.")
+        if recording_active: print("[T] Inregistrarea e deja activa.", file=sys.stderr)
         else: start_recording()
     elif key == ord('f') and recording_active:
         prop=cv2.getWindowProperty(STIMULUS_WIN_NAME,cv2.WND_PROP_FULLSCREEN)
@@ -1208,7 +1133,7 @@ while cap.isOpened():
     elif key == ord('s') and left_sphere_locked and right_sphere_locked and avg_combined_direction is not None:
         _,_,ry,rp=convert_gaze_to_screen_coordinates(avg_combined_direction,0,0)
         calibration_offset_yaw=-ry; calibration_offset_pitch=-rp
-        print(f"[S] Screen calibrat. yaw={calibration_offset_yaw:.2f} pitch={calibration_offset_pitch:.2f}")
+        print(f"[S] Ecran calibrat. unghi={calibration_offset_yaw:.2f} elevatie={calibration_offset_pitch:.2f}", file=sys.stderr)
     elif key == ord('x'):
         if (monitor_corners is not None and monitor_center_w is not None and monitor_normal_w is not None
                 and left_sphere_locked and right_sphere_locked and avg_combined_direction is not None):
@@ -1223,8 +1148,8 @@ while cap.isOpened():
                     if u2>1e-9 and v2>1e-9:
                         wv=P-p0; a=float(np.dot(wv,u)/u2); b=float(np.dot(wv,v)/v2)
                         if 0<=a<=1 and 0<=b<=1:
-                            gaze_markers.append((a,b)); print(f"[X] Marker a={a:.3f} b={b:.3f}")
-        else: print("[X] Monitor/gaze nu e gata.")
+                            gaze_markers.append((a,b)); print(f"[X] Marker a={a:.3f} b={b:.3f}", file=sys.stderr)
+        else: print("[X] Monitor/privire nu e gata.", file=sys.stderr)
 
 cap.release()
 cv2.destroyAllWindows()
