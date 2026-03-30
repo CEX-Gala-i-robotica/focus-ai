@@ -414,9 +414,9 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <Button Content="🎮  Joc nou" Style="{StaticResource SecondaryButtonStyle}"
+                                <Button Content="Test nou" Style="{StaticResource SecondaryButtonStyle}"
                                         VerticalAlignment="Center" Margin="0,0,10,0"
-                                        Click="NewGame_Click"/>
+                                        Click="NewTest_Click"/>
                                 <Button Content="⟳  Reîncarcă" Style="{StaticResource PrimaryButtonStyle}"
                                         VerticalAlignment="Center"
                                         Click="RefreshTests_Click"/>

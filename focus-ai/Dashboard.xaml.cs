@@ -65,6 +65,12 @@ namespace focus_ai
             }
             catch { return true; }
         }
+        private void NewTest_Click(object sender, RoutedEventArgs e)
+        {
+            var startTest = new StartTest(this, _isDark);
+            startTest.Show();
+            this.Hide();
+        }
 
         private void ThemeToggle_Click(object sender, RoutedEventArgs e)
         {
