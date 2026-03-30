@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -17,96 +16,95 @@ namespace focus_ai
 {
     public partial class StroopGame : Window
     {
-        // ── Firebase / Registry ──
         private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
         private static readonly HttpClient _http = new();
         private const string RegPath = @"Software\FocusAI";
-
-        // ── Theme ──
         private readonly bool _isDark;
-
-        // ── Game Config ──
         private const int TotalRounds = 30;
 
-        // Culorile jocului: (Cheie, Hex afișat)
         private static readonly (string Key, string Hex, string RomanianName)[] Colors =
         {
-            ("Roșu",    "#EF4444", "ROȘU"),
-            ("Verde",   "#22C55E", "VERDE"),
-            ("Albastru","#3B82F6", "ALBASTRU"),
-            ("Galben",  "#EAB308", "GALBEN"),
-            ("Portocaliu","#F97316","PORTOCALIU"),
-            ("Violet",  "#A855F7", "VIOLET"),
+            ("Roșu",       "#EF4444", "ROȘU"),
+            ("Verde",      "#22C55E", "VERDE"),
+            ("Albastru",   "#3B82F6", "ALBASTRU"),
+            ("Galben",     "#EAB308", "GALBEN"),
+            ("Portocaliu", "#F97316", "PORTOCALIU"),
+            ("Violet",     "#A855F7", "VIOLET"),
         };
 
-        // Per dificultate: câte culori folosim și câte opțiuni afișăm
         private int _numColors;
         private int _numOptions;
-        private double _timeLimitSeconds; // 0 = fără limită
+        private double _timeLimitSeconds;
 
-        // ── Game State ──
-        private int    _currentRound   = 0;
-        private int    _score          = 0;
-        private int    _correctCount   = 0;
-        private int    _wrongCount     = 0;
-        private int    _streak         = 0;
-        private int    _maxStreak      = 0;
-        private bool   _waitingForNext = false;
-        private string _correctColorKey = "";
-        private string _difficulty      = "Ușor";
+        private int _currentRound    = 0;
+        private int _score           = 0;
+        private int _correctCount    = 0;
+        private int _wrongCount      = 0;
+        private int _streak          = 0;
+        private int _maxStreak       = 0;
+        private bool _waitingForNext = false;
+        private string _correctColorKey  = "";
+        private string _wordColorKey     = "";   // culoarea REALĂ a cuvântului scris
+        private string _difficulty       = "Ușor";
 
         private readonly List<double> _responseTimes = new();
-        private readonly Stopwatch    _roundStopwatch = new();
-        private readonly Stopwatch    _gameStopwatch  = new();
+        private readonly Stopwatch _roundStopwatch   = new();
+        private readonly Stopwatch _gameStopwatch    = new();
 
-        // ── Timer pentru time limit (Dificil) ──
         private DispatcherTimer? _limitTimer;
-        private double           _timeLeft;
+        private double _timeLeft;
 
-        // ── Buttons array ──
         private Button[] _btns = Array.Empty<Button>();
-
-        // ── Random ──
         private readonly Random _rng = new();
+        private bool _closedByButton = false;
 
-        // ─────────────────────────────────────────────
+        // Păstrăm lista de chei a opțiunilor afișate pe butoane (pentru Tag)
+        private List<string> _currentOptionKeys = new();
+
         public StroopGame(bool isDark)
         {
             InitializeComponent();
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
             _btns = new[] { Btn0, Btn1, Btn2, Btn3 };
+            Closing += StroopGame_Closing;
         }
 
-        // ═══════════════════════════════════════════════
-        //  START
-        // ═══════════════════════════════════════════════
+        private void StroopGame_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            _limitTimer?.Stop();
+            if (!_closedByButton && Owner is Dashboard db) db.Show();
+        }
+
         private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
             if (DiffEasy.IsChecked == true)
             {
-                _difficulty        = "Ușor";
-                _numColors         = 4;
-                _numOptions        = 4;
-                _timeLimitSeconds  = 0;
+                _difficulty       = "Ușor";
+                _numColors        = 4;
+                _numOptions       = 4;
+                _timeLimitSeconds = 0;
             }
             else if (DiffMedium.IsChecked == true)
             {
-                _difficulty        = "Mediu";
-                _numColors         = 5;
-                _numOptions        = 4;
-                _timeLimitSeconds  = 5.0;
+                _difficulty       = "Mediu";
+                _numColors        = 5;
+                _numOptions       = 4;
+                _timeLimitSeconds = 5.0;
             }
             else
             {
-                _difficulty        = "Dificil";
-                _numColors         = 6;
-                _numOptions        = 4;
-                _timeLimitSeconds  = 3.5;
+                _difficulty       = "Dificil";
+                _numColors        = 6;
+                _numOptions       = 4;
+                _timeLimitSeconds = 3.5;
             }
 
             TxtDifficulty.Text = _difficulty;
             ResetState();
+
+            WinOverlay.Visibility = Visibility.Collapsed;
+
             ShowScreen(ScreenGame);
             NextRound();
         }
@@ -125,9 +123,6 @@ namespace focus_ai
             UpdateScoreUI();
         }
 
-        // ═══════════════════════════════════════════════
-        //  ROUND LOGIC
-        // ═══════════════════════════════════════════════
         private void NextRound()
         {
             if (_currentRound >= TotalRounds)
@@ -140,78 +135,81 @@ namespace focus_ai
             _currentRound++;
             UpdateProgress();
 
-            // Alege culorile active (subset din Colors)
             var activeColors = Colors.Take(_numColors).ToArray();
 
-            // Cuvântul scris (text)
-            var wordColor = activeColors[_rng.Next(activeColors.Length)];
-            // Culoarea cernelii (poate fi diferită – efect Stroop)
+            // Culoarea cernelii (răspunsul corect)
             var inkColor  = activeColors[_rng.Next(activeColors.Length)];
-
-            // Pe Ușor: ~40% congruent, pe Mediu/Dificil ~20%
-            double congruentChance = _difficulty == "Ușor" ? 0.40 : 0.20;
-            if (_rng.NextDouble() < congruentChance)
-                inkColor = wordColor;
+            // Cuvântul afișat — diferit de culoarea cernelii
+            var wordCandidates = activeColors.Where(c => c.Key != inkColor.Key).ToArray();
+            var wordColor = wordCandidates[_rng.Next(wordCandidates.Length)];
 
             _correctColorKey = inkColor.Key;
+            _wordColorKey    = wordColor.Key;   // culoarea reală a cuvântului scris
 
-            // Afișează cuvântul colorat
             WordLabel.Text       = wordColor.RomanianName;
-            WordLabel.Foreground = new SolidColorBrush(
-                (Color)ColorConverter.ConvertFromString(inkColor.Hex));
+            WordLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(inkColor.Hex));
 
-            // Construiește opțiunile: corect + N-1 distractori unici
-            var optionKeys = new List<string> { inkColor.Key };
-            var others = activeColors.Where(c => c.Key != inkColor.Key)
-                                     .OrderBy(_ => _rng.Next())
-                                     .Take(_numOptions - 1)
-                                     .Select(c => c.Key)
-                                     .ToList();
-            optionKeys.AddRange(others);
-            optionKeys = optionKeys.OrderBy(_ => _rng.Next()).ToList(); // shuffle
+            // ── Construim lista de 4 opțiuni ──────────────────────────────────────
+            // Slot 0: răspunsul corect (culoarea cernelii)
+            // Slot 1: cuvântul scris cu propria lui culoare (distractor semantic obligatoriu)
+            // Slot 2-3: alte culori aleatorii diferite de primele două
+            var optionKeys = new List<string> { inkColor.Key, wordColor.Key };
 
-            // Dacă avem 4 opțiuni dar mai puțin de 4 culori disponibile, completăm cu culori random
+            var remaining = activeColors
+                .Where(c => c.Key != inkColor.Key && c.Key != wordColor.Key)
+                .OrderBy(_ => _rng.Next())
+                .Take(_numOptions - 2)
+                .Select(c => c.Key)
+                .ToList();
+            optionKeys.AddRange(remaining);
+
+            // Completăm dacă nu avem destule culori distincte
             while (optionKeys.Count < _numOptions)
-                optionKeys.Add(activeColors[_rng.Next(activeColors.Length)].Key);
+            {
+                var extra = activeColors[_rng.Next(activeColors.Length)].Key;
+                if (!optionKeys.Contains(extra)) optionKeys.Add(extra);
+            }
 
-            // Setează butoanele
+            // Amestecăm pozițiile
+            optionKeys = optionKeys.OrderBy(_ => _rng.Next()).ToList();
+            _currentOptionKeys = optionKeys;
+
+            // ── Stilizăm butoanele ──────────────────────────────────────────────
             for (int i = 0; i < _btns.Length; i++)
             {
-                string key   = i < optionKeys.Count ? optionKeys[i] : activeColors[i % activeColors.Length].Key;
-                var    cInfo = Colors.FirstOrDefault(c => c.Key == key);
+                string key  = optionKeys[i];
+                var cInfo   = Colors.FirstOrDefault(c => c.Key == key);
                 if (cInfo == default) cInfo = activeColors[0];
 
-                var hex      = cInfo.Hex;
-                var btnColor = (Color)ColorConverter.ConvertFromString(hex);
+                var btnColor = (Color)ColorConverter.ConvertFromString(cInfo.Hex);
                 var bgBrush  = new SolidColorBrush(Color.FromArgb(
                     _isDark ? (byte)40 : (byte)25,
                     btnColor.R, btnColor.G, btnColor.B));
-                var borderBrush = new SolidColorBrush(btnColor);
 
-                _btns[i].Background   = bgBrush;
-                _btns[i].BorderBrush  = borderBrush;
-                _btns[i].Foreground   = new SolidColorBrush(btnColor);
-                _btns[i].Content      = cInfo.RomanianName;
-                _btns[i].Tag          = key;
-                _btns[i].IsEnabled    = true;
-                _btns[i].Opacity      = 1.0;
+                _btns[i].Background  = bgBrush;
+                _btns[i].BorderBrush = new SolidColorBrush(btnColor);
+                _btns[i].Foreground  = new SolidColorBrush(btnColor);
+                _btns[i].Content     = cInfo.RomanianName;
+                _btns[i].Tag         = key;
+                _btns[i].IsEnabled   = true;
+                _btns[i].Opacity     = 1.0;
             }
 
-            // Start timer per rundă
             _roundStopwatch.Restart();
             StartLimitTimer();
         }
 
-        // ═══════════════════════════════════════════════
-        //  LIMIT TIMER (Mediu / Dificil)
-        // ═══════════════════════════════════════════════
         private void StartLimitTimer()
         {
             _limitTimer?.Stop();
-            if (_timeLimitSeconds <= 0) return;
+            if (_timeLimitSeconds <= 0)
+            {
+                TxtTimer.Text = "∞";
+                return;
+            }
 
-            _timeLeft = _timeLimitSeconds;
-            TxtTimer.Text       = _timeLeft.ToString("F1");
+            _timeLeft     = _timeLimitSeconds;
+            TxtTimer.Text = _timeLeft.ToString("F1");
             TxtTimer.Foreground = (SolidColorBrush)FindResource("TxtPrimary");
 
             _limitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
@@ -223,27 +221,19 @@ namespace focus_ai
         {
             _timeLeft -= 0.1;
             TxtTimer.Text = Math.Max(0, _timeLeft).ToString("F1");
-
-            // Colorează roșu când < 1.5s
             if (_timeLeft < 1.5)
-                TxtTimer.Foreground = new SolidColorBrush(
-                    (Color)ColorConverter.ConvertFromString("#EF4444"));
-
+                TxtTimer.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
             if (_timeLeft <= 0)
             {
                 _limitTimer?.Stop();
-                if (!_waitingForNext)
-                    HandleAnswer(null); // time out = greșit
+                if (!_waitingForNext) HandleAnswer(null);
             }
         }
 
-        // ═══════════════════════════════════════════════
-        //  ANSWER
-        // ═══════════════════════════════════════════════
         private void Answer_Click(object sender, RoutedEventArgs e)
         {
             if (_waitingForNext) return;
-            var btn = (Button)sender;
+            var btn    = (Button)sender;
             string chosen = btn.Tag?.ToString() ?? "";
             HandleAnswer(chosen);
         }
@@ -252,42 +242,42 @@ namespace focus_ai
         {
             _limitTimer?.Stop();
             _waitingForNext = true;
-
-            double elapsed = _roundStopwatch.Elapsed.TotalSeconds;
+            double elapsed  = _roundStopwatch.Elapsed.TotalSeconds;
             _responseTimes.Add(elapsed);
-
             bool correct = chosen == _correctColorKey;
 
-            // Calculează punctaj pentru runda aceasta
             if (correct)
             {
                 _correctCount++;
                 _streak++;
                 if (_streak > _maxStreak) _maxStreak = _streak;
-
-                // Punctaj bazat pe viteză:
-                // Max 100/round dacă răspunzi instantaneu, scade cu timpul
                 double timeBonus = _timeLimitSeconds > 0
                     ? Math.Max(0, 1.0 - (elapsed / _timeLimitSeconds))
                     : Math.Max(0, 1.0 - (elapsed / 3.0));
                 int pts = (int)(50 + 50 * timeBonus);
-                if (_streak >= 3) pts = (int)(pts * 1.2); // streak bonus
+                if (_streak >= 3) pts = (int)(pts * 1.2);
                 _score += pts;
-
-                ShowFeedback(true);
             }
             else
             {
                 _wrongCount++;
                 _streak = 0;
-                ShowFeedback(false);
             }
 
-            // Highlight butoane
+            // Actualizăm badge-ul streak
+            if (_streak >= 3)
+            {
+                StreakBadge.Visibility = Visibility.Visible;
+                TxtStreak.Text = $"🔥 {_streak} la rând!";
+            }
+            else
+            {
+                StreakBadge.Visibility = Visibility.Collapsed;
+            }
+
             HighlightButtons(chosen);
             UpdateScoreUI();
 
-            // Treci la runda următoare după 600ms
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
             timer.Tick += (_, _) => { timer.Stop(); NextRound(); };
             timer.Start();
@@ -301,46 +291,19 @@ namespace focus_ai
                 string key = btn.Tag?.ToString() ?? "";
                 if (key == _correctColorKey)
                 {
-                    // Verde = corect
-                    btn.Background  = new SolidColorBrush(
-                        Color.FromArgb(80, 34, 197, 94));
-                    btn.BorderBrush = new SolidColorBrush(
-                        (Color)ColorConverter.ConvertFromString("#22C55E"));
+                    btn.Background  = new SolidColorBrush(Color.FromArgb(80, 34, 197, 94));
+                    btn.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
                 }
                 else if (chosen != null && key == chosen)
                 {
-                    // Roșu = ales greșit
-                    btn.Background  = new SolidColorBrush(
-                        Color.FromArgb(80, 239, 68, 68));
-                    btn.BorderBrush = new SolidColorBrush(
-                        (Color)ColorConverter.ConvertFromString("#EF4444"));
+                    btn.Background  = new SolidColorBrush(Color.FromArgb(80, 239, 68, 68));
+                    btn.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
                 }
                 else
                 {
                     btn.Opacity = 0.35;
                 }
             }
-        }
-
-        private void ShowFeedback(bool correct)
-        {
-            FeedbackIcon.Text    = correct ? "✅" : "❌";
-            FeedbackIcon.Opacity = 0.9;
-
-            // Streak badge
-            if (_streak >= 3)
-            {
-                StreakBadge.Visibility = Visibility.Visible;
-                TxtStreak.Text         = $"🔥 {_streak} la rând!";
-            }
-            else
-            {
-                StreakBadge.Visibility = Visibility.Collapsed;
-            }
-
-            var fade = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
-            fade.Tick += (_, _) => { fade.Stop(); FeedbackIcon.Opacity = 0; };
-            fade.Start();
         }
 
         private void UpdateScoreUI()
@@ -352,85 +315,45 @@ namespace focus_ai
 
         private void UpdateProgress()
         {
-            TxtProgress.Text = $"Întrebarea {_currentRound} / {TotalRounds}";
-
-            // Lățimea barei de progres (trebuie să calculăm relativ la părinte)
-            // Folosim un dispatcher delayed pentru a citi ActualWidth-ul după render
+            TxtProgress.Text = $"Runda {_currentRound} / {TotalRounds}";
             Dispatcher.InvokeAsync(() =>
             {
-                double parentW = ((Border)ProgressBar.Parent).ActualWidth;
+                double parentW    = ((Border)ProgressBar.Parent).ActualWidth;
                 ProgressBar.Width = parentW * (_currentRound - 1) / TotalRounds;
             }, DispatcherPriority.Loaded);
         }
 
-        // ═══════════════════════════════════════════════
-        //  END GAME
-        // ═══════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════
+        //  END GAME — overlay identic cu MemorieGame
+        // ═══════════════════════════════════════════════════
         private void EndGame()
         {
             _limitTimer?.Stop();
             _gameStopwatch.Stop();
 
+            double accuracy   = TotalRounds > 0 ? _correctCount / (double)TotalRounds * 100.0 : 0;
+            double avgTime    = _responseTimes.Count > 0 ? _responseTimes.Average() : 0;
             double finalScore = Math.Min(100.0, _score / (double)(TotalRounds * 100) * 100.0);
-            double accuracy   = TotalRounds > 0
-                ? _correctCount / (double)TotalRounds * 100.0
-                : 0;
-            double avgTime    = _responseTimes.Count > 0
-                ? _responseTimes.Average()
-                : 0;
             TimeSpan duration = _gameStopwatch.Elapsed;
 
-            // Populează ecranul de rezultate
-            BigScore.Text     = finalScore.ToString("F2");
-            ResCorrect.Text   = _correctCount.ToString();
-            ResWrong.Text     = _wrongCount.ToString();
-            ResAvgTime.Text   = $"{avgTime:F2}s";
-            ResStreak.Text    = _maxStreak.ToString();
-            ResAccuracy.Text  = $"{accuracy:F1}%";
+            string emoji = finalScore >= 85 ? "🏆"
+                         : finalScore >= 60 ? "🥈"
+                         : "💪";
+            string title = finalScore >= 85 ? "Excelent!"
+                         : finalScore >= 60 ? "Bine făcut!"
+                         : "Nu te descuraja!";
 
-            // Bara acuratețe
-            Dispatcher.InvokeAsync(() =>
-            {
-                double parentW = ((Border)AccuracyBar.Parent).ActualWidth;
-                AccuracyBar.Width = parentW * accuracy / 100.0;
-                AccuracyBar.Background = accuracy >= 80
-                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"))
-                    : accuracy >= 50
-                        ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FB923C"))
-                        : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
-            }, DispatcherPriority.Loaded);
+            WinEmoji.Text    = emoji;
+            WinTitle.Text    = title;
+            WinSubtitle.Text = $"{_correctCount} corecte  •  Acuratețe: {accuracy:F1}%  •  Timp mediu: {avgTime:F2}s";
+            WinScore.Text    = $"Scor final: {finalScore:F1} / 100";
 
-            // Trophy / mesaj
-            if (finalScore >= 85)
-            {
-                TrophyIcon.Text    = "🏆";
-                ResultTitle.Text   = "Excelent!";
-                ResultSubtitle.Text = "Performanță remarcabilă la Stroop Test!";
-            }
-            else if (finalScore >= 60)
-            {
-                TrophyIcon.Text    = "🥈";
-                ResultTitle.Text   = "Bine făcut!";
-                ResultSubtitle.Text = "Continuă să exersezi pentru un scor mai mare!";
-            }
-            else
-            {
-                TrophyIcon.Text    = "💪";
-                ResultTitle.Text   = "Nu te descuraja!";
-                ResultSubtitle.Text = "Practica duce la perfecțiune. Încearcă din nou!";
-            }
+            WinOverlay.Visibility = Visibility.Visible;
 
-            ShowScreen(ScreenResults);
-
-            // Salvare Firebase
-            TxtSaving.Visibility = Visibility.Visible;
             _ = SaveActivityAsync(finalScore, duration);
         }
 
-        // ═══════════════════════════════════════════════
-        //  FIREBASE SAVE
-        // ═══════════════════════════════════════════════
-        private async Task SaveActivityAsync(double score, TimeSpan duration)
+        private async System.Threading.Tasks.Task SaveActivityAsync(double score, TimeSpan duration)
         {
             try
             {
@@ -439,13 +362,11 @@ namespace focus_ai
                 if (string.IsNullOrEmpty(uid)) return;
 
                 string durationStr = $"{(int)duration.TotalMinutes:D2}:{duration.Seconds:D2}";
-                string dateTimeStr = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
-
                 var payload = new
                 {
-                    dateTime   = dateTimeStr,
-                    duration   = durationStr,
                     game       = "Stroop Test",
+                    dateTime   = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    duration   = durationStr,
                     difficulty = _difficulty,
                     scor       = Math.Round(score, 2),
                     correct    = _correctCount,
@@ -453,55 +374,36 @@ namespace focus_ai
                     streak     = _maxStreak
                 };
 
-                string json = JsonSerializer.Serialize(payload);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                string url = $"{_dbUrl}/{uid}/activities.json?auth={token}";
+                string json  = JsonSerializer.Serialize(payload);
+                var content  = new StringContent(json, Encoding.UTF8, "application/json");
+                string url   = $"{_dbUrl}/{uid}/activities.json?auth={token}";
                 await _http.PostAsync(url, content);
-
-                Dispatcher.Invoke(() =>
-                    TxtSaving.Text = "✅ Activitate salvată cu succes!");
             }
-            catch
-            {
-                Dispatcher.Invoke(() =>
-                    TxtSaving.Text = "⚠️ Nu s-a putut salva activitatea.");
-            }
+            catch { }
         }
 
-        // ═══════════════════════════════════════════════
-        //  NAVIGATION
-        // ═══════════════════════════════════════════════
-        private void BtnPlayAgain_Click(object sender, RoutedEventArgs e)
+        // ═══════════════════════════════════════════════════
+        //  NAV
+        // ═══════════════════════════════════════════════════
+        private void WinPlayAgain_Click(object sender, RoutedEventArgs e)
         {
+            WinOverlay.Visibility = Visibility.Collapsed;
             ShowScreen(ScreenIntro);
         }
 
-        private void BtnBack_Click(object sender, RoutedEventArgs e)
+        private void BackButton_Click(object sender, RoutedEventArgs e)
         {
             _limitTimer?.Stop();
-            if (Owner is Dashboard db)
-            {
-                db.Show();
-                // Refresh activitățile în dashboard
-                db.Dispatcher.InvokeAsync(async () =>
-                {
-                    await Task.Delay(300);
-                    // Dacă tab-ul activități e vizibil, reîncarcă
-                });
-            }
+            _closedByButton = true;
+            if (Owner is Dashboard db) db.Show();
             Close();
         }
 
-        // ═══════════════════════════════════════════════
-        //  HELPERS
-        // ═══════════════════════════════════════════════
         private void ShowScreen(Border screen)
         {
-            ScreenIntro.Visibility   = Visibility.Collapsed;
-            ScreenGame.Visibility    = Visibility.Collapsed;
-            ScreenResults.Visibility = Visibility.Collapsed;
-            screen.Visibility        = Visibility.Visible;
+            ScreenIntro.Visibility  = Visibility.Collapsed;
+            ScreenGame.Visibility   = Visibility.Collapsed;
+            screen.Visibility       = Visibility.Visible;
         }
 
         private string GetReg(string key)
@@ -513,5 +415,8 @@ namespace focus_ai
             }
             catch { return ""; }
         }
+
+        // BtnBack_Click din header (diferit de BackButton în overlay)
+        private void BtnBack_Click(object sender, RoutedEventArgs e) => BackButton_Click(sender, e);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -8,7 +9,6 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -16,43 +16,55 @@ namespace focus_ai
 {
     public partial class VisualSearchGame : Window
     {
-        // ── Config ──
         private const string RegPath = @"Software\FocusAI";
         private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
         private static readonly HttpClient _http = new();
+        private const int TotalRounds = 8;
 
-        // ── Game state ──
-        private int _level      = 1;
-        private int _score      = 0;
-        private int _lives      = 3;
-        private int _timeLeft   = 30;
+        private int _round       = 0;
+        private int _score       = 0;
+        private int _lives       = 3;
+        private int _timeLeft    = 20;
         private int _targetIndex = -1;
         private bool _isPlaying  = false;
         private bool _isDark;
-        private string _difficulty = "Mediu";
+        private bool _closedByButton = false;
+        private string _difficulty   = "Mediu";
 
-        // ── Timing ──
-        private DispatcherTimer _timer    = new();
-        private DateTime        _levelStart;
-        private double          _timerBarMaxWidth = 0;
+        private DispatcherTimer _timer = new();
+        private DateTime _roundStart;
+        private double _timerBarMaxWidth = 0;
+        private readonly Stopwatch _gameStopwatch = new();
 
-        // ── Symbols ──
-        // Each level uses shapes/symbols; the "odd one out" differs by one attribute
-        private static readonly string[] _shapeGroups = {
-            "●", "■", "▲", "◆", "★", "♥", "♠", "♣", "⬟", "⬡"
+        private static readonly (string Distractor, string Odd)[] _charSets =
+        {
+            ("S","5"), ("O","0"), ("B","8"), ("G","6"), ("Z","2"),
+            ("E","3"), ("I","1"), ("A","4"), ("P","R"), ("E","F"),
+            ("C","G"), ("V","U"), ("W","M"), ("H","N"), ("n","h"),
+            ("d","b"), ("q","p"), ("a","d"), ("m","w"), ("K","R"),
+            ("D","B"), ("T","Y"), ("L","J"), ("X","K"), ("f","t"),
+            ("c","e"), ("o","c"), ("i","j"), ("6","9"), ("1","7"),
         };
 
-        // Color palettes per level group
-        private static readonly string[] _colors = {
-            "#3B82F6", "#EF4444", "#22C55E", "#F59E0B",
-            "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"
+        private (int Cols, int Rows) GetGridSize() => _round switch
+        {
+            1 or 2 => (10, 6),
+            3 or 4 => (14, 8),
+            5 or 6 => (18, 10),
+            _      => (22, 12),
         };
 
-        // ── Per-round data ──
-        private string _distractorSymbol = "";
-        private string _targetSymbol     = "";
-        private string _distractorColor  = "";
-        private string _targetColor      = "";
+        private string _distractorChar = "";
+        private string _oddChar        = "";
+        private readonly Random _rng   = new();
+        private int _lastSetIndex      = -1;
+
+        private Color TextColor    => _isDark
+            ? (Color)ColorConverter.ConvertFromString("#E2E8F0")
+            : (Color)ColorConverter.ConvertFromString("#0F172A");
+        private Color CellBgColor  => _isDark
+            ? (Color)ColorConverter.ConvertFromString("#1E293B")
+            : (Color)ColorConverter.ConvertFromString("#F8FAFC");
 
         public VisualSearchGame(bool isDark)
         {
@@ -61,200 +73,155 @@ namespace focus_ai
             ThemeManager.Apply(_isDark);
 
             _timer.Interval = TimeSpan.FromSeconds(1);
-            _timer.Tick    += Timer_Tick;
-
-            this.Loaded += (_, _) => {
-                _timerBarMaxWidth = TimerBar.ActualWidth == 0
-                    ? ((Grid)TimerBar.Parent).ActualWidth
-                    : TimerBar.ActualWidth;
-            };
+            _timer.Tick += Timer_Tick;
+            Loaded  += (_, _) => ReadTimerBarWidth();
+            Closing += Window_Closing;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  START / RESTART
-        // ═══════════════════════════════════════════════════
+        private void ReadTimerBarWidth()
+        {
+            if (TimerBar.Parent is Border b && b.ActualWidth > 0)
+                _timerBarMaxWidth = b.ActualWidth;
+        }
+
         private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
             _difficulty = RbEasy.IsChecked == true ? "Ușor"
                         : RbHard.IsChecked == true ? "Dificil"
                         : "Mediu";
-            TxtDifficulty.Text = _difficulty;
-
-            _level  = 1;
+            _round  = 0;
             _score  = 0;
             _lives  = 3;
             _isPlaying = true;
+            _gameStopwatch.Restart();
+
+            // Ascunde overlay-ul dacă era vizibil
+            WinOverlay.Visibility = Visibility.Collapsed;
 
             PanelInstruction.Visibility = Visibility.Collapsed;
-            PanelGameOver.Visibility    = Visibility.Collapsed;
             PanelGame.Visibility        = Visibility.Visible;
 
-            StartLevel();
+            NextRound();
         }
 
         private void BtnRestart_Click(object sender, RoutedEventArgs e)
         {
-            PanelGameOver.Visibility = Visibility.Collapsed;
-            _level  = 1;
-            _score  = 0;
-            _lives  = 3;
-            _isPlaying = true;
-            PanelGame.Visibility = Visibility.Visible;
-            StartLevel();
+            // Buton "Joacă din nou" din overlay — duce la ecranul de instrucțiuni
+            WinOverlay.Visibility = Visibility.Collapsed;
+            PanelGame.Visibility  = Visibility.Collapsed;
+            PanelInstruction.Visibility = Visibility.Visible;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  LEVEL SETUP
-        // ═══════════════════════════════════════════════════
-        private void StartLevel()
+        private void NextRound()
         {
+            if (_round >= TotalRounds) { EndGame(true); return; }
+
             _timer.Stop();
+            _round++;
 
-            // Grid size: starts 4x4, grows every 2 levels, capped at 9x9
-            int baseSize = _difficulty switch { "Ușor" => 3, "Dificil" => 5, _ => 4 };
-            int gridSize = Math.Min(baseSize + (_level - 1) / 2, 9);
-            int total    = gridSize * gridSize;
+            _timeLeft = _difficulty switch { "Ușor" => 25, "Dificil" => 15, _ => 20 };
 
-            // Time: starts 30s, shrinks by 2s per level, min 8s
-            int baseTime = _difficulty switch { "Ușor" => 40, "Dificil" => 22, _ => 30 };
-            _timeLeft = Math.Max(baseTime - (_level - 1) * 2, 8);
+            int idx;
+            do { idx = _rng.Next(_charSets.Length); } while (idx == _lastSetIndex);
+            _lastSetIndex   = idx;
+            _distractorChar = _charSets[idx].Distractor;
+            _oddChar        = _charSets[idx].Odd;
 
-            // Pick symbols & colors
-            var rng = new Random();
-            int symbolIdx  = rng.Next(_shapeGroups.Length);
-            int altIdx     = (symbolIdx + 1 + rng.Next(_shapeGroups.Length - 1)) % _shapeGroups.Length;
-            int colorIdx   = rng.Next(_colors.Length);
-            int altColorIdx = (colorIdx + 1 + rng.Next(_colors.Length - 1)) % _colors.Length;
+            var (cols, rows) = GetGridSize();
+            int total        = cols * rows;
+            _targetIndex     = _rng.Next(total);
 
-            // What makes the odd-one-out different?
-            // Level 1-3: different shape, same color
-            // Level 4-6: same shape, different color
-            // Level 7+:  different shape AND different color
-            bool diffShape = _level <= 6 || _level % 2 == 1;
-            bool diffColor = _level >= 4;
+            TxtRound.Text    = $"{_round}/{TotalRounds}";
+            TxtScore.Text    = _score.ToString();
+            TxtLives.Text    = string.Concat(Enumerable.Repeat("❤️", _lives))
+                             + string.Concat(Enumerable.Repeat("🖤", 3 - _lives));
+            TxtTimer.Text    = _timeLeft.ToString();
+            TxtTimer.Foreground = (SolidColorBrush)FindResource("TxtPrimary");
+            TxtRoundInfo.Text   = $"Runda {_round}/{TotalRounds}  •  {cols}×{rows}";
 
-            _distractorSymbol = _shapeGroups[symbolIdx];
-            _targetSymbol     = diffShape ? _shapeGroups[altIdx] : _shapeGroups[symbolIdx];
-            _distractorColor  = _colors[colorIdx];
-            _targetColor      = diffColor ? _colors[altColorIdx] : _colors[colorIdx];
-
-            // Place target randomly
-            _targetIndex = rng.Next(total);
-
-            // UI
-            TxtLevel.Text     = _level.ToString();
-            TxtScore.Text     = _score.ToString();
-            TxtLives.Text     = string.Concat(Enumerable.Repeat("❤️", _lives))
-                                + string.Concat(Enumerable.Repeat("🖤", 3 - _lives));
-            TxtTimer.Text     = _timeLeft.ToString();
-            TxtRoundInfo.Text = $"Nivel {_level}  •  Grilă {gridSize}×{gridSize}  •  {total} elemente";
-
-            string hint = diffShape && diffColor ? "formă și culoare diferite"
-                        : diffShape              ? "formă diferită"
-                                                 : "culoare diferită";
-            TxtTarget.Text          = _targetSymbol;
-            TxtInstructionDetail.Text = $"— Găsește elementul cu {hint}!";
-
-            // Build grid
-            GameGrid.Columns = gridSize;
+            GameGrid.Columns = cols;
             GameGrid.Children.Clear();
 
-            int cellSize = Math.Max(52 - gridSize * 2, 34);
-            int fontSize = Math.Max(cellSize - 14, 14);
+            int fs    = cols <= 10 ? 28 : cols <= 14 ? 22 : cols <= 18 ? 17 : 14;
+            int cellW = cols <= 10 ? 62 : cols <= 14 ? 46 : cols <= 18 ? 36 : 30;
+
+            var textBrush   = new SolidColorBrush(TextColor);
+            var cellBgBrush = new SolidColorBrush(CellBgColor);
 
             for (int i = 0; i < total; i++)
             {
                 bool isTarget = i == _targetIndex;
-                string sym   = isTarget ? _targetSymbol    : _distractorSymbol;
-                string col   = isTarget ? _targetColor     : _distractorColor;
+                string ch     = isTarget ? _oddChar : _distractorChar;
 
                 var btn = new Button
                 {
-                    Width  = cellSize,
-                    Height = cellSize,
-                    Margin = new Thickness(3),
-                    Tag    = isTarget,
-                    Background    = new SolidColorBrush(
-                        (Color)ColorConverter.ConvertFromString(
-                            _isDark ? "#1E293B" : "#F1F5F9")),
+                    Width     = cellW,
+                    Height    = cellW,
+                    Margin    = new Thickness(2),
+                    Tag       = isTarget,
+                    Background = cellBgBrush,
                     BorderThickness = new Thickness(0),
-                    Cursor = System.Windows.Input.Cursors.Hand
+                    Cursor    = System.Windows.Input.Cursors.Hand,
+                    FontSize  = fs,
+                    FontFamily = new FontFamily("Consolas, Courier New"),
+                    FontWeight = FontWeights.Bold,
+                    Content    = ch,
+                    Foreground = textBrush,
                 };
 
-                // Custom template
-                var tpl  = new ControlTemplate(typeof(Button));
-                var fef  = new FrameworkElementFactory(typeof(Border));
-                fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(8));
+                var tpl = new ControlTemplate(typeof(Button));
+                var fef = new FrameworkElementFactory(typeof(Border));
+                fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
                 fef.SetBinding(Border.BackgroundProperty,
                     new System.Windows.Data.Binding("Background")
                     {
                         RelativeSource = new System.Windows.Data.RelativeSource(
                             System.Windows.Data.RelativeSourceMode.TemplatedParent)
                     });
-                var tb = new FrameworkElementFactory(typeof(TextBlock));
-                tb.SetValue(TextBlock.TextProperty,   sym);
-                tb.SetValue(TextBlock.FontSizeProperty, (double)fontSize);
-                tb.SetValue(TextBlock.ForegroundProperty,
-                    new SolidColorBrush((Color)ColorConverter.ConvertFromString(col)));
-                tb.SetValue(TextBlock.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-                tb.SetValue(TextBlock.VerticalAlignmentProperty,   VerticalAlignment.Center);
-                fef.AppendChild(tb);
+                var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+                cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+                cp.SetValue(ContentPresenter.VerticalAlignmentProperty,   VerticalAlignment.Center);
+                fef.AppendChild(cp);
                 tpl.VisualTree = fef;
-                btn.Template   = tpl;
+                btn.Template = tpl;
 
-                int captured = i;
                 btn.Click += Cell_Click;
                 GameGrid.Children.Add(btn);
             }
 
-            // Timer bar max width (after render)
-            Dispatcher.InvokeAsync(() => {
-                var container = (Grid)TimerBar.Parent;
-                _timerBarMaxWidth = container.ActualWidth;
-                UpdateTimerBar();
-            }, DispatcherPriority.Loaded);
-
-            _levelStart = DateTime.Now;
+            Dispatcher.InvokeAsync(() => { ReadTimerBarWidth(); UpdateTimerBar(); }, DispatcherPriority.Loaded);
+            _roundStart = DateTime.Now;
             _timer.Start();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  CELL CLICK
-        // ═══════════════════════════════════════════════════
         private void Cell_Click(object sender, RoutedEventArgs e)
         {
             if (!_isPlaying) return;
-
-            var btn     = (Button)sender;
+            var btn       = (Button)sender;
             bool isTarget = (bool)btn.Tag;
 
             if (isTarget)
             {
                 _timer.Stop();
-                double elapsed = (DateTime.Now - _levelStart).TotalSeconds;
-                int bonus = Math.Max(0, (int)(_timeLeft * 10));
-                int levelScore = 100 + bonus + (_level * 20);
-                _score += levelScore;
+                double elapsed = (DateTime.Now - _roundStart).TotalSeconds;
+                int timeBonus  = (int)Math.Max(0, _timeLeft * 15);
+                int pts        = 200 + timeBonus + (_round * 30);
+                _score += pts;
 
-                ShowFeedback("✅", $"+{levelScore} puncte!", $"Nivel {_level} completat în {elapsed:F1}s");
+                btn.Background = new SolidColorBrush(Color.FromArgb(200, 34, 197, 94));
+                ShowFeedback("✅", $"+{pts} puncte!", $"Runda {_round} completată în {elapsed:F1}s");
 
-                _level++;
-                Dispatcher.InvokeAsync(() => StartLevel(), DispatcherPriority.Background,
-                    System.Threading.CancellationToken.None)
-                    .Task.ContinueWith(_ => { },
-                        System.Threading.Tasks.TaskScheduler.Default);
-
-                // Delay next level
-                var nextTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-                nextTimer.Tick += (_, _) => {
-                    nextTimer.Stop();
-                    PanelFeedback.Visibility = Visibility.Collapsed;
-                    StartLevel();
-                };
-                nextTimer.Start();
+                var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
+                t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
+                t.Start();
             }
             else
             {
+                btn.Background = new SolidColorBrush(Color.FromArgb(160, 239, 68, 68));
+                var restore    = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+                restore.Tick += (_, _) => { restore.Stop(); btn.Background = new SolidColorBrush(CellBgColor); };
+                restore.Start();
+
                 _lives--;
                 TxtLives.Text = string.Concat(Enumerable.Repeat("❤️", Math.Max(_lives, 0)))
                               + string.Concat(Enumerable.Repeat("🖤", 3 - Math.Max(_lives, 0)));
@@ -267,31 +234,24 @@ namespace focus_ai
                 else
                 {
                     ShowFeedback("❌", "Greșit!", $"Mai ai {_lives} {(_lives == 1 ? "viață" : "vieți")}");
-                    var flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
-                    flashTimer.Tick += (_, _) => { flashTimer.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; };
-                    flashTimer.Start();
+                    var ft = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+                    ft.Tick += (_, _) => { ft.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; };
+                    ft.Start();
                 }
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  TIMER
-        // ═══════════════════════════════════════════════════
         private void Timer_Tick(object? sender, EventArgs e)
         {
             _timeLeft--;
             TxtTimer.Text = _timeLeft.ToString();
             UpdateTimerBar();
 
-            // Color warning
-            if (_timeLeft <= 5)
-                TxtTimer.Foreground = new SolidColorBrush(
-                    (Color)ColorConverter.ConvertFromString("#EF4444"));
-            else if (_timeLeft <= 10)
-                TxtTimer.Foreground = new SolidColorBrush(
-                    (Color)ColorConverter.ConvertFromString("#F59E0B"));
-            else
-                TxtTimer.Foreground = (SolidColorBrush)FindResource("TxtPrimary");
+            TxtTimer.Foreground = _timeLeft <= 5
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+                : _timeLeft <= 10
+                    ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"))
+                    : (SolidColorBrush)FindResource("TxtPrimary");
 
             if (_timeLeft <= 0)
             {
@@ -299,27 +259,33 @@ namespace focus_ai
                 _lives--;
                 TxtLives.Text = string.Concat(Enumerable.Repeat("❤️", Math.Max(_lives, 0)))
                               + string.Concat(Enumerable.Repeat("🖤", 3 - Math.Max(_lives, 0)));
+                HighlightTarget();
 
-                if (_lives <= 0) EndGame(false);
-                else
-                {
-                    ShowFeedback("⏰", "Timp expirat!", $"Mai ai {_lives} {(_lives == 1 ? "viață" : "vieți")}");
-                    var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
-                    t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; StartLevel(); };
-                    t.Start();
-                }
+                if (_lives <= 0) { EndGame(false); return; }
+
+                ShowFeedback("⏰", "Timp expirat!", $"Mai ai {_lives} {(_lives == 1 ? "viață" : "vieți")}");
+                var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
+                t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
+                t.Start();
             }
+        }
+
+        private void HighlightTarget()
+        {
+            if (_targetIndex >= 0 && _targetIndex < GameGrid.Children.Count
+                && GameGrid.Children[_targetIndex] is Button b)
+                b.Background = new SolidColorBrush(Color.FromArgb(220, 234, 179, 8));
         }
 
         private void UpdateTimerBar()
         {
+            if (TimerBar.Parent is Border pb && pb.ActualWidth > 0)
+                _timerBarMaxWidth = pb.ActualWidth;
             if (_timerBarMaxWidth <= 0) return;
-            // Reconstruct max time from difficulty/level
-            int baseTime = _difficulty switch { "Ușor" => 40, "Dificil" => 22, _ => 30 };
-            int maxTime  = Math.Max(baseTime - (_level - 1) * 2, 8);
-            double ratio = Math.Max(0, (double)_timeLeft / maxTime);
-            TimerBar.Width = _timerBarMaxWidth * ratio;
 
+            int maxTime   = _difficulty switch { "Ușor" => 25, "Dificil" => 15, _ => 20 };
+            double ratio  = Math.Max(0, (double)_timeLeft / maxTime);
+            TimerBar.Width = _timerBarMaxWidth * ratio;
             TimerBar.Background = ratio > 0.5
                 ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"))
                 : ratio > 0.25
@@ -328,30 +294,37 @@ namespace focus_ai
         }
 
         // ═══════════════════════════════════════════════════
-        //  GAME OVER
+        //  END GAME — overlay ca la MemorieGame
         // ═══════════════════════════════════════════════════
         private void EndGame(bool won)
         {
             _isPlaying = false;
             _timer.Stop();
-            PanelGame.Visibility     = Visibility.Collapsed;
+            _gameStopwatch.Stop();
+
             PanelFeedback.Visibility = Visibility.Collapsed;
-            PanelGameOver.Visibility = Visibility.Visible;
 
-            TxtGameOverIcon.Text  = won ? "🏆" : (_level > 5 ? "😤" : "💀");
-            TxtGameOverTitle.Text = won ? "Felicitări!" : "Game Over";
-            TxtGameOverSub.Text   = won
-                ? $"Ai completat toate nivelurile cu scorul {_score}!"
-                : $"Ai ajuns până la nivelul {_level}. Scorul tău este {_score}.";
-            TxtFinalScore.Text    = _score.ToString();
-            TxtFinalDetails.Text  = $"Nivel maxim: {_level}  •  Dificultate: {_difficulty}";
+            TimeSpan duration  = _gameStopwatch.Elapsed;
+            double normalized  = Math.Min(100.0, _score / (double)(TotalRounds * 575) * 100.0);
 
-            _ = SaveActivityAsync();
+            string emoji = won              ? "🏆"
+                         : _round > TotalRounds / 2 ? "😤"
+                         : "💀";
+            string title = won ? "Felicitări!" : "Game Over";
+
+            WinEmoji.Text    = emoji;
+            WinTitle.Text    = title;
+            WinSubtitle.Text = won
+                ? $"Ai completat toate {TotalRounds} rundele!"
+                : $"Ai ajuns la runda {_round}/{TotalRounds}  •  Dificultate: {_difficulty}";
+            WinScore.Text = $"Scor: {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
+
+            // Arată overlay-ul pe PanelGame
+            WinOverlay.Visibility = Visibility.Visible;
+
+            _ = SaveActivityAsync(won, duration);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  FEEDBACK OVERLAY
-        // ═══════════════════════════════════════════════════
         private void ShowFeedback(string icon, string msg, string sub)
         {
             TxtFeedbackIcon.Text = icon;
@@ -360,10 +333,7 @@ namespace focus_ai
             PanelFeedback.Visibility = Visibility.Visible;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  SAVE TO FIREBASE
-        // ═══════════════════════════════════════════════════
-        private async System.Threading.Tasks.Task SaveActivityAsync()
+        private async System.Threading.Tasks.Task SaveActivityAsync(bool won, TimeSpan duration)
         {
             try
             {
@@ -371,47 +341,47 @@ namespace focus_ai
                 string token = GetReg("IdToken");
                 if (string.IsNullOrEmpty(uid)) return;
 
-                double normalizedScore = Math.Min(100.0, _score / 10.0);
+                double normalized  = Math.Min(100.0, _score / (double)(TotalRounds * 575) * 100.0);
+                string durationStr = $"{(int)duration.TotalMinutes:D2}:{duration.Seconds:D2}";
 
                 var payload = new
                 {
-                    game       = "Visual Search",
-                    difficulty = _difficulty,
-                    scor       = Math.Round(normalizedScore, 2),
-                    rawScore   = _score,
-                    level      = _level,
-                    dateTime   = DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
-                    duration   = $"{(int)(DateTime.Now - _levelStart).TotalSeconds}s"
+                    game        = "Visual Search",
+                    difficulty  = _difficulty,
+                    scor        = Math.Round(normalized, 2),
+                    rawScore    = _score,
+                    round       = _round,
+                    totalRounds = TotalRounds,
+                    dateTime    = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    duration    = durationStr,
+                    completed   = won
                 };
 
                 string json  = JsonSerializer.Serialize(payload);
                 var content  = new StringContent(json, Encoding.UTF8, "application/json");
-                string url   = $"{_dbUrl}/{uid}/activities.json?auth={token}";
-                await _http.PostAsync(url, content);
+                await _http.PostAsync($"{_dbUrl}/{uid}/activities.json?auth={token}", content);
             }
             catch { }
         }
 
         // ═══════════════════════════════════════════════════
-        //  NAVIGATION
+        //  NAV
         // ═══════════════════════════════════════════════════
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
-            _isPlaying = false;
+            _isPlaying       = false;
+            _closedByButton  = true;
             Owner?.Show();
             Close();
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _timer.Stop();
-            Owner?.Show();
+            if (!_closedByButton) Owner?.Show();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HELPERS
-        // ═══════════════════════════════════════════════════
         private string GetReg(string key)
         {
             try
@@ -420,6 +390,13 @@ namespace focus_ai
                 return k?.GetValue(key)?.ToString() ?? "";
             }
             catch { return ""; }
+        }
+
+        private void BtnHome_Click(object sender, RoutedEventArgs e)
+        {
+            _closedByButton = true;
+            if (Owner is Dashboard db) db.Show();
+            Close();
         }
     }
 }

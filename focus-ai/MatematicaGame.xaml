@@ -1,0 +1,335 @@
+﻿<Window x:Class="focus_ai.MatematicaGame"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Focus AI – Matematică Rapidă"
+        WindowState="Maximized"
+        ResizeMode="CanMinimize"
+        WindowStartupLocation="CenterScreen"
+        Closing="Window_Closing">
+    <Grid Background="{DynamicResource BgRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Border Grid.Row="0" Background="{DynamicResource BgSidebar}" Padding="28,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="BtnBack"
+                        Grid.Column="0"
+                        Content="← Înapoi"
+                        FontSize="13" FontWeight="SemiBold"
+                        Background="{DynamicResource AccentSecBg}"
+                        Foreground="{DynamicResource AccentSecFg}"
+                        BorderThickness="0" Cursor="Hand"
+                        Padding="14,8"
+                        Click="BtnBack_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background"
+                                            Value="{DynamicResource AccentSecHov}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Margin="20,0,0,0">
+                    <TextBlock Text="➕" FontSize="20" VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <TextBlock Text="Matematică Rapidă" FontSize="17" FontWeight="Bold"
+                               Foreground="{DynamicResource TxtPrimary}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="{DynamicResource BgStatGreen}" CornerRadius="10" Padding="14,8" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Scor " FontSize="12" Foreground="{DynamicResource TxtStatGreen}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtScore" Text="0" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{DynamicResource BgStatOrange}" CornerRadius="10" Padding="14,8" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔥 " FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtStreak" Text="0" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="TimerBorder" Background="{DynamicResource BgStatBlue}" CornerRadius="10" Padding="14,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏱ " FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtTimer" Text="60" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- RESTUL FERESTII -->
+        <Grid Grid.Row="1">
+            <ScrollViewer x:Name="PanelDifficulty" VerticalScrollBarVisibility="Auto">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="600" Margin="40">
+                    <TextBlock Text="➕" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <TextBlock Text="Matematică Rapidă" FontSize="26" FontWeight="Bold"
+                               Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Rezolvă cât mai multe operații matematice în 60 de secunde."
+                               FontSize="14" Foreground="{DynamicResource TxtSecondary}"
+                               HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,36"/>
+                    <TextBlock Text="ALEGE DIFICULTATEA" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" x:Name="BtnEasy" Click="BtnEasy_Click"
+                                Background="{DynamicResource BgCard}" BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16" Padding="24,22">
+                                        <StackPanel>
+                                            <TextBlock Text="😊" FontSize="32" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Ușor" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                            <TextBlock Text="+, − cu numere 1–20" FontSize="11" Foreground="{DynamicResource TxtSecondary}"
+                                                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <Border Background="{DynamicResource BgStatBlue}" CornerRadius="6" Padding="10,4" HorizontalAlignment="Center">
+                                                <TextBlock Text="Recomandat pentru început" FontSize="10"
+                                                           Foreground="{DynamicResource TxtStatBlue}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgCardHover}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Button Grid.Column="2" x:Name="BtnMedium" Click="BtnMedium_Click"
+                                Background="{DynamicResource BgCard}" BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16" Padding="24,22">
+                                        <StackPanel>
+                                            <TextBlock Text="🤔" FontSize="32" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Mediu" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                            <TextBlock Text="+, −, × cu numere 1–50" FontSize="11" Foreground="{DynamicResource TxtSecondary}"
+                                                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <Border Background="{DynamicResource BgStatGreen}" CornerRadius="6" Padding="10,4" HorizontalAlignment="Center">
+                                                <TextBlock Text="Provocare moderată" FontSize="10"
+                                                           Foreground="{DynamicResource TxtStatGreen}" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgCardHover}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <Button Grid.Column="4" x:Name="BtnHard" Click="BtnHard_Click"
+                                Background="{DynamicResource BgCard}" BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16" Padding="24,22">
+                                        <StackPanel>
+                                            <TextBlock Text="🔥" FontSize="32" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                                            <TextBlock Text="Dificil" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                            <TextBlock Text="+, −, ×, ÷ cu numere 1–100" FontSize="11" Foreground="{DynamicResource TxtSecondary}"
+                                                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                                            <Border Background="#EF444420" CornerRadius="6" Padding="10,4" HorizontalAlignment="Center">
+                                                <TextBlock Text="Expert" FontSize="10" Foreground="#EF4444" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgCardHover}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid x:Name="PanelGame" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" VerticalAlignment="Top" Height="4" Background="{DynamicResource BgSep}" Margin="0,0,0,0">
+                    <Border x:Name="ProgressBar" HorizontalAlignment="Left" Height="4" Width="0"
+                            Background="{DynamicResource AccentPrimary}" CornerRadius="2"/>
+                </Border>
+
+                <StackPanel Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="40">
+                    <TextBlock x:Name="TxtFeedback" Text="" FontSize="22" FontWeight="Bold"
+                               HorizontalAlignment="Center" Margin="0,0,0,10" Opacity="0"/>
+                    <Border x:Name="QuestionCard" Background="{DynamicResource BgCard}" CornerRadius="24"
+                            Padding="60,48" MinWidth="420" HorizontalAlignment="Center" Margin="0,0,0,32">
+                        <StackPanel>
+                            <TextBlock x:Name="TxtQuestion" Text="?" FontSize="52" FontWeight="Bold"
+                                       Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" TextAlignment="Center"/>
+                            <TextBlock x:Name="TxtSubtitle" Text="Care este rezultatul?" FontSize="13"
+                                       Foreground="{DynamicResource TxtSecondary}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Grid HorizontalAlignment="Center" MinWidth="420">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{DynamicResource BgCard}" CornerRadius="12"
+                                BorderThickness="2" BorderBrush="{DynamicResource AccentPrimary}">
+                            <TextBox x:Name="TxtAnswer" FontSize="22" FontWeight="SemiBold" Background="Transparent"
+                                     BorderThickness="0" Foreground="{DynamicResource TxtPrimary}" Padding="18,12"
+                                     VerticalContentAlignment="Center" TextAlignment="Center"
+                                     KeyDown="TxtAnswer_KeyDown" PreviewTextInput="TxtAnswer_PreviewTextInput"/>
+                        </Border>
+                        <Button Grid.Column="2" x:Name="BtnSubmit" Content="✓" FontSize="20" FontWeight="Bold"
+                                Width="54" Height="54" Background="{DynamicResource AccentPrimary}" Foreground="White"
+                                BorderThickness="0" Cursor="Hand" Click="BtnSubmit_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                    <TextBlock Text="Apasă Enter sau ✓ pentru a confirma" FontSize="11"
+                               Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center" Margin="0,14,0,0"/>
+                </StackPanel>
+
+                <Border Grid.Row="1" Background="{DynamicResource BgSidebar}" Padding="28,12">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Border Background="{DynamicResource BgStatGreen}" CornerRadius="8" Padding="14,6" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✅ Corecte: " FontSize="12" Foreground="{DynamicResource TxtStatGreen}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtCorrect" Text="0" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#EF444420" CornerRadius="8" Padding="14,6" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="❌ Greșite: " FontSize="12" Foreground="#EF4444" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtWrong" Text="0" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource BgStatPurple}" CornerRadius="8" Padding="14,6">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="📊 Acuratețe: " FontSize="12" Foreground="{DynamicResource TxtStatPurple}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtAccuracy" Text="—" FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource TxtPrimary}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- OVERLAY DE FINAL – acoperă întreaga fereastră -->
+        <Grid Grid.Row="0" Grid.RowSpan="2" x:Name="WinOverlay" Visibility="Collapsed" Background="#CC000000">
+            <Border CornerRadius="24" Padding="48,40" Background="{DynamicResource BgCard}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="360">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock x:Name="WinEmoji" Text="🏆" FontSize="52"
+                               HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="WinTitle" Text="Excelent!" FontSize="26" FontWeight="Bold"
+                               Foreground="{DynamicResource TxtPrimary}"
+                               HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="WinSubtitle" Text=""
+                               FontSize="14" Foreground="{DynamicResource TxtSecondary}"
+                               HorizontalAlignment="Center" Margin="0,0,0,6"
+                               TextAlignment="Center" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="WinScore" Text="Scor final: 0 / 100"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentSecFg}"
+                               HorizontalAlignment="Center" Margin="0,0,0,24" TextAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="🔄  Joacă din nou"
+                                Click="WinPlayAgain_Click"
+                                Background="{DynamicResource AccentPrimary}"
+                                Foreground="White" FontSize="13" FontWeight="SemiBold"
+                                BorderThickness="0" Cursor="Hand" Margin="0,0,10,0">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="9" Padding="20,10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Content="← Înapoi la meniu"
+                                Click="BtnBack_Click"
+                                Background="{DynamicResource AccentSecBg}"
+                                Foreground="{DynamicResource AccentSecFg}"
+                                FontSize="13" FontWeight="SemiBold"
+                                BorderThickness="0" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="9" Padding="20,10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="{DynamicResource AccentSecHov}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

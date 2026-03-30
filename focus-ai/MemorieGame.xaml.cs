@@ -16,53 +16,41 @@ namespace focus_ai
 {
     public partial class MemorieGame : Window
     {
-        // ── Constante ──
         private const string RegPath = @"Software\FocusAI";
         private static readonly HttpClient _http = new();
         private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
 
-        // ── Simboluri carduri ──
-        // Același set; culoarea textului = alb pe dark, negru pe light
         private static readonly string[] CardSymbols =
         {
             "★","♠","♦","♣","♥","▲","●","■",
             "◆","♛","♜","♞","♟","⬟","⬡","✿"
         };
 
-        // ── Starea jocului ──
-        private List<CardModel> _cards      = new();
-        private CardButton?     _firstCard  = null;
-        private CardButton?     _secondCard = null;
-        private bool            _isLocked   = false;
-        private int             _moves      = 0;
-        private int             _pairsFound = 0;
-        private int             _totalPairs = 8;
-        private int             _rows       = 4;
-        private int             _cols       = 4;
-        private string          _difficulty = "Ușor";
+        private List<CardModel> _cards = new();
+        private CardButton? _firstCard = null;
+        private CardButton? _secondCard = null;
+        private bool _isLocked = false;
+        private int _moves = 0;
+        private int _pairsFound = 0;
+        private int _totalPairs = 8;
+        private int _rows = 4;
+        private int _cols = 4;
+        private string _difficulty = "Ușor";
 
-        // ── Timer ──
-        private DispatcherTimer _timer       = new();
-        private int             _seconds     = 0;
-        private bool            _gameStarted = false;
-
-        // ── Tema ──
+        private DispatcherTimer _timer = new();
+        private int _seconds = 0;
+        private bool _gameStarted = false;
         private readonly bool _isDark;
+        private DateTime _gameStartTime;
 
-        // ═══════════════════════════════════════════════════
-        //  MODEL
-        // ═══════════════════════════════════════════════════
         public class CardModel
         {
-            public int    Id        { get; set; }
-            public string Symbol    { get; set; } = "";
-            public bool   IsFlipped { get; set; }
-            public bool   IsMatched { get; set; }
+            public int Id { get; set; }
+            public string Symbol { get; set; } = "";
+            public bool IsFlipped { get; set; }
+            public bool IsMatched { get; set; }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  CONSTRUCTOR
-        // ═══════════════════════════════════════════════════
         public MemorieGame(bool isDark)
         {
             InitializeComponent();
@@ -72,59 +60,50 @@ namespace focus_ai
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
 
-            // Când userul închide cu X, redeschide dashboard-ul
             this.Closing += (_, _) => Owner?.Show();
-
             StartNewGame();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  DIFFICULTY
-        // ═══════════════════════════════════════════════════
         private void Difficulty_Checked(object sender, RoutedEventArgs e)
         {
             if (CardGrid == null) return;
 
-            if      (sender == DiffEasy)   { _rows = 4; _cols = 4; _difficulty = "Ușor"; }
+            if (sender == DiffEasy) { _rows = 4; _cols = 4; _difficulty = "Ușor"; }
             else if (sender == DiffMedium) { _rows = 4; _cols = 5; _difficulty = "Mediu"; }
-            else                           { _rows = 4; _cols = 6; _difficulty = "Dificil"; }
+            else { _rows = 4; _cols = 6; _difficulty = "Dificil"; }
 
-            CardGrid.Rows    = _rows;
+            CardGrid.Rows = _rows;
             CardGrid.Columns = _cols;
 
             double baseW = _cols * 120 + (_cols - 1) * 8;
             double baseH = _rows * 110 + (_rows - 1) * 8;
-            CardGrid.Width  = baseW;
+            CardGrid.Width = baseW;
             CardGrid.Height = baseH;
 
             _totalPairs = (_rows * _cols) / 2;
             StartNewGame();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  NEW GAME
-        // ═══════════════════════════════════════════════════
         private void NewGame_Click(object sender, RoutedEventArgs e) => StartNewGame();
 
         private void StartNewGame()
         {
-            _firstCard   = null;
-            _secondCard  = null;
-            _isLocked    = false;
-            _moves       = 0;
-            _pairsFound  = 0;
-            _seconds     = 0;
+            _firstCard = null;
+            _secondCard = null;
+            _isLocked = false;
+            _moves = 0;
+            _pairsFound = 0;
+            _seconds = 0;
             _gameStarted = false;
+            _gameStartTime = DateTime.Now;
 
             WinOverlay.Visibility = Visibility.Collapsed;
             _timer.Stop();
             UpdateHUD();
+            TimerText.Text = "00:00";
 
-            // Alege simbolurile
             string[] pool = CardSymbols.Take(_totalPairs).ToArray();
             var symbolList = pool.Concat(pool).ToList();
-
-            // Shuffle Fisher–Yates
             var rng = new Random();
             for (int i = symbolList.Count - 1; i > 0; i--)
             {
@@ -143,9 +122,6 @@ namespace focus_ai
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  LOGICA FLIP
-        // ═══════════════════════════════════════════════════
         private void Card_Click(object sender, RoutedEventArgs e)
         {
             if (_isLocked) return;
@@ -168,7 +144,7 @@ namespace focus_ai
 
             if (_firstCard.Model.Symbol == _secondCard.Model.Symbol)
             {
-                _firstCard.Model.IsMatched  = true;
+                _firstCard.Model.IsMatched = true;
                 _secondCard.Model.IsMatched = true;
                 _firstCard.SetMatched();
                 _secondCard.SetMatched();
@@ -198,9 +174,6 @@ namespace focus_ai
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  TIMER
-        // ═══════════════════════════════════════════════════
         private void Timer_Tick(object? sender, EventArgs e)
         {
             _seconds++;
@@ -208,90 +181,62 @@ namespace focus_ai
             TimerText.Text = $"{m:D2}:{s:D2}";
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HUD
-        // ═══════════════════════════════════════════════════
         private void UpdateHUD()
         {
             MovesText.Text = _moves.ToString();
             PairsText.Text = $"{_pairsFound} / {_totalPairs}";
         }
 
-        // ═══════════════════════════════════════════════════
-        //  WIN
-        // ═══════════════════════════════════════════════════
         private void ShowWin()
         {
             _timer.Stop();
-
             double maxMoves = _totalPairs * 2.5;
-            double movePen  = Math.Max(0, (_moves - _totalPairs) / maxMoves * 40);
-            double timePen  = Math.Min(40, _seconds / 3.0);
-            double score    = Math.Max(0, 100 - movePen - timePen);
+            double movePen = Math.Max(0, (_moves - _totalPairs) / maxMoves * 40);
+            double timePen = Math.Min(40, _seconds / 3.0);
+            double score = Math.Max(0, 100 - movePen - timePen);
 
             int m = _seconds / 60, s = _seconds % 60;
-            WinSubtitle.Text      = $"Timp: {m:D2}:{s:D2}  •  Mișcări: {_moves}";
-            WinScore.Text         = $"Scor: {score:F1} / 100";
+            WinSubtitle.Text = $"Timp: {m:D2}:{s:D2}  •  Mișcări: {_moves}";
+            WinScore.Text = $"Scor: {score:F1} / 100";
             WinOverlay.Visibility = Visibility.Visible;
 
             _ = SaveActivityToFirebaseAsync(score);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  FIREBASE — salvează activitate
-        // ═══════════════════════════════════════════════════
         private async System.Threading.Tasks.Task SaveActivityToFirebaseAsync(double score)
         {
             try
             {
-                string uid   = GetReg("Uid");
+                string uid = GetReg("Uid");
                 string token = GetReg("IdToken");
+                if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(token)) return;
 
-                if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(token))
-                {
-                    System.Diagnostics.Debug.WriteLine("[Firebase] UID sau token lipsă – salvare anulată.");
-                    return;
-                }
+                var duration = TimeSpan.FromSeconds(_seconds);
+                string durationStr = $"{(int)duration.TotalMinutes:D2}:{duration.Seconds:D2}";
 
                 var payload = new
                 {
-                    game       = "Memorie",
-                    dateTime   = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    duration   = $"{_seconds / 60:D2}:{_seconds % 60:D2}",
-                    moves      = _moves,
-                    pairs      = _totalPairs,
+                    game = "Memorie",
+                    dateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    duration = durationStr,
+                    moves = _moves,
+                    pairs = _totalPairs,
                     difficulty = _difficulty,
-                    scor       = Math.Round(score, 2)
+                    scor = Math.Round(score, 2)
                 };
 
-                string json    = JsonSerializer.Serialize(payload);
-                string pushKey = $"act_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-                string url     = $"{_dbUrl}/{uid}/activities/{pushKey}.json?auth={token}";
+                string json = JsonSerializer.Serialize(payload);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                string url = $"{_dbUrl}/{uid}/activities.json?auth={token}";
 
-                System.Diagnostics.Debug.WriteLine($"[Firebase] PUT → {url}");
-
-                var response = await _http.PutAsync(url,
-                    new StringContent(json, Encoding.UTF8, "application/json"));
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string err = await response.Content.ReadAsStringAsync();
-                    System.Diagnostics.Debug.WriteLine($"[Firebase] Eroare {response.StatusCode}: {err}");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"[Firebase] Activitate salvată cu succes: {pushKey}");
-                }
+                await _http.PostAsync(url, content);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Firebase] Excepție: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Firebase] Eroare: {ex.Message}");
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  BACK
-        // ═══════════════════════════════════════════════════
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
@@ -305,9 +250,6 @@ namespace focus_ai
             base.OnClosed(e);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HELPERS
-        // ═══════════════════════════════════════════════════
         private string GetReg(string key)
         {
             try
@@ -319,19 +261,15 @@ namespace focus_ai
         }
     }
 
-    // ═══════════════════════════════════════════════════
-    //  CARD BUTTON — control custom
-    // ═══════════════════════════════════════════════════
     public class CardButton : Button
     {
         public MemorieGame.CardModel Model { get; }
 
         private readonly Border _front;
         private readonly Border _back;
-        private readonly Grid   _inner;
-        private readonly bool   _isDark;
+        private readonly Grid _inner;
+        private readonly bool _isDark;
 
-        // Palette accent per simbol (hash stabil → aceeași culoare pentru ambele carduri dintr-o pereche)
         private static readonly string[] AccentColors =
         {
             "#3B82F6","#8B5CF6","#EC4899","#F59E0B",
@@ -349,65 +287,60 @@ namespace focus_ai
 
         public CardButton(MemorieGame.CardModel model, bool isDark)
         {
-            Model   = model;
+            Model = model;
             _isDark = isDark;
 
             BorderThickness = new Thickness(0);
-            Background      = Brushes.Transparent;
-            Cursor          = System.Windows.Input.Cursors.Hand;
-            Margin          = new Thickness(4);
+            Background = Brushes.Transparent;
+            Cursor = System.Windows.Input.Cursors.Hand;
+            Margin = new Thickness(4);
 
-            // ── Back face ──
-            string backBg     = isDark ? "#1E293B" : "#F1F5F9";
+            string backBg = isDark ? "#1E293B" : "#F1F5F9";
             string backBorder = isDark ? "#334155" : "#CBD5E1";
-            string backFg     = isDark ? "#FFFFFF"  : "#1E293B";  // alb pe dark, negru pe light
+            string backFg = isDark ? "#FFFFFF" : "#1E293B";
 
             _back = new Border
             {
-                CornerRadius    = new CornerRadius(14),
-                Background      = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backBg)),
-                BorderBrush     = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backBorder)),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backBg)),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backBorder)),
                 BorderThickness = new Thickness(2)
             };
-
             _back.Child = new TextBlock
             {
-                Text                = "?",
-                FontSize            = 34,
-                FontWeight          = FontWeights.Bold,
-                Foreground          = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backFg)),
+                Text = "?",
+                FontSize = 34,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(backFg)),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment   = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center
             };
 
-            // ── Front face ──
-            int    slot     = SlotOf(model.Symbol);
+            int slot = SlotOf(model.Symbol);
             string colorHex = AccentColors[slot];
-            var    fgColor  = (Color)ColorConverter.ConvertFromString(colorHex);
-            byte   bgAlpha  = isDark ? (byte)22 : (byte)45;
-            var    bgColor  = Color.FromArgb(bgAlpha, fgColor.R, fgColor.G, fgColor.B);
-            // Simbolul de pe față: alb pe dark, negru pe light — vizibil indiferent de suportul emoji
+            var fgColor = (Color)ColorConverter.ConvertFromString(colorHex);
+            byte bgAlpha = isDark ? (byte)22 : (byte)45;
+            var bgColor = Color.FromArgb(bgAlpha, fgColor.R, fgColor.G, fgColor.B);
             string symbolFg = isDark ? "#FFFFFF" : "#0F172A";
 
             _front = new Border
             {
-                CornerRadius    = new CornerRadius(14),
-                Background      = new SolidColorBrush(bgColor),
-                BorderBrush     = new SolidColorBrush(fgColor),
+                CornerRadius = new CornerRadius(14),
+                Background = new SolidColorBrush(bgColor),
+                BorderBrush = new SolidColorBrush(fgColor),
                 BorderThickness = new Thickness(2),
-                Visibility      = Visibility.Collapsed
+                Visibility = Visibility.Collapsed
             };
             _front.Child = new TextBlock
             {
-                Text                = model.Symbol,
-                FontSize            = 32,
-                FontWeight          = FontWeights.Bold,
-                Foreground          = new SolidColorBrush((Color)ColorConverter.ConvertFromString(symbolFg)),
+                Text = model.Symbol,
+                FontSize = 32,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(symbolFg)),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment   = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center
             };
 
-            // ── Container ──
             _inner = new Grid();
             _inner.Children.Add(_back);
             _inner.Children.Add(_front);
@@ -417,11 +350,11 @@ namespace focus_ai
             fef.SetValue(Border.BackgroundProperty, Brushes.Transparent);
             var cp = new FrameworkElementFactory(typeof(ContentPresenter));
             cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Stretch);
-            cp.SetValue(ContentPresenter.VerticalAlignmentProperty,   VerticalAlignment.Stretch);
+            cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Stretch);
             fef.AppendChild(cp);
             tpl.VisualTree = fef;
             Template = tpl;
-            Content  = _inner;
+            Content = _inner;
         }
 
         public void FlipToFront()
@@ -440,28 +373,27 @@ namespace focus_ai
 
         public void SetMatched()
         {
-            int    slot     = SlotOf(Model.Symbol);
+            int slot = SlotOf(Model.Symbol);
             string colorHex = AccentColors[slot];
-            var    fgColor  = (Color)ColorConverter.ConvertFromString(colorHex);
+            var fgColor = (Color)ColorConverter.ConvertFromString(colorHex);
 
             _front.BorderBrush = new SolidColorBrush(fgColor);
-            _front.Background  = new SolidColorBrush(
-                Color.FromArgb(75, fgColor.R, fgColor.G, fgColor.B));
+            _front.Background = new SolidColorBrush(Color.FromArgb(75, fgColor.R, fgColor.G, fgColor.B));
 
             var st = new ScaleTransform(1, 1);
-            RenderTransform       = st;
+            RenderTransform = st;
             RenderTransformOrigin = new Point(0.5, 0.5);
 
             var anim = new DoubleAnimation(1.0, 1.08, TimeSpan.FromMilliseconds(120))
             {
-                AutoReverse    = true,
+                AutoReverse = true,
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
             };
             st.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
             st.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
 
             IsEnabled = false;
-            Cursor    = System.Windows.Input.Cursors.Arrow;
+            Cursor = System.Windows.Input.Cursors.Arrow;
         }
 
         private static void AnimateFlip(UIElement hide, UIElement show)
@@ -469,7 +401,7 @@ namespace focus_ai
             var scaleHide = new ScaleTransform(1, 1);
             if (hide is FrameworkElement feHide)
             {
-                feHide.RenderTransform       = scaleHide;
+                feHide.RenderTransform = scaleHide;
                 feHide.RenderTransformOrigin = new Point(0.5, 0.5);
             }
 
@@ -486,7 +418,7 @@ namespace focus_ai
                 var scaleShow = new ScaleTransform(0, 1);
                 if (show is FrameworkElement feShow)
                 {
-                    feShow.RenderTransform       = scaleShow;
+                    feShow.RenderTransform = scaleShow;
                     feShow.RenderTransformOrigin = new Point(0.5, 0.5);
                 }
 
