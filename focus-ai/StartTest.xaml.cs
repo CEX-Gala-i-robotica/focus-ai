@@ -11,6 +11,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 
 namespace focus_ai
 {
@@ -18,7 +19,7 @@ namespace focus_ai
     {
         private readonly Dashboard _dashboard;
         private readonly bool _isDark;
-
+        private const string RegPath = @"Software\FocusAI";
         private bool _done1, _done2, _done3;
 
         private readonly DispatcherTimer _timer = new();
@@ -358,7 +359,7 @@ namespace focus_ai
 
             // Generează ID-ul testului (ex: 001, 002...) — citim câte teste există deja
             string testId = await GetNextTestIdAsync();
-
+            string uid = GetReg("Uid");
             // Construim JSON manual (fără dependență de Newtonsoft/System.Text.Json)
             string json = "{"
                 + $"\"dateTime\":\"{Escape(dateTime)}\","
@@ -373,7 +374,7 @@ namespace focus_ai
                 + $"\"scor\":{scor.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}"
                 + "}";
 
-            string url = $"{_dbUrl.TrimEnd('/')}/tests/{testId}.json";
+            string url = $"{_dbUrl.TrimEnd('/')}/{uid}/tests/{testId}.json";
 
             try
             {
@@ -398,13 +399,22 @@ namespace focus_ai
                     "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
+        private string GetReg(string key)
+        {
+            try
+            {
+                using var k = Registry.CurrentUser.OpenSubKey(RegPath);
+                return k?.GetValue(key)?.ToString() ?? "";
+            }
+            catch { return ""; }
+        }
         // Citește cheile existente din /tests și returnează următorul ID formatat (001, 002...)
         private async Task<string> GetNextTestIdAsync()
         {
             try
             {
-                string url = $"{_dbUrl.TrimEnd('/')}/tests.json?shallow=true";
+                string uid = GetReg("Uid");
+                string url = $"{_dbUrl.TrimEnd('/')}/{uid}/tests.json?shallow=true";
                 var response = await _http.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
