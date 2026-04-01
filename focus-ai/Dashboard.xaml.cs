@@ -21,6 +21,7 @@ namespace focus_ai
         private SerialPort? _serialPort;
         private Thread? _readThread;
         private bool _isRunning = true;
+        private readonly CancellationTokenSource _cts = new();
 
         private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
         private static readonly HttpClient _http = new();
@@ -28,6 +29,8 @@ namespace focus_ai
         private const string RegPath = @"Software\FocusAI";
 
         private bool _isDark = true;
+        private bool _isLoadingTests = false;
+        private bool _isLoadingActivities = false;
 
         private List<TestEntry> _testsCache = new();
         private List<ActivityEntry> _activitiesCache = new();
@@ -39,7 +42,7 @@ namespace focus_ai
         public Dashboard()
         {
             InitializeComponent();
-
+            WindowHelper.MoveToSecondMonitor(this);
             _isDark = IsSystemDarkTheme();
             ThemeManager.Apply(_isDark);
             ThemeIcon.Text = _isDark ? "☀️" : "🌙";
@@ -50,6 +53,7 @@ namespace focus_ai
             InitializeSerialPort();
             this.Closing += Dashboard_Closing;
 
+            // Încărcare inițială a datelor
             _ = LoadTestsFromFirebaseAsync();
             _ = LoadActivitiesFromFirebaseAsync();
         }
@@ -65,9 +69,21 @@ namespace focus_ai
             }
             catch { return true; }
         }
+
         private void NewTest_Click(object sender, RoutedEventArgs e)
         {
             var startTest = new StartTest(this, _isDark);
+            startTest.Closed += async (s, args) =>
+            {
+                this.Show();
+                // Reîmprospătare automată după încheierea testului
+                await LoadTestsFromFirebaseAsync();
+                // Dacă utilizatorul se afla pe fila de activități, reîmprospătăm și acelea
+                if (PanelActivitati.Visibility == Visibility.Visible)
+                {
+                    await LoadActivitiesFromFirebaseAsync();
+                }
+            };
             startTest.Show();
             this.Hide();
         }
@@ -92,15 +108,26 @@ namespace focus_ai
             PanelActivitati.Visibility = Visibility.Collapsed;
 
             if (sender == TabProfil)
+            {
                 PanelProfil.Visibility = Visibility.Visible;
+            }
             else if (sender == TabTestari)
+            {
                 PanelTestari.Visibility = Visibility.Visible;
+                // Reîmprospătare automată când utilizatorul revine la fila de teste
+                if (_testsCache.Count == 0 || TestLoadingState.Visibility == Visibility.Visible)
+                {
+                    _ = LoadTestsFromFirebaseAsync();
+                }
+            }
             else
             {
                 PanelActivitati.Visibility = Visibility.Visible;
-                if (_activitiesCache.Count == 0 &&
-                    ActLoadingState.Visibility != Visibility.Visible)
+                // Reîmprospătare automată când utilizatorul revine la fila de activități
+                if (_activitiesCache.Count == 0 && ActLoadingState.Visibility != Visibility.Visible)
+                {
                     _ = LoadActivitiesFromFirebaseAsync();
+                }
             }
         }
 
@@ -131,7 +158,7 @@ namespace focus_ai
                 if (string.IsNullOrEmpty(uid)) return;
 
                 string url = $"{_dbUrl}/{uid}/profile.json?auth={token}";
-                string json = await _http.GetStringAsync(url);
+                string json = await _http.GetStringAsync(url, _cts.Token);
                 if (string.IsNullOrEmpty(json) || json == "null") return;
 
                 var profile = JsonSerializer.Deserialize<ProfileData>(json);
@@ -200,21 +227,24 @@ namespace focus_ai
 
         private async Task LoadTestsFromFirebaseAsync()
         {
-            string uid = GetReg("Uid");
-            string token = GetReg("IdToken");
-
-            if (string.IsNullOrEmpty(uid))
-            {
-                Dispatcher.Invoke(ShowTestEmpty);
-                return;
-            }
-
-            Dispatcher.Invoke(ShowTestLoading);
+            if (_isLoadingTests) return;
+            _isLoadingTests = true;
 
             try
             {
+                string uid = GetReg("Uid");
+                string token = GetReg("IdToken");
+
+                if (string.IsNullOrEmpty(uid))
+                {
+                    Dispatcher.Invoke(ShowTestEmpty);
+                    return;
+                }
+
+                Dispatcher.Invoke(ShowTestLoading);
+
                 string json = await _http.GetStringAsync(
-                    $"{_dbUrl}/{uid}/tests.json?auth={token}");
+                    $"{_dbUrl}/{uid}/tests.json?auth={token}", _cts.Token);
 
                 if (string.IsNullOrEmpty(json) || json == "null")
                 {
@@ -225,9 +255,14 @@ namespace focus_ai
                 var tests = ParseTests(json);
                 Dispatcher.Invoke(() => RenderTests(tests));
             }
-            catch
+            catch (Exception ex)
             {
+                // Log error if needed
                 Dispatcher.Invoke(ShowTestEmpty);
+            }
+            finally
+            {
+                _isLoadingTests = false;
             }
         }
 
@@ -254,7 +289,12 @@ namespace focus_ai
             _testsCache = tests;
             TestRowsPanel.Children.Clear();
 
-            if (tests.Count == 0) { ShowTestEmpty(); UpdateProfileStats(tests, _activitiesCache); return; }
+            if (tests.Count == 0)
+            {
+                ShowTestEmpty();
+                UpdateProfileStats(tests, _activitiesCache);
+                return;
+            }
 
             TestLoadingState.Visibility = Visibility.Collapsed;
             TestEmptyState.Visibility = Visibility.Collapsed;
@@ -398,7 +438,25 @@ namespace focus_ai
             btn.Template = tpl;
 
             var captured = t;
-            btn.Click += (_, _) => new TestDetailsWindow(captured.MapRaw).ShowDialog();
+            btn.Click += async (_, _) =>
+            {
+                string uid = GetReg("Uid");
+                string token = GetReg("IdToken");
+                string json = await _http.GetStringAsync(
+                    $"{_dbUrl}/{uid}/tests/{captured.Id}.json?auth={token}", _cts.Token);
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var win = new TestDetailsWindow(
+                    root.TryGetProperty("map",  out var m) ? m.GetString() ?? "" : "",
+                    root.TryGetProperty("ecg",  out var e) ? e.GetString() ?? "" : "",
+                    root.TryGetProperty("spo2", out var s) ? s.GetString() ?? "" : "",
+                    root.TryGetProperty("hr",   out var h) ? h.GetString() ?? "" : "",
+                    root.TryGetProperty("dist", out var d) ? d.GetString() ?? "" : ""
+                );
+                win.Show();
+            };
             Add(5, btn);
 
             row.Child = g;
@@ -425,21 +483,24 @@ namespace focus_ai
 
         public async Task LoadActivitiesFromFirebaseAsync()
         {
-            string uid = GetReg("Uid");
-            string token = GetReg("IdToken");
-
-            if (string.IsNullOrEmpty(uid))
-            {
-                Dispatcher.Invoke(ShowActivitiesEmpty);
-                return;
-            }
-
-            Dispatcher.Invoke(ShowActivitiesLoading);
+            if (_isLoadingActivities) return;
+            _isLoadingActivities = true;
 
             try
             {
+                string uid = GetReg("Uid");
+                string token = GetReg("IdToken");
+
+                if (string.IsNullOrEmpty(uid))
+                {
+                    Dispatcher.Invoke(ShowActivitiesEmpty);
+                    return;
+                }
+
+                Dispatcher.Invoke(ShowActivitiesLoading);
+
                 string json = await _http.GetStringAsync(
-                    $"{_dbUrl}/{uid}/activities.json?auth={token}");
+                    $"{_dbUrl}/{uid}/activities.json?auth={token}", _cts.Token);
 
                 if (string.IsNullOrEmpty(json) || json == "null")
                 {
@@ -453,6 +514,10 @@ namespace focus_ai
             catch
             {
                 Dispatcher.Invoke(ShowActivitiesEmpty);
+            }
+            finally
+            {
+                _isLoadingActivities = false;
             }
         }
 
@@ -755,6 +820,7 @@ namespace focus_ai
         private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _isRunning = false;
+            _cts.Cancel(); // Anulează cererile HTTP în curs
             _readThread?.Join(500);
             if (_serialPort?.IsOpen == true) { _serialPort.Close(); _serialPort.Dispose(); }
         }

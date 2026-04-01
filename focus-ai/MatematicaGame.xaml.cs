@@ -42,6 +42,7 @@ namespace focus_ai
         public MatematicaGame(bool isDark)
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
 

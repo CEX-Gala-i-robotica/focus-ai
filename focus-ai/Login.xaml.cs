@@ -25,6 +25,7 @@ namespace focus_ai
         public Login()
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             ApplySystemTheme();
             LoadRememberedCredentials();
         }

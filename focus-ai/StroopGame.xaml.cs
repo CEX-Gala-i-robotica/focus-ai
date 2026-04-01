@@ -64,6 +64,7 @@ namespace focus_ai
         public StroopGame(bool isDark)
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
             _btns = new[] { Btn0, Btn1, Btn2, Btn3 };

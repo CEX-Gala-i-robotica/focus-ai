@@ -4,7 +4,6 @@
         Title="Focus AI – Matematică Rapidă"
         WindowState="Maximized"
         ResizeMode="CanMinimize"
-        WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
     <Grid Background="{DynamicResource BgRoot}">
         <Grid.RowDefinitions>

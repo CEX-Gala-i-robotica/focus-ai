@@ -4,7 +4,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Focus AI – Test de Reacție"
         Height="520" Width="700"
-        WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         ResizeMode="CanMinimize">
 

@@ -66,6 +66,7 @@ namespace focus_ai
         public GoNoGoTest(bool isDark)
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             ThemeManager.Apply(isDark);
 
             _pulseAnim = (Storyboard)Resources["PulseAnim"];

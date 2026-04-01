@@ -4,8 +4,7 @@
         Title="Focus AI - Login"
         Height="660"
         Width="420"
-        ResizeMode="CanMinimize"
-        WindowStartupLocation="CenterScreen">
+        ResizeMode="CanMinimize">
 
     <Window.Resources>
         <Color x:Key="LightWindowBg">#FFFFFF</Color>

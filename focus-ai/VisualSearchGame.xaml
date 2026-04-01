@@ -4,7 +4,6 @@
         Title="Focus AI - Visual Search"
         WindowState="Maximized"
         ResizeMode="CanMinimize"
-        WindowStartupLocation="CenterScreen"
         Closing="Window_Closing">
     <Grid x:Name="RootGrid" Background="{DynamicResource BgRoot}">
         <Grid.RowDefinitions>

@@ -25,6 +25,7 @@ namespace focus_ai
         public SignUp()
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             ApplySystemTheme();
         }
 

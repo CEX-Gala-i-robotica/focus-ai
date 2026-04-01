@@ -69,6 +69,7 @@ namespace focus_ai
         public VisualSearchGame(bool isDark)
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
 

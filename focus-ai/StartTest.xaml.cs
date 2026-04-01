@@ -38,7 +38,6 @@ namespace focus_ai
         private readonly string _dbUrl =
             ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
 
-        // Rezultate păstrate între etape
         private string _mapData = "";
         private double _reactionTimeSec = 0;
         private double _goNoGoAccuracy = 0;
@@ -48,6 +47,7 @@ namespace focus_ai
         public StartTest(Dashboard dashboard, bool isDark)
         {
             InitializeComponent();
+            WindowHelper.MoveToSecondMonitor(this);
             _dashboard = dashboard;
             _isDark = isDark;
 
@@ -224,9 +224,9 @@ namespace focus_ai
 
         private void RefreshUI()
         {
-            UpdateCard(Card1Border, Status1Badge, Status1Text, StartBtn1, StartBtn1Text, Card1Title, _done1);
-            UpdateCard(Card2Border, Status2Badge, Status2Text, StartBtn2, StartBtn2Text, Card2Title, _done2);
-            UpdateCard(Card3Border, Status3Badge, Status3Text, StartBtn3, StartBtn3Text, Card3Title, _done3);
+            UpdateCard(Card1Border, Status1Badge, Status1Text, StartBtn1, StartBtn1Text, _done1);
+            UpdateCard(Card2Border, Status2Badge, Status2Text, StartBtn2, StartBtn2Text, _done2);
+            UpdateCard(Card3Border, Status3Badge, Status3Text, StartBtn3, StartBtn3Text, _done3);
 
             var green = new SolidColorBrush(Color.FromRgb(34, 197, 94));
             var gray = new SolidColorBrush(Color.FromRgb(55, 65, 81));
@@ -240,7 +240,7 @@ namespace focus_ai
 
         private void UpdateCard(
             Border border, Border statusBadge, TextBlock statusText,
-            Button startBtn, TextBlock startBtnText, TextBlock titleText,
+            Button startBtn, TextBlock startBtnText,
             bool done)
         {
             if (done)
@@ -290,12 +290,9 @@ namespace focus_ai
             Close();
         }
 
-        // ─── Calcul scor ────────────────────────────────────────────────────────
-
         private double ComputeScore(string mapStr, double reactionSec,
                                     double goNoGoAcc, string distStr)
         {
-            // 1) Map score: puncte cu ambele coordonate în [0,100] / total * 45
             double mapScore = 0;
             if (!string.IsNullOrWhiteSpace(mapStr))
             {
@@ -318,15 +315,12 @@ namespace focus_ai
                 mapScore = total > 0 ? (double)inRange / total * 45.0 : 0;
             }
 
-            // 2) Reaction time score: (1 / reactionSec) * 25, cap la 25
             double rtScore = 0;
             if (reactionSec > 0)
                 rtScore = Math.Min(1.0 / reactionSec * 25.0, 25.0);
 
-            // 3) GoNoGo precizie: accuracy (0-100) / 100 * 25
             double goNoGoScore = goNoGoAcc / 100.0 * 25.0;
 
-            // 4) Penalizare: -5 * câte dist == 0
             int distZeroCount = 0;
             if (!string.IsNullOrWhiteSpace(distStr))
             {
@@ -337,18 +331,15 @@ namespace focus_ai
 
             double score = mapScore + rtScore + goNoGoScore - penalty;
 
-            // Clamp 0-100
             return Math.Round(Math.Max(0, Math.Min(100, score)), 2);
         }
-
-        // ─── Salvare Firebase ───────────────────────────────────────────────────
 
         private async Task SaveResultsAsync()
         {
             var bio = BioCollector.Instance;
 
-            string ecgStr  = string.Join(";", bio.Ecg.Select(s => $"{s.EcgDreapta},{s.EcgStanga}"));
-            string hrStr   = string.Join(",", bio.HeartRate);
+            string ecgStr = string.Join(";", bio.Ecg.Select(s => $"{s.EcgDreapta},{s.EcgStanga}"));
+            string hrStr = string.Join(",", bio.HeartRate);
             string spo2Str = string.Join(",", bio.SpO2);
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
 
@@ -357,10 +348,8 @@ namespace focus_ai
             string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
             string duration = _elapsed.ToString(@"mm\:ss");
 
-            // Generează ID-ul testului (ex: 001, 002...) — citim câte teste există deja
             string testId = await GetNextTestIdAsync();
             string uid = GetReg("Uid");
-            // Construim JSON manual (fără dependență de Newtonsoft/System.Text.Json)
             string json = "{"
                 + $"\"dateTime\":\"{Escape(dateTime)}\","
                 + $"\"duration\":\"{Escape(duration)}\","
@@ -399,6 +388,7 @@ namespace focus_ai
                     "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
         private string GetReg(string key)
         {
             try
@@ -408,7 +398,7 @@ namespace focus_ai
             }
             catch { return ""; }
         }
-        // Citește cheile existente din /tests și returnează următorul ID formatat (001, 002...)
+
         private async Task<string> GetNextTestIdAsync()
         {
             try
@@ -425,7 +415,6 @@ namespace focus_ai
                 if (body == "null" || string.IsNullOrWhiteSpace(body))
                     return "001";
 
-                // Numărăm câte chei sunt (fiecare "key": true)
                 int count = body.Split(new[] { ":true" }, StringSplitOptions.None).Length - 1;
                 return (count + 1).ToString("D3");
             }
@@ -435,7 +424,6 @@ namespace focus_ai
             }
         }
 
-        // Escapăm caracterele speciale JSON
         private static string Escape(string s) =>
             s.Replace("\\", "\\\\")
              .Replace("\"", "\\\"")

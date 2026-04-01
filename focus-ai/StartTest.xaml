@@ -8,13 +8,12 @@
 
     <Window.Resources>
 
-        <!-- Buton Start etapă -->
         <Style x:Key="StartStepBtnStyle" TargetType="Button">
-            <Setter Property="Background"      Value="{DynamicResource AccentPrimary}"/>
-            <Setter Property="Foreground"      Value="White"/>
-            <Setter Property="FontSize"        Value="12"/>
-            <Setter Property="FontWeight"      Value="SemiBold"/>
-            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -37,12 +36,11 @@
             </Setter>
         </Style>
 
-        <!-- Buton ghost (Anulează) -->
         <Style x:Key="GhostBtnStyle" TargetType="Button">
-            <Setter Property="Background"      Value="Transparent"/>
-            <Setter Property="Foreground"      Value="{DynamicResource TxtSecondary}"/>
-            <Setter Property="FontSize"        Value="13"/>
-            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TxtSecondary}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -54,7 +52,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgCardHover}"/>
-                                <Setter Property="Foreground"                  Value="{DynamicResource TxtPrimary}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TxtPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -71,7 +69,6 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- ══ HEADER ══ -->
         <Border x:Name="HeaderBorder" Grid.Row="0"
                 Background="{DynamicResource BgSidebar}"
                 Padding="38,28,38,24">
@@ -101,7 +98,6 @@
                                Foreground="{DynamicResource TxtSecondary}"/>
                 </StackPanel>
 
-                <!-- Cronometru global -->
                 <Border x:Name="TimerBox" Grid.Column="1"
                         Background="{DynamicResource BgCard}"
                         CornerRadius="14" Padding="26,14"
@@ -130,7 +126,6 @@
                    Height="1" Margin="38,0"
                    Fill="{DynamicResource BgSep}"/>
 
-        <!-- ══ CARDS ══ -->
         <Grid Grid.Row="1" Margin="38,28,38,0"
               Background="{DynamicResource BgRoot}">
             <Grid.ColumnDefinitions>
@@ -141,12 +136,13 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Card 1 — Urmărirea privirii -->
+            <!-- Card 1: Urmărirea privirii -->
             <Border x:Name="Card1Border" Grid.Column="0"
                     Background="{DynamicResource BgCard}"
                     CornerRadius="18" Padding="24,24,24,22">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
@@ -158,13 +154,12 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Border Width="54" Height="54" CornerRadius="14"
-                                Background="{DynamicResource AccentSecBg}"
-                                HorizontalAlignment="Left">
+                                Background="{DynamicResource AccentSecBg}">
                             <TextBlock Text="👁" FontSize="26"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Border x:Name="Status1Badge" Grid.Column="1"
-                                CornerRadius="20" Padding="10,4" VerticalAlignment="Top"
+                                CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
                             <TextBlock x:Name="Status1Text" Text="Neparcursă"
                                        FontSize="10" FontWeight="SemiBold"
@@ -172,8 +167,8 @@
                         </Border>
                     </Grid>
 
-                    <StackPanel Grid.Row="1">
-                        <TextBlock x:Name="Card1Title" Text="Urmărirea privirii"
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Urmărirea privirii"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
@@ -182,7 +177,17 @@
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
-                    <Button x:Name="StartBtn1" Grid.Row="2" Margin="0,20,0,0"
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="4"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Image Grid.Row="0" Source="pack://application:,,,/1.png" Stretch="UniformToFill"/>
+                        <Image Grid.Row="2" Source="pack://application:,,,/2.png" Stretch="UniformToFill"/>
+                    </Grid>
+
+                    <Button x:Name="StartBtn1" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep1_Click">
                         <TextBlock x:Name="StartBtn1Text" Text="▶  Start etapă"/>
@@ -190,12 +195,13 @@
                 </Grid>
             </Border>
 
-            <!-- Card 2 — Reacție la vibrație -->
+            <!-- Card 2: Reacție la sunet -->
             <Border x:Name="Card2Border" Grid.Column="2"
                     Background="{DynamicResource BgCard}"
                     CornerRadius="18" Padding="24,24,24,22">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
@@ -207,13 +213,12 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Border Width="54" Height="54" CornerRadius="14"
-                                Background="{DynamicResource BgStatPurple}"
-                                HorizontalAlignment="Left">
+                                Background="{DynamicResource AccentSecBg}">
                             <TextBlock Text="📳" FontSize="26"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Border x:Name="Status2Badge" Grid.Column="1"
-                                CornerRadius="20" Padding="10,4" VerticalAlignment="Top"
+                                CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
                             <TextBlock x:Name="Status2Text" Text="Neparcursă"
                                        FontSize="10" FontWeight="SemiBold"
@@ -221,17 +226,19 @@
                         </Border>
                     </Grid>
 
-                    <StackPanel Grid.Row="1">
-                        <TextBlock x:Name="Card2Title" Text="Reacție la vibrație"
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Reacție la sunet"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
-                        <TextBlock Text="Răspunde cât mai rapid la impulsul haptic. Măsoară timpul de reacție la stimuli tactili pentru evaluarea reflexelor."
+                        <TextBlock Text="Răspunde cât mai rapid la impulsul sonor. Măsoară timpul de reacție la stimuli auditivi pentru evaluarea reflexelor."
                                    FontSize="12" Foreground="{DynamicResource TxtSecondary}"
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
-                    <Button x:Name="StartBtn2" Grid.Row="2" Margin="0,20,0,0"
+                    <Image Grid.Row="2" Source="pack://application:,,,/3.png" Stretch="UniformToFill"/>
+
+                    <Button x:Name="StartBtn2" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep2_Click">
                         <TextBlock x:Name="StartBtn2Text" Text="▶  Start etapă"/>
@@ -239,12 +246,13 @@
                 </Grid>
             </Border>
 
-            <!-- Card 3 — GO/NO-GO -->
+            <!-- Card 3: Reacție vizuală GO/NO-GO -->
             <Border x:Name="Card3Border" Grid.Column="4"
                     Background="{DynamicResource BgCard}"
                     CornerRadius="18" Padding="24,24,24,22">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
@@ -256,13 +264,12 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <Border Width="54" Height="54" CornerRadius="14"
-                                Background="{DynamicResource BgStatGreen}"
-                                HorizontalAlignment="Left">
+                                Background="{DynamicResource AccentSecBg}">
                             <TextBlock Text="🎯" FontSize="26"
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Border x:Name="Status3Badge" Grid.Column="1"
-                                CornerRadius="20" Padding="10,4" VerticalAlignment="Top"
+                                CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
                             <TextBlock x:Name="Status3Text" Text="Neparcursă"
                                        FontSize="10" FontWeight="SemiBold"
@@ -270,8 +277,8 @@
                         </Border>
                     </Grid>
 
-                    <StackPanel Grid.Row="1">
-                        <TextBlock x:Name="Card3Title" Text="Reacție vizuală GO/NO-GO"
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Reacție vizuală GO/NO-GO"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
@@ -280,7 +287,9 @@
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
-                    <Button x:Name="StartBtn3" Grid.Row="2" Margin="0,20,0,0"
+                    <Image Grid.Row="2" Source="pack://application:,,,/4.png" Stretch="UniformToFill"/>
+
+                    <Button x:Name="StartBtn3" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep3_Click">
                         <TextBlock x:Name="StartBtn3Text" Text="▶  Start etapă"/>
@@ -290,7 +299,6 @@
 
         </Grid>
 
-        <!-- ══ FOOTER ══ -->
         <Border x:Name="FooterBorder" Grid.Row="2"
                 Background="{DynamicResource BgSidebar}"
                 Padding="38,16,38,26">
