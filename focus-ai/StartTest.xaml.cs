@@ -1,6 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -19,33 +25,45 @@ namespace focus_ai
         private TimeSpan _elapsed = TimeSpan.Zero;
         private bool _timerStarted = false;
 
-        private static readonly Color CardDoneBg     = Color.FromRgb(14,  30,  14);
+        private static readonly Color CardDoneBg = Color.FromRgb(14, 30, 14);
         private static readonly Color CardDoneBorder = Color.FromRgb(34, 197, 94);
 
         private static readonly string EyeTrackerDir = Path.GetFullPath(
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                          @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
-
         private const string PythonScript = "MonitorTracking.py";
+        private const string ArduinoPort = "COM12";
+
+        private readonly string _dbUrl =
+            ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+
+        // Rezultate păstrate între etape
+        private string _mapData = "";
+        private double _reactionTimeSec = 0;
+        private double _goNoGoAccuracy = 0;
+
+        private static readonly HttpClient _http = new();
 
         public StartTest(Dashboard dashboard, bool isDark)
         {
             InitializeComponent();
             _dashboard = dashboard;
-            _isDark    = isDark;
+            _isDark = isDark;
 
             ThemeManager.Apply(_isDark);
             RefreshUI();
 
             _timer.Interval = TimeSpan.FromSeconds(1);
-            _timer.Tick    += Timer_Tick;
+            _timer.Tick += Timer_Tick;
 
-            this.Closing += StartTest_Closing;
+            Loaded += StartTest_Loaded;
+            Closing += StartTest_Closing;
         }
 
-        // ════════════════════════════════════════════
-        //  TIMER
-        // ════════════════════════════════════════════
+        private void StartTest_Loaded(object sender, RoutedEventArgs e)
+        {
+            BioCollector.Instance.TryOpen(ArduinoPort);
+        }
 
         private void Timer_Tick(object? sender, EventArgs e)
         {
@@ -56,10 +74,13 @@ namespace focus_ai
         private void EnsureTimerStarted()
         {
             if (_timerStarted) return;
+
             _timerStarted = true;
             _timer.Start();
             TimerStatusText.Text = "În desfășurare";
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+
+            BioCollector.Instance.StartStreaming(reset: true);
         }
 
         private void StopTimer()
@@ -69,10 +90,6 @@ namespace focus_ai
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(96, 165, 250));
         }
 
-        // ════════════════════════════════════════════
-        //  CLICK ETAPE
-        // ════════════════════════════════════════════
-
         private void StartStep1_Click(object sender, RoutedEventArgs e) => RunStep(1);
         private void StartStep2_Click(object sender, RoutedEventArgs e) => RunStep(2);
         private void StartStep3_Click(object sender, RoutedEventArgs e) => RunStep(3);
@@ -80,7 +97,7 @@ namespace focus_ai
         private async void RunStep(int stepIndex)
         {
             EnsureTimerStarted();
-            this.Hide();
+            Hide();
 
             try
             {
@@ -91,8 +108,9 @@ namespace focus_ai
                     if (_done1 && _done2 && _done3)
                     {
                         StopTimer();
-                        this.Show();
-                        ShowCompletionMessage();
+                        BioCollector.Instance.StopStreaming();
+                        Show();
+                        await ShowCompletionMessageAsync();
                         return;
                     }
                 }
@@ -100,185 +118,97 @@ namespace focus_ai
             finally
             {
                 if (!(_done1 && _done2 && _done3))
-                    this.Show();
+                    Show();
             }
         }
 
-        // ════════════════════════════════════════════
-        //  LANSARE FERESTRE / SUBPROCESE
-        // ════════════════════════════════════════════
-
         private async Task<bool> LaunchStepWindowAsync(int stepIndex)
-{
-    switch (stepIndex)
-    {
-        case 1:
-            return await RunEyeTrackerAsync();
-        case 2:
-            MessageBox.Show("Etapa 2 – Placeholder", "Focus AI",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return true;
-        case 3:
-            MessageBox.Show("Etapa 3 – Placeholder", "Focus AI",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return true;
-        default:
-            return false;
-    }
-}
-
-private async Task<bool> RunEyeTrackerAsync()
-{
-    string scriptPath = Path.Combine(EyeTrackerDir, PythonScript);
-
-    if (!Directory.Exists(EyeTrackerDir))
-    {
-        MessageBox.Show($"Directorul eye-tracker nu a fost găsit:\n{EyeTrackerDir}",
-            "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
-        return false;
-    }
-
-    if (!File.Exists(scriptPath))
-    {
-        MessageBox.Show($"Scriptul Python nu a fost găsit:\n{scriptPath}",
-            "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
-        return false;
-    }
-
-    var psi = new ProcessStartInfo
-    {
-        FileName               = "python",
-        Arguments              = $"\"{PythonScript}\"",
-        WorkingDirectory       = EyeTrackerDir,
-        RedirectStandardOutput = true,
-        RedirectStandardError  = true,
-        UseShellExecute        = false,
-        CreateNoWindow         = true,
-    };
-
-    try
-    {
-        using var process = new Process { StartInfo = psi };
-        process.ErrorDataReceived += (_, _) => { };
-        process.Start();
-        process.BeginErrorReadLine();
-
-        // ★ async — nu blochează UI thread-ul
-        string stdoutData = await process.StandardOutput.ReadToEndAsync();
-        await Task.Run(() => process.WaitForExit());
-
-        if (!string.IsNullOrWhiteSpace(stdoutData))
         {
-            string coords = stdoutData.Trim();
-            return true;
-        }
-        else
-        {
-            MessageBox.Show("Scriptul nu a returnat coordonate.\nVerifica eye tracker-ul.",
-                "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return false;
-        }
-    }
-    catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 2)
-    {
-        MessageBox.Show("Python nu a fost găsit în PATH.\n\n" + ex.Message,
-            "Eroare – Python lipsă", MessageBoxButton.OK, MessageBoxImage.Error);
-        return false;
-    }
-    catch (Exception ex)
-    {
-        MessageBox.Show($"Eroare neașteptată:\n{ex.Message}",
-            "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
-        return false;
-    }
-}
+            switch (stepIndex)
+            {
+                case 1:
+                    return await RunEyeTrackerAsync();
 
-        private bool RunEyeTracker()
+                case 2:
+                    var buzzerWin = new BuzzerTest(_isDark);
+                    buzzerWin.ShowDialog();
+                    if (buzzerWin.ReactionTime.HasValue)
+                        _reactionTimeSec = buzzerWin.ReactionTime.Value;
+                    return true;
+
+                case 3:
+                    var goNoGoWin = new GoNoGoTest(_isDark);
+                    goNoGoWin.ShowDialog();
+                    _goNoGoAccuracy = goNoGoWin.Accuracy;
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        private async Task<bool> RunEyeTrackerAsync()
         {
             string scriptPath = Path.Combine(EyeTrackerDir, PythonScript);
 
             if (!Directory.Exists(EyeTrackerDir))
             {
-                MessageBox.Show(
-                    $"Directorul eye-tracker nu a fost găsit:\n{EyeTrackerDir}",
+                MessageBox.Show($"Directorul eye-tracker nu a fost găsit:\n{EyeTrackerDir}",
                     "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
 
             if (!File.Exists(scriptPath))
             {
-                MessageBox.Show(
-                    $"Scriptul Python nu a fost găsit:\n{scriptPath}",
+                MessageBox.Show($"Scriptul Python nu a fost găsit:\n{scriptPath}",
                     "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
 
             var psi = new ProcessStartInfo
             {
-                FileName               = "python",
-                Arguments              = $"\"{PythonScript}\"",
-                WorkingDirectory       = EyeTrackerDir,
+                FileName = "python",
+                Arguments = $"\"{PythonScript}\"",
+                WorkingDirectory = EyeTrackerDir,
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
             };
-
-            string stdoutData = string.Empty;
 
             try
             {
                 using var process = new Process { StartInfo = psi };
-
-                // ★ FIX: stderr citit async ca sa nu se produca deadlock.
-                // Python scrie loguri continuu pe stderr timp de 60s —
-                // daca astepti ReadToEnd() sincron pe ambele, bufferul
-                // se umple si procesul se blocheaza.
-                process.ErrorDataReceived += (_, _) => { }; // ignora stderr, doar il golim
+                process.ErrorDataReceived += (_, _) => { };
                 process.Start();
-                process.BeginErrorReadLine(); // goleste bufferul stderr in background
+                process.BeginErrorReadLine();
 
-                // Stdout: o singura linie la final — "mx,my;mx,my;..."
-                stdoutData = process.StandardOutput.ReadToEnd();
-
-                process.WaitForExit();
+                string stdoutData = await process.StandardOutput.ReadToEndAsync();
+                await Task.Run(() => process.WaitForExit());
 
                 if (!string.IsNullOrWhiteSpace(stdoutData))
                 {
-                    // Trimite coordonatele mai departe (ex: salvare, procesare AI etc.)
-                    string coords = stdoutData.Trim();
-
+                    _mapData = stdoutData.Trim();
                     return true;
                 }
-                else
-                {
-                    MessageBox.Show(
-                        "Scriptul nu a returnat coordonate.\nVerifica eye tracker-ul.",
-                        "Focus AI – Eye Tracker",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
-                    return false;
-                }
+
+                MessageBox.Show("Scriptul nu a returnat coordonate.\nVerifică eye tracker-ul.",
+                    "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
             }
-            catch (System.ComponentModel.Win32Exception ex)
-                when (ex.NativeErrorCode == 2)
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 2)
             {
-                MessageBox.Show(
-                    "Python nu a fost găsit în PATH.\n\n" + ex.Message,
+                MessageBox.Show("Python nu a fost găsit în PATH.\n\n" + ex.Message,
                     "Eroare – Python lipsă", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Eroare neașteptată:\n{ex.Message}",
+                MessageBox.Show($"Eroare neașteptată:\n{ex.Message}",
                     "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
         }
-
-        // ════════════════════════════════════════════
-        //  MARCARE ETAPĂ FINALIZATĂ
-        // ════════════════════════════════════════════
 
         private void MarkStepDone(int stepIndex)
         {
@@ -291,19 +221,17 @@ private async Task<bool> RunEyeTrackerAsync()
             RefreshUI();
         }
 
-        // ════════════════════════════════════════════
-        //  REFRESH UI
-        // ════════════════════════════════════════════
-
         private void RefreshUI()
         {
             UpdateCard(Card1Border, Status1Badge, Status1Text, StartBtn1, StartBtn1Text, Card1Title, _done1);
             UpdateCard(Card2Border, Status2Badge, Status2Text, StartBtn2, StartBtn2Text, Card2Title, _done2);
             UpdateCard(Card3Border, Status3Badge, Status3Text, StartBtn3, StartBtn3Text, Card3Title, _done3);
 
-            ProgDot1.Fill = _done1 ? new SolidColorBrush(Color.FromRgb(34, 197, 94)) : new SolidColorBrush(Color.FromRgb(55, 65, 81));
-            ProgDot2.Fill = _done2 ? new SolidColorBrush(Color.FromRgb(34, 197, 94)) : new SolidColorBrush(Color.FromRgb(55, 65, 81));
-            ProgDot3.Fill = _done3 ? new SolidColorBrush(Color.FromRgb(34, 197, 94)) : new SolidColorBrush(Color.FromRgb(55, 65, 81));
+            var green = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+            var gray = new SolidColorBrush(Color.FromRgb(55, 65, 81));
+            ProgDot1.Fill = _done1 ? green : gray;
+            ProgDot2.Fill = _done2 ? green : gray;
+            ProgDot3.Fill = _done3 ? green : gray;
 
             int doneCount = (_done1 ? 1 : 0) + (_done2 ? 1 : 0) + (_done3 ? 1 : 0);
             ProgressText.Text = $"{doneCount} / 3 etape finalizate";
@@ -316,46 +244,193 @@ private async Task<bool> RunEyeTrackerAsync()
         {
             if (done)
             {
-                border.Background      = new SolidColorBrush(CardDoneBg);
-                border.BorderBrush     = new SolidColorBrush(CardDoneBorder);
+                border.Background = new SolidColorBrush(CardDoneBg);
+                border.BorderBrush = new SolidColorBrush(CardDoneBorder);
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = new SolidColorBrush(Color.FromRgb(20, 83, 45));
-                statusText.Text        = "✓  Finalizată";
-                statusText.Foreground  = new SolidColorBrush(Color.FromRgb(74, 222, 128));
+                statusText.Text = "✓  Finalizată";
+                statusText.Foreground = new SolidColorBrush(Color.FromRgb(74, 222, 128));
 
                 startBtn.IsEnabled = false;
-                startBtnText.Text  = "Finalizată";
+                startBtnText.Text = "Finalizată";
             }
             else
             {
-                border.Background      = (SolidColorBrush)FindResource("BgCard");
-                border.BorderBrush     = (SolidColorBrush)FindResource("BgSep");
+                border.Background = (SolidColorBrush)FindResource("BgCard");
+                border.BorderBrush = (SolidColorBrush)FindResource("BgSep");
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = (SolidColorBrush)FindResource("BgNavActive");
-                statusText.Text        = "Neparcursă";
-                statusText.Foreground  = (SolidColorBrush)FindResource("TxtMuted");
+                statusText.Text = "Neparcursă";
+                statusText.Foreground = (SolidColorBrush)FindResource("TxtMuted");
 
                 startBtn.IsEnabled = true;
-                startBtnText.Text  = "▶  Start etapă";
+                startBtnText.Text = "▶  Start etapă";
             }
         }
 
-        private void ShowCompletionMessage()
+        private async Task ShowCompletionMessageAsync()
         {
             string time = _elapsed.ToString(@"mm\:ss");
-            var result  = MessageBox.Show(
-                $"🎉 Toate etapele au fost finalizate!\n\nTimp total: {time}\n\nDorești să salvezi rezultatele?",
-                "Test finalizat", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+            string summary =
+                $"🎉 Toate etapele au fost finalizate!\n\n" +
+                $"Timp total: {time}\n" +
+                $"Dorești să salvezi rezultatele în Firebase?";
+
+            var result = MessageBox.Show(summary, "Test finalizat",
+                MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+            if (result == MessageBoxResult.Yes)
+                await SaveResultsAsync();
 
             _dashboard.Show();
             Close();
         }
 
-        // ════════════════════════════════════════════
-        //  ANULARE / ÎNCHIDERE
-        // ════════════════════════════════════════════
+        // ─── Calcul scor ────────────────────────────────────────────────────────
+
+        private double ComputeScore(string mapStr, double reactionSec,
+                                    double goNoGoAcc, string distStr)
+        {
+            // 1) Map score: puncte cu ambele coordonate în [0,100] / total * 45
+            double mapScore = 0;
+            if (!string.IsNullOrWhiteSpace(mapStr))
+            {
+                var points = mapStr.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                int total = points.Length;
+                int inRange = 0;
+
+                foreach (var pt in points)
+                {
+                    var parts = pt.Split(',');
+                    if (parts.Length == 2
+                        && double.TryParse(parts[0], out double x)
+                        && double.TryParse(parts[1], out double y))
+                    {
+                        if (x >= 0 && x <= 100 && y >= 0 && y <= 100)
+                            inRange++;
+                    }
+                }
+
+                mapScore = total > 0 ? (double)inRange / total * 45.0 : 0;
+            }
+
+            // 2) Reaction time score: (1 / reactionSec) * 25, cap la 25
+            double rtScore = 0;
+            if (reactionSec > 0)
+                rtScore = Math.Min(1.0 / reactionSec * 25.0, 25.0);
+
+            // 3) GoNoGo precizie: accuracy (0-100) / 100 * 25
+            double goNoGoScore = goNoGoAcc / 100.0 * 25.0;
+
+            // 4) Penalizare: -5 * câte dist == 0
+            int distZeroCount = 0;
+            if (!string.IsNullOrWhiteSpace(distStr))
+            {
+                distZeroCount = distStr.Split(',')
+                    .Count(v => v.Trim() == "0");
+            }
+            double penalty = 5.0 * distZeroCount;
+
+            double score = mapScore + rtScore + goNoGoScore - penalty;
+
+            // Clamp 0-100
+            return Math.Round(Math.Max(0, Math.Min(100, score)), 2);
+        }
+
+        // ─── Salvare Firebase ───────────────────────────────────────────────────
+
+        private async Task SaveResultsAsync()
+        {
+            var bio = BioCollector.Instance;
+
+            string ecgStr  = string.Join(";", bio.Ecg.Select(s => $"{s.EcgDreapta},{s.EcgStanga}"));
+            string hrStr   = string.Join(",", bio.HeartRate);
+            string spo2Str = string.Join(",", bio.SpO2);
+            string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
+
+            double scor = ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, distStr);
+
+            string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+            string duration = _elapsed.ToString(@"mm\:ss");
+
+            // Generează ID-ul testului (ex: 001, 002...) — citim câte teste există deja
+            string testId = await GetNextTestIdAsync();
+
+            // Construim JSON manual (fără dependență de Newtonsoft/System.Text.Json)
+            string json = "{"
+                + $"\"dateTime\":\"{Escape(dateTime)}\","
+                + $"\"duration\":\"{Escape(duration)}\","
+                + $"\"map\":\"{Escape(_mapData)}\","
+                + $"\"ecg\":\"{Escape(ecgStr)}\","
+                + $"\"hr\":\"{Escape(hrStr)}\","
+                + $"\"spo2\":\"{Escape(spo2Str)}\","
+                + $"\"dist\":\"{Escape(distStr)}\","
+                + $"\"tr2\":{_reactionTimeSec.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)},"
+                + $"\"precizie_gonogo\":{_goNoGoAccuracy.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},"
+                + $"\"scor\":{scor.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}"
+                + "}";
+
+            string url = $"{_dbUrl.TrimEnd('/')}/tests/{testId}.json";
+
+            try
+            {
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await _http.PutAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}",
+                        "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    string body = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show($"Eroare Firebase ({response.StatusCode}):\n{body}",
+                        "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Eroare la trimiterea datelor:\n{ex.Message}",
+                    "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Citește cheile existente din /tests și returnează următorul ID formatat (001, 002...)
+        private async Task<string> GetNextTestIdAsync()
+        {
+            try
+            {
+                string url = $"{_dbUrl.TrimEnd('/')}/tests.json?shallow=true";
+                var response = await _http.GetAsync(url);
+
+                if (!response.IsSuccessStatusCode)
+                    return "001";
+
+                string body = await response.Content.ReadAsStringAsync();
+
+                if (body == "null" || string.IsNullOrWhiteSpace(body))
+                    return "001";
+
+                // Numărăm câte chei sunt (fiecare "key": true)
+                int count = body.Split(new[] { ":true" }, StringSplitOptions.None).Length - 1;
+                return (count + 1).ToString("D3");
+            }
+            catch
+            {
+                return "001";
+            }
+        }
+
+        // Escapăm caracterele speciale JSON
+        private static string Escape(string s) =>
+            s.Replace("\\", "\\\\")
+             .Replace("\"", "\\\"")
+             .Replace("\r", "")
+             .Replace("\n", "");
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
@@ -366,6 +441,7 @@ private async Task<bool> RunEyeTrackerAsync()
             if (confirm == MessageBoxResult.Yes)
             {
                 _timer.Stop();
+                BioCollector.Instance.StopStreaming();
                 _dashboard.Show();
                 Close();
             }
@@ -374,6 +450,7 @@ private async Task<bool> RunEyeTrackerAsync()
         private void StartTest_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _timer.Stop();
+            BioCollector.Instance.Close();
             if (!_dashboard.IsVisible)
                 _dashboard.Show();
         }

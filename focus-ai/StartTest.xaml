@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Focus AI – Test cognitiv"
         Height="620" Width="900"
-        WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize">
+        WindowState="Maximized"
+        ResizeMode="CanMinimize">
 
     <Window.Resources>
 

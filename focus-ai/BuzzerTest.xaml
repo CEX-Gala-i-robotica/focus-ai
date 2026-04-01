@@ -1,0 +1,113 @@
+﻿<!-- BuzzerTest.xaml -->
+<Window x:Class="focus_ai.BuzzerTest"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Focus AI – Test de Reacție"
+        Height="520" Width="700"
+        WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
+        ResizeMode="CanMinimize">
+
+    <Window.Resources>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="10" Padding="28,13">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource AccentHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- Root – culoare aplicată din cod (ThemeManager) -->
+    <Grid x:Name="RootGrid" Background="{DynamicResource BgRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="1"
+                Background="{DynamicResource BgMain}"
+                Padding="40,32">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Titlu secțiune -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,28">
+                    <TextBlock Text="Test de Reacție la Stimul Sonor"
+                               FontSize="22" FontWeight="Bold"
+                               Foreground="{DynamicResource TxtPrimary}"
+                               Margin="0,0,0,5"/>
+                    <TextBlock Text="Apasă Start și reacționează cât mai rapid la semnalul sonor."
+                               FontSize="13"
+                               Foreground="{DynamicResource TxtSecondary}"/>
+                </StackPanel>
+
+                <!-- Card central -->
+                <Border Grid.Row="1"
+                        Background="{DynamicResource BgCard}"
+                        CornerRadius="18" Padding="36,32">
+                    <StackPanel HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+
+                        <!-- Indicator stare -->
+                        <Border x:Name="StatusBadge"
+                                Background="{DynamicResource BgStatBlue}"
+                                CornerRadius="20" Padding="16,6"
+                                HorizontalAlignment="Center"
+                                Margin="0,0,0,24">
+                            <TextBlock x:Name="TxtInstruction"
+                                       Text="Pregătit pentru test"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TxtStatBlue}"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Cronometru mare -->
+                        <TextBlock x:Name="TxtTimer"
+                                   Text="0.000 s"
+                                   FontSize="64" FontWeight="Bold"
+                                   Foreground="{DynamicResource TxtPrimary}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,32"
+                                   FontFamily="Consolas"/>
+
+                        <!-- Buton Start -->
+                        <Button x:Name="BtnStart"
+                                Content="▶  Începe Testul"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Center"
+                                MinWidth="200"
+                                Click="BtnStart_Click"/>
+
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>
