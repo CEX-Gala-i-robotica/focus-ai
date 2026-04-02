@@ -177,14 +177,25 @@
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
+                    <!-- MODIFICAT: Grid cu 2 imagini stivuite, fiecare in Border cu ClipToBounds -->
                     <Grid Grid.Row="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="4"/>
+                            <RowDefinition Height="6"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Image Grid.Row="0" Source="pack://application:,,,/1.png" Stretch="UniformToFill"/>
-                        <Image Grid.Row="2" Source="pack://application:,,,/2.png" Stretch="UniformToFill"/>
+                        <Border Grid.Row="0" CornerRadius="10">
+                            <Image Source="pack://application:,,,/1.png"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Grid.Row="2" CornerRadius="10">
+                            <Image Source="pack://application:,,,/2.png"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                        </Border>
                     </Grid>
 
                     <Button x:Name="StartBtn1" Grid.Row="3" Margin="0,20,0,0"
@@ -236,7 +247,13 @@
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
-                    <Image Grid.Row="2" Source="pack://application:,,,/3.png" Stretch="UniformToFill"/>
+                    <!-- MODIFICAT: Border cu ClipToBounds si Stretch UniformToFill -->
+                    <Border Grid.Row="2" CornerRadius="10">
+                        <Image Source="pack://application:,,,/3.png"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    </Border>
 
                     <Button x:Name="StartBtn2" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
@@ -287,7 +304,13 @@
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
 
-                    <Image Grid.Row="2" Source="pack://application:,,,/4.png" Stretch="UniformToFill"/>
+                    <!-- MODIFICAT: Border cu ClipToBounds si Stretch UniformToFill -->
+                    <Border Grid.Row="2" CornerRadius="10">
+                        <Image Source="pack://application:,,,/4.png"
+                               Stretch="Uniform"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                    </Border>
 
                     <Button x:Name="StartBtn3" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
