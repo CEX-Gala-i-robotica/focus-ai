@@ -2,3 +2,5 @@
 /focus-ai/bin
 /focus-ai/obj
 /focus-ai/App.config
+/site/.idea
+/site/node-modules

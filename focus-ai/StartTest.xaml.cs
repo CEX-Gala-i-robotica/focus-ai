@@ -339,8 +339,9 @@ namespace focus_ai
             var bio = BioCollector.Instance;
 
             string ecgStr = string.Join(";", bio.Ecg.Select(s => $"{s.EcgDreapta},{s.EcgStanga}"));
-            string hrStr = string.Join(",", bio.HeartRate);
-            string spo2Str = string.Join(",", bio.SpO2);
+            // Elimină valorile nule (zero) din ritmul cardiac și saturația oxigenului
+            string hrStr = string.Join(",", bio.HeartRate.Where(v => v != 0));
+            string spo2Str = string.Join(",", bio.SpO2.Where(v => v != 0));
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
 
             double scor = ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, distStr);

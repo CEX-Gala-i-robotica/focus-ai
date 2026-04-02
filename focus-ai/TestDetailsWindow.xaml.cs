@@ -11,7 +11,6 @@ namespace focus_ai
     public partial class TestDetailsWindow : Window
     {
         // ── Constructor ──────────────────────────────────────────────────────
-        //  Accepts all five raw strings exactly as stored in JSON
         public TestDetailsWindow(string mapRaw, string ecgRaw,
                                   string spo2Raw, string hrRaw, string distRaw)
         {
@@ -30,15 +29,12 @@ namespace focus_ai
                 DrawScatter(MapCanvas, MapXLabels, MapYLabels, mapPoints);
 
             // ECG – two channels from pairs "x1,x2;…"
-            //   channel 1 (x1, left)  → cyan gradient
-            //   channel 2 (x2, right) → magenta gradient
             var ecgPairs = ParsePairs(ecgRaw);
             if (ecgPairs.Count > 0)
             {
                 var ch1 = ecgPairs.Select((p, i) => new Point(i, p.X)).ToList();
                 var ch2 = ecgPairs.Select((p, i) => new Point(i, p.Y)).ToList();
 
-                // Draw on same canvas; compute shared Y range
                 double minY = Math.Min(ch1.Min(p => p.Y), ch2.Min(p => p.Y));
                 double maxY = Math.Max(ch1.Max(p => p.Y), ch2.Max(p => p.Y));
                 double minX = 0;
@@ -117,7 +113,6 @@ namespace focus_ai
             DrawGridLines(graph, xLbl, yLbl, minX, maxX, minY, maxY, w, h, Tx, Ty);
             DrawAxesLines(graph, minX, maxX, minY, maxY, w, h, Tx, Ty);
 
-            // Dots with cyan→magenta gradient by index
             int n = points.Count;
             for (int i = 0; i < n; i++)
             {
@@ -178,7 +173,6 @@ namespace focus_ai
             if (!skipGrid)
                 DrawGridLines(graph, xLbl, yLbl, minX, maxX, minY, maxY, w, h, Tx, Ty);
 
-            // Area fill
             var areaFig = new PathFigure
             {
                 StartPoint = new Point(Tx(points[0].X), h),
@@ -197,7 +191,6 @@ namespace focus_ai
                 Fill = areaFill
             });
 
-            // Main line
             var lineFig = new PathFigure
             {
                 StartPoint = new Point(Tx(points[0].X), Ty(points[0].Y))
@@ -228,7 +221,6 @@ namespace focus_ai
             int    n   = vals.Count;
             double mid = h / 2;
 
-            // Baseline
             c.Children.Add(new Line
             {
                 X1=0, Y1=mid, X2=w, Y2=mid,
@@ -236,7 +228,6 @@ namespace focus_ai
                 StrokeThickness = 1
             });
 
-            // End ticks
             foreach (double tx in new[] { 0.0, w })
                 c.Children.Add(new Line
                 {
@@ -245,13 +236,11 @@ namespace focus_ai
                     StrokeThickness = 1
                 });
 
-            // n= label
             var lblN = MakeLabel($"n={n}",
                 new SolidColorBrush(Color.FromArgb(80, 160, 160, 255)), 8);
             Canvas.SetRight(lblN, 2); Canvas.SetTop(lblN, 2);
             c.Children.Add(lblN);
 
-            // Dots where value != 0
             var dotFill  = new SolidColorBrush(Color.FromArgb(210, 160, 160, 255));
             var haloFill = new SolidColorBrush(Color.FromArgb(40,  160, 160, 255));
 
@@ -327,7 +316,6 @@ namespace focus_ai
         // PARSERS
         // ════════════════════════════════════════════════════════════════════
 
-        /// "x,y;x,y;…" → List&lt;Point&gt;  (used by MAP)
         private static List<Point> ParseXY(string raw)
         {
             var list = new List<Point>();
@@ -342,7 +330,6 @@ namespace focus_ai
             return list;
         }
 
-        /// "x1,x2;x1,x2;…" → List&lt;Point(x1,x2)&gt;  (used by ECG)
         private static List<Point> ParsePairs(string raw)
         {
             var list = new List<Point>();
@@ -357,7 +344,6 @@ namespace focus_ai
             return list;
         }
 
-        /// "v,v,v,…" → List&lt;double&gt;  (used by SPO2, HR, DIST)
         private static List<double> ParseValues(string raw)
         {
             var list = new List<double>();
