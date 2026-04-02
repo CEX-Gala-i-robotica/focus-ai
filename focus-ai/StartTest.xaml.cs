@@ -408,7 +408,6 @@ namespace focus_ai
         {
             try
             {
-                // 1. Get doctor's email from Firebase
                 string doctorEmailUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/profile/doctor-email.json";
                 var emailResponse = await _http.GetAsync(doctorEmailUrl);
                 if (!emailResponse.IsSuccessStatusCode)
@@ -417,13 +416,9 @@ namespace focus_ai
                 string emailJson = await emailResponse.Content.ReadAsStringAsync();
                 if (string.IsNullOrWhiteSpace(emailJson) || emailJson == "null")
                     return false;
-
-                // Remove quotes if present
                 string doctorEmail = emailJson.Trim('"');
                 if (string.IsNullOrWhiteSpace(doctorEmail))
                     return false;
-
-                // 2. Prepare SendGrid email
                 if (string.IsNullOrEmpty(_sendGridApiKey) || string.IsNullOrEmpty(_sendGridEmail))
                     return false;
 
