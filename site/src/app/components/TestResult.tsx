@@ -187,12 +187,6 @@ export default function TestResult() {
     return (
         <div className="min-h-screen bg-gray-900 text-white">
             <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="mb-6">
-                    <Link to="/" className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-2">
-                        ← Back to Home
-                    </Link>
-                </div>
-
                 <h1 className="text-3xl font-bold mb-8">Test Results</h1>
 
                 {/* User Profile */}
