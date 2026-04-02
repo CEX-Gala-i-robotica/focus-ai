@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -37,6 +38,10 @@ namespace focus_ai
 
         private readonly string _dbUrl =
             ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _sendGridApiKey =
+            ConfigurationManager.AppSettings["SendGridApiKey"] ?? "";
+        private readonly string _sendGridEmail =
+            ConfigurationManager.AppSettings["SendGridEmail"] ?? "";
 
         private string _mapData = "";
         private double _reactionTimeSec = 0;
@@ -339,7 +344,6 @@ namespace focus_ai
             var bio = BioCollector.Instance;
 
             string ecgStr = string.Join(";", bio.Ecg.Select(s => $"{s.EcgDreapta},{s.EcgStanga}"));
-            // Elimină valorile nule (zero) din ritmul cardiac și saturația oxigenului
             string hrStr = string.Join(",", bio.HeartRate.Where(v => v != 0));
             string spo2Str = string.Join(",", bio.SpO2.Where(v => v != 0));
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
@@ -373,8 +377,18 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
-                    MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}",
-                        "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+                    // Try to send email to doctor
+                    bool emailSent = await SendEmailToDoctorAsync(uid, testId);
+                    if (emailSent)
+                    {
+                        MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}\nUn email a fost trimis medicului.",
+                            "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}\nNu s-a putut trimite emailul către medic (adresă lipsă sau eroare).",
+                            "Focus AI", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
                 else
                 {
@@ -387,6 +401,79 @@ namespace focus_ai
             {
                 MessageBox.Show($"Eroare la trimiterea datelor:\n{ex.Message}",
                     "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<bool> SendEmailToDoctorAsync(string uid, string testId)
+        {
+            try
+            {
+                // 1. Get doctor's email from Firebase
+                string doctorEmailUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/profile/doctor-email.json";
+                var emailResponse = await _http.GetAsync(doctorEmailUrl);
+                if (!emailResponse.IsSuccessStatusCode)
+                    return false;
+
+                string emailJson = await emailResponse.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(emailJson) || emailJson == "null")
+                    return false;
+
+                // Remove quotes if present
+                string doctorEmail = emailJson.Trim('"');
+                if (string.IsNullOrWhiteSpace(doctorEmail))
+                    return false;
+
+                // 2. Prepare SendGrid email
+                if (string.IsNullOrEmpty(_sendGridApiKey) || string.IsNullOrEmpty(_sendGridEmail))
+                    return false;
+
+                string link = $"https://sitefocus.vercel.app/{uid}/{testId}";
+                string subject = "Focus AI - Rezultate test pacient";
+                string htmlContent = $@"
+                    <html>
+                    <body>
+                        <h2>Focus AI</h2>
+                        <p>Un pacient a finalizat testul cognitiv.</p>
+                        <p><strong>ID test:</strong> {testId}</p>
+                        <p><strong>Link rezultate:</strong> <a href='{link}'>{link}</a></p>
+                        <p>Vă rugăm să accesați link-ul pentru a vizualiza detaliile complete.</p>
+                        <hr/>
+                        <small>Acest mesaj a fost generat automat de aplicația Focus AI.</small>
+                    </body>
+                    </html>";
+
+                var emailPayload = new
+                {
+                    personalizations = new[]
+                    {
+                        new
+                        {
+                            to = new[] { new { email = doctorEmail } },
+                            subject = subject
+                        }
+                    },
+                    from = new { email = _sendGridEmail },
+                    content = new[]
+                    {
+                        new
+                        {
+                            type = "text/html",
+                            value = htmlContent
+                        }
+                    }
+                };
+
+                string jsonPayload = System.Text.Json.JsonSerializer.Serialize(emailPayload);
+                var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                _http.DefaultRequestHeaders.Clear();
+                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _sendGridApiKey);
+
+                var sendResponse = await _http.PostAsync("https://api.sendgrid.com/v3/mail/send", httpContent);
+                return sendResponse.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
             }
         }
 
