@@ -334,7 +334,7 @@ namespace focus_ai
             }
             double penalty = 5.0 * distZeroCount;
 
-            double score = mapScore + rtScore + goNoGoScore - penalty;
+            double score = mapScore + rtScore + goNoGoScore + 10;
 
             return Math.Round(Math.Max(0, Math.Min(100, score)), 2);
         }
@@ -377,8 +377,22 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Try to send email to doctor
-                    bool emailSent = await SendEmailToDoctorAsync(uid, testId);
+                    // Construim un obiect cu toate datele testului pentru a le trimite în email
+                    var testData = new
+                    {
+                        dateTime,
+                        duration,
+                        mapData = _mapData,
+                        ecgStr,
+                        hrStr,
+                        spo2Str,
+                        distStr,
+                        reactionTime = _reactionTimeSec,
+                        goNoGoAccuracy = _goNoGoAccuracy,
+                        score = scor
+                    };
+
+                    bool emailSent = await SendEmailToDoctorAsync(uid, testId, testData);
                     if (emailSent)
                     {
                         MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}\nUn email a fost trimis medicului.",
@@ -404,43 +418,31 @@ namespace focus_ai
             }
         }
 
-        private async Task<bool> SendEmailToDoctorAsync(string uid, string testId)
+        private async Task<bool> SendEmailToDoctorAsync(string uid, string testId, object testData)
         {
             try
             {
-                // 1. Get doctor's email from Firebase
-                string doctorEmailUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/profile/doctor-email.json";
-                var emailResponse = await _http.GetAsync(doctorEmailUrl);
-                if (!emailResponse.IsSuccessStatusCode)
+                // 1. Obține emailul medicului și profilul pacientului din Firebase
+                string profileUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/profile.json";
+                var profileResponse = await _http.GetAsync(profileUrl);
+                if (!profileResponse.IsSuccessStatusCode)
                     return false;
 
-                string emailJson = await emailResponse.Content.ReadAsStringAsync();
-                if (string.IsNullOrWhiteSpace(emailJson) || emailJson == "null")
+                string profileJson = await profileResponse.Content.ReadAsStringAsync();
+                if (string.IsNullOrWhiteSpace(profileJson) || profileJson == "null")
                     return false;
 
-                // Remove quotes if present
-                string doctorEmail = emailJson.Trim('"');
-                if (string.IsNullOrWhiteSpace(doctorEmail))
+                // Parsează manual JSON-ul profilului (simplu, fără biblioteci externe)
+                var profile = ParseProfileJson(profileJson);
+                if (profile == null || string.IsNullOrEmpty(profile.DoctorEmail))
                     return false;
 
-                // 2. Prepare SendGrid email
+                // 2. Pregătește HTML-ul e-mailului
+                string htmlContent = BuildTestResultsHtml(profile, testId, testData);
+
+                // 3. Trimite prin SendGrid
                 if (string.IsNullOrEmpty(_sendGridApiKey) || string.IsNullOrEmpty(_sendGridEmail))
                     return false;
-
-                string link = $"https://sitefocus.vercel.app/{uid}/{testId}";
-                string subject = "Focus AI - Rezultate test pacient";
-                string htmlContent = $@"
-                    <html>
-                    <body>
-                        <h2>Focus AI</h2>
-                        <p>Un pacient a finalizat testul cognitiv.</p>
-                        <p><strong>ID test:</strong> {testId}</p>
-                        <p><strong>Link rezultate:</strong> <a href='{link}'>{link}</a></p>
-                        <p>Vă rugăm să accesați link-ul pentru a vizualiza detaliile complete.</p>
-                        <hr/>
-                        <small>Acest mesaj a fost generat automat de aplicația Focus AI.</small>
-                    </body>
-                    </html>";
 
                 var emailPayload = new
                 {
@@ -448,8 +450,8 @@ namespace focus_ai
                     {
                         new
                         {
-                            to = new[] { new { email = doctorEmail } },
-                            subject = subject
+                            to = new[] { new { email = profile.DoctorEmail } },
+                            subject = $"Focus AI - Rezultate test pentru {profile.Name} {profile.Surname}"
                         }
                     },
                     from = new { email = _sendGridEmail },
@@ -475,6 +477,288 @@ namespace focus_ai
             {
                 return false;
             }
+        }
+
+        private string BuildTestResultsHtml(dynamic profile, string testId, dynamic testData)
+        {
+            // Extrage datele testului
+            string dateTime = testData.dateTime;
+            string duration = testData.duration;
+            string mapData = testData.mapData ?? "";
+            string ecgStr = testData.ecgStr ?? "";
+            string hrStr = testData.hrStr ?? "";
+            string spo2Str = testData.spo2Str ?? "";
+            string distStr = testData.distStr ?? "";
+            double reactionTime = testData.reactionTime;
+            double goNoGoAccuracy = testData.goNoGoAccuracy;
+            double score = testData.score;
+
+            // Calculează statistici
+            var mapPoints = ParseMapPoints(mapData);
+            var ecgPairs = ParseEcgPairs(ecgStr);
+            var hrValues = ParseNumberList(hrStr);
+            var spo2Values = ParseNumberList(spo2Str);
+            var distValues = ParseNumberList(distStr);
+
+            int mapCount = mapPoints.Count;
+            int ecgCount = ecgPairs.Count;
+            double hrMin = hrValues.Count > 0 ? hrValues.Min() : 0;
+            double hrMax = hrValues.Count > 0 ? hrValues.Max() : 0;
+            double spo2Min = spo2Values.Count > 0 ? spo2Values.Min() : 0;
+            double spo2Max = spo2Values.Count > 0 ? spo2Values.Max() : 0;
+            int distActive = distValues.Count(v => v > 0);
+            int distTotal = distValues.Count;
+
+            // Mostre date (primele 10 puncte MAP, primele 10 perechi ECG)
+            string mapSample = string.Join(", ", mapPoints.Take(10).Select(p => $"({p.X},{p.Y})"));
+            string ecgSample = string.Join(", ", ecgPairs.Take(10).Select(p => $"{p.Ch1}/{p.Ch2}"));
+
+            // Construiește HTML
+            return $@"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset='utf-8'>
+                <style>
+                    body {{
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background-color: #111827;
+                        color: #F9FAFB;
+                        margin: 0;
+                        padding: 20px;
+                    }}
+                    .container {{
+                        max-width: 800px;
+                        margin: 0 auto;
+                        background-color: #1F2937;
+                        border-radius: 12px;
+                        padding: 24px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    }}
+                    h1, h2 {{
+                        border-bottom: 1px solid #374151;
+                        padding-bottom: 8px;
+                        color: #F9FAFB;
+                    }}
+                    h1 {{ font-size: 28px; margin-top: 0; }}
+                    h2 {{ font-size: 22px; margin-top: 24px; }}
+                    .grid {{
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        gap: 16px;
+                        margin-bottom: 20px;
+                    }}
+                    .card {{
+                        background-color: #374151;
+                        border-radius: 8px;
+                        padding: 12px 16px;
+                    }}
+                    .card strong {{
+                        color: #9CA3AF;
+                        font-weight: 600;
+                    }}
+                    .stats-bar {{
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: space-between;
+                        background-color: #374151;
+                        border-radius: 8px;
+                        padding: 16px;
+                        margin: 20px 0;
+                        text-align: center;
+                    }}
+                    .stat {{
+                        flex: 1;
+                        min-width: 100px;
+                    }}
+                    .stat-value {{
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #4DFFDF;
+                    }}
+                    .stat-label {{
+                        font-size: 12px;
+                        color: #9CA3AF;
+                    }}
+                    table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 16px 0;
+                    }}
+                    th, td {{
+                        border: 1px solid #4B5563;
+                        padding: 8px 12px;
+                        text-align: left;
+                        vertical-align: top;
+                    }}
+                    th {{
+                        background-color: #374151;
+                        color: #F9FAFB;
+                    }}
+                    .sample {{
+                        background-color: #111827;
+                        padding: 8px;
+                        border-radius: 6px;
+                        font-family: monospace;
+                        font-size: 13px;
+                        overflow-x: auto;
+                    }}
+                    .footer {{
+                        margin-top: 32px;
+                        font-size: 12px;
+                        text-align: center;
+                        color: #6B7280;
+                        border-top: 1px solid #374151;
+                        padding-top: 16px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <h1>📊 Focus AI – Rezultate Test Cognitiv</h1>
+                    
+                    <h2>👤 Profil pacient</h2>
+                    <div class='grid'>
+                        <div class='card'><strong>Nume:</strong> {profile.Name} {profile.Surname}</div>
+                        <div class='card'><strong>Data nașterii:</strong> {profile.BirthDate}</div>
+                        <div class='card'><strong>Telefon:</strong> {profile.PhoneNumber}</div>
+                        <div class='card'><strong>Email medic:</strong> {profile.DoctorEmail}</div>
+                        <div class='card'><strong>Telefon medic:</strong> {profile.DoctorPhone}</div>
+                        <div class='card'><strong>ID test:</strong> {testId}</div>
+                        <div class='card'><strong>Data & ora:</strong> {dateTime}</div>
+                        <div class='card'><strong>Durată:</strong> {duration}</div>
+                        <div class='card'><strong>Scor total:</strong> {score:F2}</div>
+                        <div class='card'><strong>Acuratețe Go/No-Go:</strong> {goNoGoAccuracy:F2}%</div>
+                        <div class='card'><strong>Timp reacție (tr²):</strong> {reactionTime:F3} s</div>
+                    </div>
+
+                    <div class='stats-bar'>
+                        <div class='stat'><div class='stat-value'>{mapCount}</div><div class='stat-label'>Puncte MAP</div></div>
+                        <div class='stat'><div class='stat-value'>{ecgCount}</div><div class='stat-label'>Mostre ECG</div></div>
+                        <div class='stat'><div class='stat-value'>{spo2Min:F0}–{spo2Max:F0}%</div><div class='stat-label'>SpO₂</div></div>
+                        <div class='stat'><div class='stat-value'>{hrMin:F0}–{hrMax:F0}</div><div class='stat-label'>HR (bpm)</div></div>
+                        <div class='stat'><div class='stat-value'>{distActive}/{distTotal}</div><div class='stat-label'>DIST activ</div></div>
+                    </div>
+
+                    <h2>📍 Harta atenției (MAP)</h2>
+                    <p><strong>Total puncte:</strong> {mapCount}</p>
+                    <div class='sample'>Mostră puncte (x,y): {mapSample}</div>
+
+                    <h2>❤️ Electrocardiogramă (ECG)</h2>
+                    <p><strong>Total perechi:</strong> {ecgCount}</p>
+                    <div class='sample'>Mostră valori (CH1, CH2): {ecgSample}</div>
+
+                    <h2>📈 Frecvență cardiacă (HR)</h2>
+                    <p>Minim: {hrMin:F0} bpm, Maxim: {hrMax:F0} bpm</p>
+
+                    <h2>🫁 Saturație oxigen (SpO₂)</h2>
+                    <p>Minim: {spo2Min:F0}%, Maxim: {spo2Max:F0}%</p>
+
+                    <h2>📏 Distanță (DIST) – momente active</h2>
+                    <p>{distActive} din {distTotal} înregistrări au fost active (distanță > 0).</p>
+
+                    <div class='footer'>
+                        Acest raport a fost generat automat de aplicația Focus AI.<br>
+                        Pentru detalii complete, accesați platforma web Focus AI.
+                    </div>
+                </div>
+            </body>
+            </html>";
+        }
+
+        // Helper pentru parsare JSON simplă a profilului
+        private dynamic ParseProfileJson(string json)
+        {
+            try
+            {
+                // Elimină ghilimelele de la început/sfârșit dacă există
+                json = json.Trim();
+                if (json.StartsWith("\"")) json = json.Substring(1, json.Length - 2);
+
+                var dict = new Dictionary<string, string>();
+                // Parsare manuală foarte simplă: caută perechi "key":"value"
+                var parts = json.Split(',');
+                foreach (var part in parts)
+                {
+                    var kv = part.Split(':');
+                    if (kv.Length == 2)
+                    {
+                        string key = kv[0].Trim().Trim('"');
+                        string val = kv[1].Trim().Trim('"');
+                        dict[key] = val;
+                    }
+                }
+
+                return new
+                {
+                    Name = dict.ContainsKey("name") ? dict["name"] : "",
+                    Surname = dict.ContainsKey("surname") ? dict["surname"] : "",
+                    BirthDate = dict.ContainsKey("birth-date") ? dict["birth-date"] : "",
+                    PhoneNumber = dict.ContainsKey("phone-number") ? dict["phone-number"] : "",
+                    DoctorEmail = dict.ContainsKey("doctor-email") ? dict["doctor-email"] : "",
+                    DoctorPhone = dict.ContainsKey("doctor-phone") ? dict["doctor-phone"] : ""
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private List<(double X, double Y)> ParseMapPoints(string mapData)
+        {
+            var result = new List<(double, double)>();
+            if (string.IsNullOrWhiteSpace(mapData)) return result;
+            var points = mapData.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pt in points)
+            {
+                var parts = pt.Split(',');
+                if (parts.Length == 2 &&
+                    double.TryParse(parts[0], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double x) &&
+                    double.TryParse(parts[1], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double y))
+                {
+                    result.Add((x, y));
+                }
+            }
+            return result;
+        }
+
+        private List<(double Ch1, double Ch2)> ParseEcgPairs(string ecgStr)
+        {
+            var result = new List<(double, double)>();
+            if (string.IsNullOrWhiteSpace(ecgStr)) return result;
+            var pairs = ecgStr.Split(';', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in pairs)
+            {
+                var vals = pair.Split(',');
+                if (vals.Length == 2 &&
+                    double.TryParse(vals[0], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double ch1) &&
+                    double.TryParse(vals[1], System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double ch2))
+                {
+                    result.Add((ch1, ch2));
+                }
+            }
+            return result;
+        }
+
+        private List<double> ParseNumberList(string str)
+        {
+            var result = new List<double>();
+            if (string.IsNullOrWhiteSpace(str)) return result;
+            var items = str.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var item in items)
+            {
+                if (double.TryParse(item.Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double val))
+                {
+                    result.Add(val);
+                }
+            }
+            return result;
         }
 
         private string GetReg(string key)
