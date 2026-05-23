@@ -211,15 +211,19 @@
                     <TextBlock Text="MENIU" FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}"
                                Margin="10,0,0,12"/>
-                    <RadioButton x:Name="TabProfil" Content="Profilul meu"
+                    <RadioButton x:Name="TabProfil" Content="Profil medic"
                                  GroupName="NavTabs" IsChecked="True"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="👤" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabTestari" Content="Testările mele"
+                    <RadioButton x:Name="TabPacienti" Content="Pacienți"
+                                 GroupName="NavTabs"
+                                 Style="{StaticResource NavTabStyle}"
+                                 Tag="🧑‍⚕️" Margin="0,4,0,0" Checked="Tab_Checked"/>
+                    <RadioButton x:Name="TabTestari" Content="Testări pacient"
                                  GroupName="NavTabs"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="📋" Margin="0,4,0,0" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabActivitati" Content="Activitățile mele"
+                    <RadioButton x:Name="TabActivitati" Content="Activități pacient"
                                  GroupName="NavTabs"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="🎮" Margin="0,4,0,0" Checked="Tab_Checked"/>
@@ -278,11 +282,11 @@
 
                 <ScrollViewer x:Name="PanelProfil" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock x:Name="TitleProfil" Text="Profilul meu"
+                        <TextBlock x:Name="TitleProfil" Text="Profil medic"
                                    FontSize="22" FontWeight="Bold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,6"/>
-                        <TextBlock Text="Statisticile și informațiile contului tău"
+                        <TextBlock Text="Datele contului medical și sumarul pacienților asociați"
                                    FontSize="13"
                                    Foreground="{DynamicResource TxtSecondary}"
                                    Margin="0,0,0,26"/>
@@ -328,7 +332,7 @@
                                                 Background="{DynamicResource BgStatGreen}"
                                                 CornerRadius="20" Padding="10,4"
                                                 Visibility="Collapsed">
-                                            <TextBlock Text="Medic asociat" FontSize="11"
+                                            <TextBlock Text="Cont medic" FontSize="11"
                                                        Foreground="{DynamicResource TxtStatGreen}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
@@ -364,7 +368,7 @@
                                     <TextBlock x:Name="StatNrTestari" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Testări efectuate" FontSize="12"
+                                    <TextBlock Text="Testări pacienți" FontSize="12"
                                                Foreground="{DynamicResource TxtStatBlue}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -392,7 +396,7 @@
                                     <TextBlock x:Name="StatNrActivitati" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Activități jucate" FontSize="12"
+                                    <TextBlock Text="Activități pacienți" FontSize="12"
                                                Foreground="{DynamicResource TxtStatPurple}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -415,6 +419,126 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <ScrollViewer x:Name="PanelPacienti" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,26">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Pacienți"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{DynamicResource TxtPrimary}"
+                                           Margin="0,0,0,6"/>
+                                <TextBlock Text="Pacienții asociați contului tău medical"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TxtSecondary}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="⟳  Reîncarcă"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    VerticalAlignment="Center"
+                                    Click="RefreshPatients_Click"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,26">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatBlue}">
+                                <StackPanel>
+                                    <TextBlock Text="PACIENȚI" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatBlue}" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="PatientsTotal" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatGreen}">
+                                <StackPanel>
+                                    <TextBlock Text="EVOLUȚIE POZITIVĂ" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatGreen}" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="PatientsPositive" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
+                                    Background="{DynamicResource BgStatOrange}">
+                                <StackPanel>
+                                    <TextBlock Text="ATENȚIE" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtStatOrange}" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="PatientsAttention" Text="—"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TxtPrimary}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border x:Name="PatientsLoadingState" CornerRadius="14" Padding="32"
+                                Background="{DynamicResource BgCard}" Visibility="Visible">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="⏳" FontSize="30"
+                                           HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                                <TextBlock Text="Se încarcă pacienții..." FontSize="13"
+                                           Foreground="{DynamicResource TxtSecondary}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="PatientsEmptyState" CornerRadius="14" Padding="42"
+                                Background="{DynamicResource BgCard}" Visibility="Collapsed">
+                            <StackPanel HorizontalAlignment="Center">
+                                <TextBlock Text="🧑‍⚕️" FontSize="38"
+                                           HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                                <TextBlock Text="Niciun pacient asociat"
+                                           FontSize="15" FontWeight="Medium"
+                                           Foreground="{DynamicResource TxtPrimary}"
+                                           HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                <TextBlock Text="Pacienții apar aici după asocierea cu medicul în Firebase."
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TxtSecondary}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="PatientsTableHeader" Visibility="Collapsed"
+                                Padding="18,10" Margin="0,0,0,4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="46"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="100"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="#" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="1" Text="PACIENT" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="2" Text="TESTE" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="3" Text="ACTIVITĂȚI" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="4" Text="PREDICȚIE" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                                <TextBlock Grid.Column="5" Text="" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TxtMuted}"/>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel x:Name="PatientsRowsPanel"/>
+                    </StackPanel>
+                </ScrollViewer>
+
                 <ScrollViewer x:Name="PanelTestari" Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto">
                     <StackPanel>
@@ -424,11 +548,12 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Testările mele"
+                                <TextBlock Text="Testări pacient"
                                            FontSize="22" FontWeight="Bold"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="Istoricul testărilor tale"
+                                <TextBlock x:Name="SelectedPatientTestsLabel"
+                                           Text="Selectează un pacient pentru a vedea istoricul testărilor"
                                            FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
@@ -561,11 +686,12 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Activitățile mele"
+                                <TextBlock Text="Activități pacient"
                                            FontSize="22" FontWeight="Bold"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="Istoricul sesiunilor de antrenament cognitiv"
+                                <TextBlock x:Name="SelectedPatientActivitiesLabel"
+                                           Text="Selectează un pacient pentru a vedea istoricul activităților"
                                            FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>

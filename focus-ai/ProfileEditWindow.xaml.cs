@@ -61,13 +61,18 @@ namespace focus_ai
                     return;
 
                 string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-                string url = $"{baseUrl}/{userId}/profile.json?auth={token}";
+                string url = $"{baseUrl}/doctors/{userId}.json?auth={token}";
 
                 using HttpClient client = new();
                 string response = await client.GetStringAsync(url);
 
                 if (string.IsNullOrEmpty(response) || response == "null")
-                    return;
+                {
+                    url = $"{baseUrl}/{userId}/profile.json?auth={token}";
+                    response = await client.GetStringAsync(url);
+                    if (string.IsNullOrEmpty(response) || response == "null")
+                        return;
+                }
 
                 var profile = JsonSerializer.Deserialize<ProfileData>(response);
                 if (profile == null) return;
@@ -76,12 +81,12 @@ namespace focus_ai
                 {
                     BoxName.Text        = profile.Name        ?? "";
                     BoxSurname.Text     = profile.Surname     ?? "";
-                    BoxPhone.Text       = profile.Phone       ?? "";
-                    BoxDoctorEmail.Text = profile.DoctorEmail ?? "";
+                    BoxPhone.Text       = profile.EffectivePhone;
+                    BoxDoctorEmail.Text = profile.CabinetAddress ?? "";
                     BoxDoctorPhone.Text = profile.DoctorPhone ?? "";
 
                     if (DateTime.TryParseExact(
-                            profile.BirthDate, "dd.MM.yyyy",
+                            profile.EffectiveBirthDate, "dd.MM.yyyy",
                             System.Globalization.CultureInfo.InvariantCulture,
                             System.Globalization.DateTimeStyles.None,
                             out var bd))
@@ -128,7 +133,7 @@ namespace focus_ai
         private void DoctorEmail_Changed(object sender, TextChangedEventArgs e)
         {
             string val  = BoxDoctorEmail.Text.Trim();
-            _docEmailOk = string.IsNullOrEmpty(val) || IsValidEmail(val);
+            _docEmailOk = val.Length > 0;
             SetFieldState(BoxDoctorEmailBorder, ErrDoctorEmail, _docEmailOk);
         }
 
@@ -205,7 +210,8 @@ namespace focus_ai
                 Surname     = BoxSurname.Text.Trim(),
                 BirthDate   = birthStr,
                 Phone       = BoxPhone.Text.Trim(),
-                DoctorEmail = BoxDoctorEmail.Text.Trim(),
+                DoctorEmail = GetReg("Email"),
+                CabinetAddress = BoxDoctorEmail.Text.Trim(),
                 DoctorPhone = BoxDoctorPhone.Text.Trim()
             };
 
@@ -214,19 +220,33 @@ namespace focus_ai
                 string userId  = GetReg("Uid");
                 string token   = GetReg("IdToken");
                 string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-                string url = $"{baseUrl}/{userId}/profile.json?auth={token}";
+                string doctorProfileUrl = $"{baseUrl}/doctors/{userId}.json?auth={token}";
+                string legacyUrl = $"{baseUrl}/{userId}/profile.json?auth={token}";
 
                 using HttpClient client = new();
-                var json    = JsonSerializer.Serialize(profile);
-                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                var doctorPayload = JsonSerializer.Serialize(new
+                {
+                    name = profile.Name,
+                    surname = profile.Surname,
+                    birthDate = profile.BirthDate,
+                    phone = profile.Phone,
+                    cabinetAddress = profile.CabinetAddress,
+                    email = GetReg("Email"),
+                    setup = true,
+                    updatedAt = DateTime.UtcNow.ToString("O")
+                });
+                var content = new StringContent(doctorPayload, System.Text.Encoding.UTF8, "application/json");
 
-                var resp = await client.PutAsync(url, content);
+                var resp = await client.PatchAsync(doctorProfileUrl, content);
                 if (!resp.IsSuccessStatusCode)
                 {
                     MessageBox.Show("Eroare la salvarea în Firebase.", "Eroare",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
+
+                await client.PutAsync(legacyUrl,
+                    new StringContent(JsonSerializer.Serialize(profile), System.Text.Encoding.UTF8, "application/json"));
 
                 SaveToRegistry(profile);
             }
@@ -243,11 +263,13 @@ namespace focus_ai
                 string userId  = GetReg("Uid");
                 string token   = GetReg("IdToken");
                 string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-                string url = $"{baseUrl}/{userId}/profile/setup.json?auth={token}";
+                string url = $"{baseUrl}/doctors/{userId}/setup.json?auth={token}";
 
                 using HttpClient markClient = new();
                 var markContent = new StringContent("true", System.Text.Encoding.UTF8, "application/json");
                 await markClient.PutAsync(url, markContent);
+                await markClient.PutAsync($"{baseUrl}/{userId}/profile/setup.json?auth={token}",
+                    new StringContent("true", System.Text.Encoding.UTF8, "application/json"));
             }
             catch { }
 
@@ -270,10 +292,11 @@ namespace focus_ai
                 using var k = Registry.CurrentUser.CreateSubKey(RegPath);
                 k.SetValue("Name",        p.Name        ?? "");
                 k.SetValue("Surname",     p.Surname     ?? "");
-                k.SetValue("BirthDate",   p.BirthDate   ?? "");
-                k.SetValue("Phone",       p.Phone       ?? "");
+                k.SetValue("BirthDate",   p.EffectiveBirthDate);
+                k.SetValue("Phone",       p.EffectivePhone);
                 k.SetValue("DoctorEmail", p.DoctorEmail ?? "");
                 k.SetValue("DoctorPhone", p.DoctorPhone ?? "");
+                k.SetValue("CabinetAddress", p.CabinetAddress ?? "");
             }
             catch { }
         }

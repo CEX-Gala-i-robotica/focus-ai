@@ -320,16 +320,16 @@ namespace focus_ai
             try
             {
                 string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-                string url = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+                string url = $"{baseUrl}/doctors/{uid}/setup.json?auth={token}";
 
                 using var client = new HttpClient();
                 string response = await client.GetStringAsync(url);
 
-                // setup == false sau null => trebuie configurare
-                if (response == "null" || response == "false" || string.IsNullOrWhiteSpace(response))
-                    return true;
+                if (response == "true") return false;
 
-                return false;
+                string legacyUrl = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+                string legacyResponse = await client.GetStringAsync(legacyUrl);
+                return legacyResponse == "null" || legacyResponse == "false" || string.IsNullOrWhiteSpace(legacyResponse);
             }
             catch
             {

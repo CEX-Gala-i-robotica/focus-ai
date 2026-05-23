@@ -353,8 +353,9 @@ namespace focus_ai
             string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
             string duration = _elapsed.ToString(@"mm\:ss");
 
-            string testId = await GetNextTestIdAsync();
-            string uid = GetReg("Uid");
+            string uid = FocusSession.DataOwnerId;
+            string token = GetReg("IdToken");
+            string testId = await GetNextTestIdAsync(uid);
             string json = "{"
                 + $"\"dateTime\":\"{Escape(dateTime)}\","
                 + $"\"duration\":\"{Escape(duration)}\","
@@ -368,12 +369,19 @@ namespace focus_ai
                 + $"\"scor\":{scor.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}"
                 + "}";
 
-            string url = $"{_dbUrl.TrimEnd('/')}/{uid}/tests/{testId}.json";
+            string newUrl = $"{_dbUrl.TrimEnd('/')}/patients/{uid}/testResults/{testId}.json?auth={token}";
+            string rootResultsUrl = $"{_dbUrl.TrimEnd('/')}/testResults/{uid}/{testId}.json?auth={token}";
+            string legacyUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/tests/{testId}.json?auth={token}";
 
             try
             {
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _http.PutAsync(url, content);
+                var response = await _http.PutAsync(newUrl, content);
+                if (response.IsSuccessStatusCode)
+                {
+                    await _http.PutAsync(rootResultsUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+                    await _http.PutAsync(legacyUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+                }
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -482,12 +490,12 @@ namespace focus_ai
             catch { return ""; }
         }
 
-        private async Task<string> GetNextTestIdAsync()
+        private async Task<string> GetNextTestIdAsync(string uid)
         {
             try
             {
-                string uid = GetReg("Uid");
-                string url = $"{_dbUrl.TrimEnd('/')}/{uid}/tests.json?shallow=true";
+                string token = GetReg("IdToken");
+                string url = $"{_dbUrl.TrimEnd('/')}/patients/{uid}/testResults.json?shallow=true&auth={token}";
                 var response = await _http.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)

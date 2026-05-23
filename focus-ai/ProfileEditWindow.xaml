@@ -193,7 +193,7 @@
             <Border Height="1" Background="{DynamicResource BgSep}" Margin="0,0,0,24"/>
 
             <!-- Section: Doctor -->
-            <TextBlock Text="DATE MEDIC" FontSize="10" FontWeight="SemiBold"
+            <TextBlock Text="DATE PROFESIONALE" FontSize="10" FontWeight="SemiBold"
                        Foreground="{DynamicResource TxtMuted}" Margin="0,0,0,14"/>
 
             <Grid Margin="0,0,0,16">
@@ -204,7 +204,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="Email medic" Style="{StaticResource InputLabelStyle}"/>
+                    <TextBlock Text="Adresă cabinet" Style="{StaticResource InputLabelStyle}"/>
                     <Border x:Name="BoxDoctorEmailBorder"
                             BorderBrush="{DynamicResource BgInputBorder}"
                             BorderThickness="1" CornerRadius="9"
@@ -212,12 +212,12 @@
                         <TextBox x:Name="BoxDoctorEmail" Style="{StaticResource TextBoxStyle}"
                                  TextChanged="DoctorEmail_Changed"/>
                     </Border>
-                    <TextBlock x:Name="ErrDoctorEmail" Text="Format email invalid."
+                    <TextBlock x:Name="ErrDoctorEmail" Text="Adresa cabinetului este obligatorie."
                                Style="{StaticResource ErrorTextStyle}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
-                    <TextBlock Text="Telefon medic" Style="{StaticResource InputLabelStyle}"/>
+                    <TextBlock Text="Telefon cabinet" Style="{StaticResource InputLabelStyle}"/>
                     <Border x:Name="BoxDoctorPhoneBorder"
                             BorderBrush="{DynamicResource BgInputBorder}"
                             BorderThickness="1" CornerRadius="9"
