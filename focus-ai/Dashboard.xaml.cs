@@ -31,13 +31,20 @@ namespace focus_ai
         private bool _isDark = true;
         private bool _isLoadingTests = false;
         private bool _isLoadingActivities = false;
+        private bool _isLoadingPatients = false;
 
         private List<TestEntry> _testsCache = new();
         private List<ActivityEntry> _activitiesCache = new();
+        private List<PatientEntry> _patientsCache = new();
+        private string _selectedPatientId = "";
+        private string _selectedPatientName = "";
 
         private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw);
         private record ActivityEntry(string Id, string DateTime, string Duration,
                                      string Game, string Difficulty, double Scor);
+        private record PatientEntry(string Id, string Name, string Email, string Phone,
+                                    int TestCount, int ActivityCount, PredictionSummary Prediction);
+        private record PredictionSummary(string Direction, double Confidence, string Reason);
 
         public Dashboard()
         {
@@ -53,9 +60,7 @@ namespace focus_ai
             InitializeSerialPort();
             this.Closing += Dashboard_Closing;
 
-            // Încărcare inițială a datelor
-            _ = LoadTestsFromFirebaseAsync();
-            _ = LoadActivitiesFromFirebaseAsync();
+            _ = LoadPatientsFromFirebaseAsync();
         }
 
         private static bool IsSystemDarkTheme()
@@ -72,6 +77,8 @@ namespace focus_ai
 
         private void NewTest_Click(object sender, RoutedEventArgs e)
         {
+            if (!EnsurePatientSelected()) return;
+
             var startTest = new StartTest(this, _isDark);
             startTest.Closed += async (s, args) =>
             {
@@ -104,12 +111,21 @@ namespace focus_ai
         {
             if (PanelProfil == null) return;
             PanelProfil.Visibility = Visibility.Collapsed;
+            PanelPacienti.Visibility = Visibility.Collapsed;
             PanelTestari.Visibility = Visibility.Collapsed;
             PanelActivitati.Visibility = Visibility.Collapsed;
 
             if (sender == TabProfil)
             {
                 PanelProfil.Visibility = Visibility.Visible;
+            }
+            else if (sender == TabPacienti)
+            {
+                PanelPacienti.Visibility = Visibility.Visible;
+                if (_patientsCache.Count == 0 || PatientsLoadingState.Visibility == Visibility.Visible)
+                {
+                    _ = LoadPatientsFromFirebaseAsync();
+                }
             }
             else if (sender == TabTestari)
             {
@@ -153,13 +169,17 @@ namespace focus_ai
         {
             try
             {
-                string uid = GetReg("Uid");
+                string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
                 if (string.IsNullOrEmpty(uid)) return;
 
-                string url = $"{_dbUrl}/{uid}/profile.json?auth={token}";
+                string url = $"{_dbUrl}/doctors/{uid}.json?auth={token}";
                 string json = await _http.GetStringAsync(url, _cts.Token);
-                if (string.IsNullOrEmpty(json) || json == "null") return;
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync($"{_dbUrl}/{uid}/profile.json?auth={token}", _cts.Token);
+                    if (string.IsNullOrEmpty(json) || json == "null") return;
+                }
 
                 var profile = JsonSerializer.Deserialize<ProfileData>(json);
                 if (profile == null) return;
@@ -169,7 +189,7 @@ namespace focus_ai
                     ApplyProfileToUI(GetReg("Email"),
                         profile.Name ?? "",
                         profile.Surname ?? "",
-                        profile.Phone ?? "",
+                        profile.EffectivePhone,
                         profile.DoctorEmail ?? ""));
             }
             catch { }
@@ -191,8 +211,7 @@ namespace focus_ai
             ProfileInitials.Text = initials;
             SidebarInitials.Text = initials;
 
-            DoctorBadge.Visibility = string.IsNullOrEmpty(docEmail)
-                ? Visibility.Collapsed : Visibility.Visible;
+            DoctorBadge.Visibility = Visibility.Visible;
         }
 
         private static string BuildInitials(string name, string surname, string email)
@@ -210,8 +229,8 @@ namespace focus_ai
                 using var k = Registry.CurrentUser.CreateSubKey(RegPath);
                 if (!string.IsNullOrEmpty(p.Name)) k.SetValue("Name", p.Name);
                 if (!string.IsNullOrEmpty(p.Surname)) k.SetValue("Surname", p.Surname);
-                if (!string.IsNullOrEmpty(p.BirthDate)) k.SetValue("BirthDate", p.BirthDate);
-                if (!string.IsNullOrEmpty(p.Phone)) k.SetValue("Phone", p.Phone);
+                if (!string.IsNullOrEmpty(p.EffectiveBirthDate)) k.SetValue("BirthDate", p.EffectiveBirthDate);
+                if (!string.IsNullOrEmpty(p.EffectivePhone)) k.SetValue("Phone", p.EffectivePhone);
                 if (!string.IsNullOrEmpty(p.DoctorEmail)) k.SetValue("DoctorEmail", p.DoctorEmail);
                 if (!string.IsNullOrEmpty(p.DoctorPhone)) k.SetValue("DoctorPhone", p.DoctorPhone);
             }
@@ -232,7 +251,7 @@ namespace focus_ai
 
             try
             {
-                string uid = GetReg("Uid");
+                string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
 
                 if (string.IsNullOrEmpty(uid))
@@ -244,7 +263,17 @@ namespace focus_ai
                 Dispatcher.Invoke(ShowTestLoading);
 
                 string json = await _http.GetStringAsync(
-                    $"{_dbUrl}/{uid}/tests.json?auth={token}", _cts.Token);
+                    $"{_dbUrl}/patients/{uid}/testResults.json?auth={token}", _cts.Token);
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/testResults/{uid}.json?auth={token}", _cts.Token);
+                }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/tests.json?auth={token}", _cts.Token);
+                }
 
                 if (string.IsNullOrEmpty(json) || json == "null")
                 {
@@ -440,10 +469,20 @@ namespace focus_ai
             var captured = t;
             btn.Click += async (_, _) =>
             {
-                string uid = GetReg("Uid");
+                string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
                 string json = await _http.GetStringAsync(
-                    $"{_dbUrl}/{uid}/tests/{captured.Id}.json?auth={token}", _cts.Token);
+                    $"{_dbUrl}/patients/{uid}/testResults/{captured.Id}.json?auth={token}", _cts.Token);
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/testResults/{uid}/{captured.Id}.json?auth={token}", _cts.Token);
+                }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/tests/{captured.Id}.json?auth={token}", _cts.Token);
+                }
 
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -488,7 +527,7 @@ namespace focus_ai
 
             try
             {
-                string uid = GetReg("Uid");
+                string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
 
                 if (string.IsNullOrEmpty(uid))
@@ -500,7 +539,17 @@ namespace focus_ai
                 Dispatcher.Invoke(ShowActivitiesLoading);
 
                 string json = await _http.GetStringAsync(
-                    $"{_dbUrl}/{uid}/activities.json?auth={token}", _cts.Token);
+                    $"{_dbUrl}/patients/{uid}/activityResults.json?auth={token}", _cts.Token);
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/activityResults/{uid}.json?auth={token}", _cts.Token);
+                }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/activities.json?auth={token}", _cts.Token);
+                }
 
                 if (string.IsNullOrEmpty(json) || json == "null")
                 {
@@ -764,6 +813,8 @@ namespace focus_ai
 
         private void NewGame_Click(object sender, RoutedEventArgs e)
         {
+            if (!EnsurePatientSelected()) return;
+
             var gameSelection = new GameSelectionWindow(this, _isDark);
             gameSelection.Show();
         }
@@ -784,6 +835,378 @@ namespace focus_ai
         {
             await LoadActivitiesFromFirebaseAsync();
             UpdateProfileStats(_testsCache, _activitiesCache);
+            _ = LoadPatientsFromFirebaseAsync();
+        }
+
+        private async Task LoadPatientsFromFirebaseAsync()
+        {
+            if (_isLoadingPatients) return;
+            _isLoadingPatients = true;
+
+            try
+            {
+                string doctorId = GetReg("Uid");
+                string token = GetReg("IdToken");
+                string email = GetReg("Email");
+                if (string.IsNullOrEmpty(doctorId))
+                {
+                    Dispatcher.Invoke(ShowPatientsEmpty);
+                    return;
+                }
+
+                Dispatcher.Invoke(ShowPatientsLoading);
+
+                var patientIds = await LoadAssignedPatientIdsAsync(doctorId, token, email);
+                var patients = new List<PatientEntry>();
+
+                foreach (var patientId in patientIds.Distinct())
+                {
+                    var profile = await LoadPatientProfileAsync(patientId, token);
+                    var tests = await LoadPatientTestsAsync(patientId, token);
+                    var activities = await LoadPatientActivitiesAsync(patientId, token);
+                    var prediction = BuildPrediction(tests, activities);
+
+                    string name = BuildPatientName(profile, patientId);
+                    string patientEmail = profile.TryGetValue("email", out var em) ? em : "";
+                    string phone = profile.TryGetValue("phone-number", out var ph) ? ph :
+                                   profile.TryGetValue("phone", out var ph2) ? ph2 : "";
+
+                    patients.Add(new PatientEntry(patientId, name, patientEmail, phone,
+                        tests.Count, activities.Count, prediction));
+                }
+
+                Dispatcher.Invoke(() => RenderPatients(patients.OrderBy(p => p.Name).ToList()));
+            }
+            catch
+            {
+                Dispatcher.Invoke(ShowPatientsEmpty);
+            }
+            finally
+            {
+                _isLoadingPatients = false;
+            }
+        }
+
+        private async Task<List<string>> LoadAssignedPatientIdsAsync(string doctorId, string token, string email)
+        {
+            var ids = new List<string>();
+
+            string json = await SafeGetAsync($"{_dbUrl}/doctors/{doctorId}/patients.json?auth={token}");
+            if (!string.IsNullOrEmpty(json) && json != "null")
+            {
+                using var doc = JsonDocument.Parse(json);
+                foreach (var item in doc.RootElement.EnumerateObject())
+                    ids.Add(item.Name);
+            }
+
+            string patientsJson = await SafeGetAsync($"{_dbUrl}/patients.json?auth={token}");
+            if (!string.IsNullOrEmpty(patientsJson) && patientsJson != "null")
+            {
+                using var doc = JsonDocument.Parse(patientsJson);
+                foreach (var patient in doc.RootElement.EnumerateObject())
+                {
+                    if (!patient.Value.TryGetProperty("doctorId", out var doctorIdValue)) continue;
+                    string assignedDoctorId = doctorIdValue.GetString() ?? "";
+                    if (assignedDoctorId == doctorId)
+                        ids.Add(patient.Name);
+                }
+            }
+
+            string legacyJson = await SafeGetAsync($"{_dbUrl}.json?auth={token}");
+            if (!string.IsNullOrEmpty(legacyJson) && legacyJson != "null")
+            {
+                using var doc = JsonDocument.Parse(legacyJson);
+                foreach (var user in doc.RootElement.EnumerateObject())
+                {
+                    if (!user.Value.TryGetProperty("profile", out var profile)) continue;
+                    string docEmail = profile.TryGetProperty("doctor-email", out var de) ? de.GetString() ?? "" : "";
+                    if (!string.IsNullOrWhiteSpace(email) &&
+                        string.Equals(docEmail, email, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ids.Add(user.Name);
+                    }
+                }
+            }
+
+            return ids;
+        }
+
+        private async Task<Dictionary<string, string>> LoadPatientProfileAsync(string patientId, string token)
+        {
+            string json = await SafeGetAsync($"{_dbUrl}/patients/{patientId}.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/patients/{patientId}/profile.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}/profile.json?auth={token}");
+
+            var profile = new Dictionary<string, string>();
+            if (string.IsNullOrEmpty(json) || json == "null") return profile;
+
+            using var doc = JsonDocument.Parse(json);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.String)
+                    profile[prop.Name] = prop.Value.GetString() ?? "";
+            }
+            return profile;
+        }
+
+        private async Task<List<TestEntry>> LoadPatientTestsAsync(string patientId, string token)
+        {
+            string json = await SafeGetAsync($"{_dbUrl}/patients/{patientId}/testResults.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/testResults/{patientId}.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}/tests.json?auth={token}");
+
+            return string.IsNullOrEmpty(json) || json == "null" ? new List<TestEntry>() : ParseTests(json);
+        }
+
+        private async Task<List<ActivityEntry>> LoadPatientActivitiesAsync(string patientId, string token)
+        {
+            string json = await SafeGetAsync($"{_dbUrl}/patients/{patientId}/activityResults.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/activityResults/{patientId}.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}/activities.json?auth={token}");
+
+            return string.IsNullOrEmpty(json) || json == "null" ? new List<ActivityEntry>() : ParseActivities(json);
+        }
+
+        private static string BuildPatientName(Dictionary<string, string> profile, string fallback)
+        {
+            profile.TryGetValue("name", out var name);
+            profile.TryGetValue("surname", out var surname);
+            string fullName = $"{name} {surname}".Trim();
+            return string.IsNullOrWhiteSpace(fullName) ? fallback : fullName;
+        }
+
+        private PredictionSummary BuildPrediction(List<TestEntry> tests, List<ActivityEntry> activities)
+        {
+            var scores = tests.Select(t => t.Scor).Concat(activities.Select(a => a.Scor)).ToList();
+            if (scores.Count < 3)
+                return new PredictionSummary("insuficient", 0.35, "Sunt necesare cel puțin 3 rezultate.");
+
+            var recent = scores.Take(3).Average();
+            var previous = scores.Skip(3).Take(3).DefaultIfEmpty(recent).Average();
+            double delta = recent - previous;
+            int total = tests.Count + activities.Count;
+            double confidence = Math.Min(0.95, 0.45 + Math.Min(total, 10) * 0.04 + Math.Min(Math.Abs(delta), 20) / 100);
+
+            if (delta >= 5)
+                return new PredictionSummary("pozitivă", confidence, $"Media recentă este cu {delta:F1} puncte mai mare.");
+            if (delta <= -5)
+                return new PredictionSummary("negativă", confidence, $"Media recentă este cu {Math.Abs(delta):F1} puncte mai mică.");
+            return new PredictionSummary("stabilă", confidence, "Scorurile recente sunt apropiate de media anterioară.");
+        }
+
+        private void RenderPatients(List<PatientEntry> patients)
+        {
+            _patientsCache = patients;
+            PatientsRowsPanel.Children.Clear();
+
+            PatientsTotal.Text = patients.Count.ToString();
+            PatientsPositive.Text = patients.Count(p => p.Prediction.Direction == "pozitivă").ToString();
+            PatientsAttention.Text = patients.Count(p => p.Prediction.Direction == "negativă").ToString();
+
+            StatNrTestari.Text = patients.Sum(p => p.TestCount).ToString();
+            StatNrActivitati.Text = patients.Sum(p => p.ActivityCount).ToString();
+
+            if (patients.Count == 0)
+            {
+                ShowPatientsEmpty();
+                return;
+            }
+
+            PatientsLoadingState.Visibility = Visibility.Collapsed;
+            PatientsEmptyState.Visibility = Visibility.Collapsed;
+            PatientsTableHeader.Visibility = Visibility.Visible;
+
+            for (int i = 0; i < patients.Count; i++)
+                PatientsRowsPanel.Children.Add(BuildPatientRow(i + 1, patients[i]));
+
+            if (string.IsNullOrWhiteSpace(_selectedPatientId))
+                SelectPatient(patients[0]);
+        }
+
+        private Border BuildPatientRow(int idx, PatientEntry patient)
+        {
+            var bgRow = (SolidColorBrush)FindResource("RowBg");
+            var bgNum = (SolidColorBrush)FindResource("RowNumBg");
+            var textPri = (SolidColorBrush)FindResource("TxtPrimary");
+            var textSec = (SolidColorBrush)FindResource("TxtSecondary");
+            var btnBg = _isDark ? (SolidColorBrush)FindResource("BgNavActive") : (SolidColorBrush)FindResource("BgCardHover");
+            var btnFg = (SolidColorBrush)FindResource("AccentSecFg");
+
+            var row = new Border
+            {
+                Background = bgRow,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(18, 12, 18, 12),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var g = new Grid();
+            int[] widths = { 46, -1, 120, 120, 150, 100 };
+            foreach (var w in widths)
+                g.ColumnDefinitions.Add(w == -1
+                    ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
+                    : new ColumnDefinition { Width = new GridLength(w) });
+
+            void Add(int col, UIElement el) { Grid.SetColumn(el, col); g.Children.Add(el); }
+
+            var numBd = new Border
+            {
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(8),
+                Background = bgNum,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            numBd.Child = new TextBlock
+            {
+                Text = idx.ToString(),
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = textSec,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Add(0, numBd);
+
+            var namePanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            namePanel.Children.Add(new TextBlock
+            {
+                Text = patient.Name,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = textPri
+            });
+            namePanel.Children.Add(new TextBlock
+            {
+                Text = string.IsNullOrWhiteSpace(patient.Phone) ? patient.Id : patient.Phone,
+                FontSize = 11,
+                Foreground = textSec
+            });
+            Add(1, namePanel);
+
+            Add(2, BuildCenteredText(patient.TestCount.ToString(), textPri));
+            Add(3, BuildCenteredText(patient.ActivityCount.ToString(), textPri));
+            Add(4, BuildPredictionBadge(patient.Prediction));
+
+            var btn = new Button
+            {
+                Content = patient.Id == _selectedPatientId ? "Selectat" : "Deschide",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Background = btnBg,
+                Foreground = btnFg,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Padding = new Thickness(10, 4, 10, 4)
+            };
+            btn.Click += (_, _) => SelectPatient(patient);
+            Add(5, btn);
+
+            row.Child = g;
+            return row;
+        }
+
+        private static TextBlock BuildCenteredText(string text, Brush foreground) => new()
+        {
+            Text = text,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = foreground,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+
+        private Border BuildPredictionBadge(PredictionSummary prediction)
+        {
+            var (bg, fg) = prediction.Direction switch
+            {
+                "pozitivă" => ("#22C55E20", "#22C55E"),
+                "negativă" => ("#EF444420", "#EF4444"),
+                "stabilă" => ("#3B82F620", "#3B82F6"),
+                _ => ("#64748B20", "#64748B")
+            };
+
+            var badge = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(bg)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(8, 4, 8, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                ToolTip = $"{prediction.Reason} Încredere: {prediction.Confidence:P0}"
+            };
+            badge.Child = new TextBlock
+            {
+                Text = prediction.Direction,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fg))
+            };
+            return badge;
+        }
+
+        private void SelectPatient(PatientEntry patient)
+        {
+            _selectedPatientId = patient.Id;
+            _selectedPatientName = patient.Name;
+            FocusSession.ActivePatientId = patient.Id;
+
+            SelectedPatientTestsLabel.Text = $"Pacient selectat: {patient.Name}";
+            SelectedPatientActivitiesLabel.Text = $"Pacient selectat: {patient.Name}";
+
+            _ = LoadTestsFromFirebaseAsync();
+            _ = LoadActivitiesFromFirebaseAsync();
+            RenderPatients(_patientsCache);
+            TabTestari.IsChecked = true;
+        }
+
+        private bool EnsurePatientSelected()
+        {
+            if (!string.IsNullOrWhiteSpace(GetActivePatientId())) return true;
+
+            MessageBox.Show("Selectează mai întâi un pacient din lista de pacienți.",
+                "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+            TabPacienti.IsChecked = true;
+            return false;
+        }
+
+        private void ShowPatientsLoading()
+        {
+            PatientsLoadingState.Visibility = Visibility.Visible;
+            PatientsEmptyState.Visibility = Visibility.Collapsed;
+            PatientsTableHeader.Visibility = Visibility.Collapsed;
+            PatientsRowsPanel.Children.Clear();
+        }
+
+        private void ShowPatientsEmpty()
+        {
+            PatientsLoadingState.Visibility = Visibility.Collapsed;
+            PatientsEmptyState.Visibility = Visibility.Visible;
+            PatientsTableHeader.Visibility = Visibility.Collapsed;
+            PatientsRowsPanel.Children.Clear();
+        }
+
+        private async void RefreshPatients_Click(object sender, RoutedEventArgs e)
+            => await LoadPatientsFromFirebaseAsync();
+
+        private async Task<string> SafeGetAsync(string url)
+        {
+            try { return await _http.GetStringAsync(url, _cts.Token); }
+            catch { return ""; }
+        }
+
+        private string GetActivePatientId()
+        {
+            if (!string.IsNullOrWhiteSpace(_selectedPatientId)) return _selectedPatientId;
+            return FocusSession.ActivePatientId;
         }
 
         private string GetReg(string key)
@@ -835,6 +1258,7 @@ namespace focus_ai
                 key.SetValue("RememberMe", "0");
                 key.SetValue("Email", "");
                 key.SetValue("Uid", "");
+                key.SetValue("ActivePatientId", "");
                 key.SetValue("Name", "");
                 key.SetValue("Surname", "");
             }
@@ -854,9 +1278,15 @@ namespace focus_ai
         public string? Surname { get; set; }
 
         [JsonPropertyName("birth-date")]
+        public string? LegacyBirthDate { get; set; }
+
+        [JsonPropertyName("birthDate")]
         public string? BirthDate { get; set; }
 
         [JsonPropertyName("phone-number")]
+        public string? LegacyPhone { get; set; }
+
+        [JsonPropertyName("phone")]
         public string? Phone { get; set; }
 
         [JsonPropertyName("doctor-email")]
@@ -864,5 +1294,11 @@ namespace focus_ai
 
         [JsonPropertyName("doctor-phone")]
         public string? DoctorPhone { get; set; }
+
+        [JsonPropertyName("cabinetAddress")]
+        public string? CabinetAddress { get; set; }
+
+        public string EffectiveBirthDate => BirthDate ?? LegacyBirthDate ?? "";
+        public string EffectivePhone => Phone ?? LegacyPhone ?? "";
     }
 }

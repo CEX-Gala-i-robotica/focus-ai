@@ -2,6 +2,7 @@
 using System.Configuration;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -82,10 +83,31 @@ namespace focus_ai
         {
             string email    = EmailTextBox.Text.Trim();
             string password = PasswordBox.Password;
+            string name = NameTextBox.Text.Trim();
+            string surname = SurnameTextBox.Text.Trim();
+            string phone = PhoneTextBox.Text.Trim();
+            string cabinetAddress = CabinetAddressTextBox.Text.Trim();
 
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(surname) ||
+                !BirthDatePicker.SelectedDate.HasValue || string.IsNullOrEmpty(phone) ||
+                string.IsNullOrEmpty(cabinetAddress) || string.IsNullOrEmpty(email) ||
+                string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Email și parola sunt obligatorii.", "Atenție",
+                MessageBox.Show("Completează toate câmpurile pentru contul de medic.", "Atenție",
+                                MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!IsValidEmail(email))
+            {
+                MessageBox.Show("Adresa de email nu este validă.", "Atenție",
+                                MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (!IsValidPhone(phone))
+            {
+                MessageBox.Show("Numărul de telefon nu este valid.", "Atenție",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -111,6 +133,13 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
+                    var parsed = JObject.Parse(responseJson);
+                    string uid = parsed["localId"]?.ToString() ?? "";
+                    string token = parsed["idToken"]?.ToString() ?? "";
+                    string authEmail = parsed["email"]?.ToString() ?? email;
+                    await CreateDoctorShellAsync(uid, authEmail, token, name, surname,
+                        BirthDatePicker.SelectedDate!.Value, phone, cabinetAddress, setup: true);
+
                     MessageBox.Show("Cont creat cu succes! Te poți autentifica acum.", "Succes",
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                     new Login().Show();
@@ -158,6 +187,7 @@ namespace focus_ai
                     string uid           = parsed["localId"]?.ToString() ?? "";
 
                     SaveSession(email, firebaseToken, uid);
+                    await CreateDoctorShellAsync(uid, email, firebaseToken, "", "", null, "", "", setup: false);
 
                     await OpenDashboardOrSetup(firebaseToken, uid);
                     Close();
@@ -240,21 +270,58 @@ namespace focus_ai
             try
             {
                 string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-                string url = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+                string url = $"{baseUrl}/doctors/{uid}/setup.json?auth={token}";
 
                 using var client = new HttpClient();
                 string response = await client.GetStringAsync(url);
 
-                // setup == false sau null => trebuie configurare
-                if (response == "null" || response == "false" || string.IsNullOrWhiteSpace(response))
-                    return true;
+                if (response == "true") return false;
 
-                return false;
+                string legacyUrl = $"{baseUrl}/{uid}/profile/setup.json?auth={token}";
+                string legacyResponse = await client.GetStringAsync(legacyUrl);
+                return legacyResponse == "null" || legacyResponse == "false" || string.IsNullOrWhiteSpace(legacyResponse);
             }
             catch
             {
                 return false; // la eroare, mergi la Dashboard
             }
+        }
+
+        private static bool IsValidEmail(string s)
+            => Regex.IsMatch(s, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+        private static bool IsValidPhone(string s)
+            => Regex.IsMatch(s, @"^(\+?\d[\d\s\-\(\)]{6,20})$");
+
+        private async Task CreateDoctorShellAsync(string uid, string email, string token,
+            string name, string surname, DateTime? birthDate, string phone,
+            string cabinetAddress, bool setup)
+        {
+            if (string.IsNullOrWhiteSpace(uid)) return;
+
+            try
+            {
+                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                using HttpClient client = new();
+                var now = DateTime.UtcNow.ToString("O");
+
+                var doctor = new
+                {
+                    name,
+                    surname,
+                    birthDate = birthDate?.ToString("dd.MM.yyyy") ?? "",
+                    phone,
+                    cabinetAddress,
+                    email,
+                    setup,
+                    createdAt = now,
+                    updatedAt = now
+                };
+
+                await client.PatchAsync($"{baseUrl}/doctors/{uid}.json?auth={token}",
+                    new StringContent(JsonConvert.SerializeObject(doctor), Encoding.UTF8, "application/json"));
+            }
+            catch { }
         }
     }
 }

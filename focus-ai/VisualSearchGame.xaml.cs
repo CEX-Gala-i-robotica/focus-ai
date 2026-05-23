@@ -338,7 +338,7 @@ namespace focus_ai
         {
             try
             {
-                string uid   = GetReg("Uid");
+                string uid   = FocusSession.DataOwnerId;
                 string token = GetReg("IdToken");
                 if (string.IsNullOrEmpty(uid)) return;
 
@@ -360,7 +360,14 @@ namespace focus_ai
 
                 string json  = JsonSerializer.Serialize(payload);
                 var content  = new StringContent(json, Encoding.UTF8, "application/json");
-                await _http.PostAsync($"{_dbUrl}/{uid}/activities.json?auth={token}", content);
+                var response = await _http.PostAsync($"{_dbUrl}/patients/{uid}/activityResults.json?auth={token}", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    await _http.PostAsync($"{_dbUrl}/activityResults/{uid}.json?auth={token}",
+                        new StringContent(json, Encoding.UTF8, "application/json"));
+                    await _http.PostAsync($"{_dbUrl}/{uid}/activities.json?auth={token}",
+                        new StringContent(json, Encoding.UTF8, "application/json"));
+                }
             }
             catch { }
         }
