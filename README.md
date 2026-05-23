@@ -102,7 +102,7 @@ Aplicația principală este dezvoltată în **WPF (C#)**, rulând pe **Lenovo Th
 
 Se folosește o funcție compusă:
 
-![Ecuație matematică](media/image1.png){width="3.682292213473316in" height="2.1225174978127734in"}
+![Ecuație matematică](media/image1.png)
 
 ### f. Date experimentale
 
@@ -136,11 +136,11 @@ vii. .NET Windows Presentation Foundation (WPF) Documentation [https://learn.mic
 
 #### i. Schema grafică a modulului hardware
 
-![Schema hardware](media/image2.png){width="4.130208880139983in" height="3.2451640419947507in"}
+![Schema hardware](media/image2.png)
 
 #### ii. Randarea CAD-ului machetei
 
-![Randare CAD](media/image3.png){width="4.334243219597551in" height="2.311116579177603in"}
+![Randare CAD](media/image3.png)
 
 #### iii. Codul pentru Arduino UNO
 
