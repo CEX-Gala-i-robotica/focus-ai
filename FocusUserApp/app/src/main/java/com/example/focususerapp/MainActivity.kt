@@ -23,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabAccount: TextView
     private lateinit var tabTests: TextView
     private lateinit var tabGames: TextView
+    private lateinit var tabSettings: TextView
     private lateinit var accountPage: LinearLayout
     private lateinit var testsPage: LinearLayout
     private lateinit var scrollContent: ScrollView
@@ -52,10 +53,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         initViews()
+        AppAppearance.apply(this)
         setupListeners()
         showPage(Page.Account)
         loadPatient()
         playEntranceAnimation()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::brandContainer.isInitialized) {
+            AppAppearance.apply(this)
+            showPage(if (accountPage.visibility == View.VISIBLE) Page.Account else Page.Tests)
+        }
     }
 
     private fun initViews() {
@@ -63,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         tabAccount = findViewById(R.id.tabAccount)
         tabTests = findViewById(R.id.tabTests)
         tabGames = findViewById(R.id.tabGames)
+        tabSettings = findViewById(R.id.tabSettings)
         accountPage = findViewById(R.id.accountPage)
         testsPage = findViewById(R.id.testsPage)
         scrollContent = findViewById(R.id.scrollContent)
@@ -79,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         tabAccount.setOnClickListener { showPage(Page.Account) }
         tabTests.setOnClickListener { showPage(Page.Tests) }
         tabGames.setOnClickListener { startActivity(Intent(this, GamesActivity::class.java)) }
+        tabSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         btnSignOut.setOnClickListener {
             auth.signOut()
             startActivity(Intent(this, LoginActivity::class.java))
@@ -93,14 +105,14 @@ class MainActivity : AppCompatActivity() {
                 renderTests(tests)
             },
             onError = {
-                Toast.makeText(this, "Error loading account data", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, AppText.get(this, "Error loading account data"), Toast.LENGTH_SHORT).show()
             }
         )
     }
 
     private fun renderProfile(profile: PatientProfile) {
-        tvName.text = profile.fullName.ifBlank { "Unnamed patient" }
-        tvEmail.text = profile.email.ifBlank { "No email" }
+        tvName.text = profile.fullName.ifBlank { AppText.get(this, "Unnamed patient") }
+        tvEmail.text = profile.email.ifBlank { AppText.get(this, "No email") }
         tvInitials.text = buildString {
             profile.name.firstOrNull()?.let { append(it.uppercaseChar()) }
             profile.surname.firstOrNull()?.let { append(it.uppercaseChar()) }
@@ -129,9 +141,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun testCard(result: TestResult, displayNumber: Int): View {
         val card = CardView(this).apply {
-            radius = 16f
-            cardElevation = 0f
-            setCardBackgroundColor(Color.parseColor("#0D1B2A"))
+            val p = AppAppearance.palette(this@MainActivity)
+            radius = dp(24).toFloat()
+            cardElevation = dp(8).toFloat()
+            setCardBackgroundColor(p.surface)
             isClickable = true
             isFocusable = true
             layoutParams = LinearLayout.LayoutParams(
@@ -153,8 +166,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val status = TextView(this).apply {
-            text = "View details"
-            setTextColor(Color.parseColor("#4DA3FF"))
+            text = AppText.get(context, "View details")
+            setTextColor(AppAppearance.palette(this@MainActivity).accent)
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = android.view.Gravity.END
@@ -173,7 +186,7 @@ class MainActivity : AppCompatActivity() {
 
         details.addView(sectionTitle("ECG"))
         details.addView(LineChartView(this).apply {
-            setData(result.ecg, Color.parseColor("#FF6B6B"))
+            setData(result.ecg, Color.parseColor("#FF3366"))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(150)
@@ -182,7 +195,7 @@ class MainActivity : AppCompatActivity() {
 
         details.addView(sectionTitle("SpO2"))
         details.addView(LineChartView(this).apply {
-            setData(result.spo2, Color.parseColor("#2ECC71"))
+            setData(result.spo2, Color.parseColor("#00FF66"))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(150)
@@ -196,14 +209,14 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 dp(190)
             ).apply { topMargin = dp(8) }
-            background = roundedBackground("#08131F")
+            background = roundedBackground(AppAppearance.palette(this@MainActivity).surfaceAlt)
         })
 
         content.addView(details)
         card.setOnClickListener {
             val expanded = details.visibility == View.VISIBLE
             details.visibility = if (expanded) View.GONE else View.VISIBLE
-            status.text = if (expanded) "View details" else "Hide details"
+            status.text = AppText.get(this@MainActivity, if (expanded) "View details" else "Hide details")
         }
 
         card.addView(content)
@@ -220,15 +233,15 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
 
                 addView(TextView(context).apply {
-                    text = "Test $displayNumber"
-                    setTextColor(Color.WHITE)
+                    text = "${AppText.get(context, "Test")} $displayNumber"
+                    setTextColor(AppAppearance.palette(this@MainActivity).text)
                     textSize = 17f
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 })
 
                 addView(TextView(context).apply {
-                    text = result.dateTime.ifBlank { "No date" }
-                    setTextColor(Color.parseColor("#7F8FA6"))
+                    text = result.dateTime.ifBlank { AppText.get(context, "No date") }
+                    setTextColor(AppAppearance.palette(this@MainActivity).muted)
                     textSize = 13f
                     typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
                     layoutParams = LinearLayout.LayoutParams(
@@ -240,11 +253,11 @@ class MainActivity : AppCompatActivity() {
 
             addView(TextView(context).apply {
                 text = result.scor.formatValue()
-                setTextColor(Color.WHITE)
+                setTextColor(AppAppearance.palette(this@MainActivity).text)
                 textSize = 18f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 gravity = android.view.Gravity.END
-                background = roundedBackground("#17304A")
+                background = roundedBackground(AppAppearance.palette(this@MainActivity).surfaceAlt)
                 setPadding(dp(12), dp(8), dp(12), dp(8))
             })
         }
@@ -260,16 +273,16 @@ class MainActivity : AppCompatActivity() {
             ).apply { topMargin = dp(12) }
 
             addView(TextView(context).apply {
-                text = label
-                setTextColor(Color.parseColor("#7F8FA6"))
+                text = AppText.get(context, label)
+                setTextColor(AppAppearance.palette(this@MainActivity).muted)
                 textSize = 13f
                 typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
 
             addView(TextView(context).apply {
-                text = value.ifBlank { "Not set" }
-                setTextColor(Color.parseColor("#E8F0FE"))
+                text = value.ifBlank { AppText.get(context, "Not set") }
+                setTextColor(AppAppearance.palette(this@MainActivity).text)
                 textSize = 13f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 gravity = android.view.Gravity.END
@@ -280,8 +293,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun sectionTitle(title: String): View {
         return TextView(this).apply {
-            text = title
-            setTextColor(Color.parseColor("#4DA3FF"))
+            text = AppText.get(context, title)
+            setTextColor(AppAppearance.palette(this@MainActivity).accent)
             textSize = 12f
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             layoutParams = LinearLayout.LayoutParams(
@@ -293,25 +306,41 @@ class MainActivity : AppCompatActivity() {
 
     private fun emptyState(message: String): View {
         return TextView(this).apply {
-            text = message
-            setTextColor(Color.parseColor("#7F8FA6"))
+            text = AppText.get(context, message)
+            setTextColor(AppAppearance.palette(this@MainActivity).muted)
             textSize = 14f
             gravity = android.view.Gravity.CENTER
-            background = roundedBackground("#0D1B2A")
+            background = roundedBackground(AppAppearance.palette(this@MainActivity).surface)
             setPadding(dp(20), dp(28), dp(20), dp(28))
         }
     }
 
     private fun showPage(page: Page) {
         val isAccount = page == Page.Account
-        accountPage.visibility = if (isAccount) View.VISIBLE else View.GONE
-        testsPage.visibility = if (isAccount) View.GONE else View.VISIBLE
-        tabAccount.setTextColor(Color.parseColor(if (isAccount) "#FFFFFF" else "#7F8FA6"))
-        tabTests.setTextColor(Color.parseColor(if (isAccount) "#7F8FA6" else "#FFFFFF"))
-        tabGames.setTextColor(Color.parseColor("#7F8FA6"))
-        tabAccount.background = if (isAccount) roundedBackground("#17304A") else null
-        tabTests.background = if (isAccount) null else roundedBackground("#17304A")
+        val p = AppAppearance.palette(this)
+        
+        val activePage = if (isAccount) accountPage else testsPage
+        val inactivePage = if (isAccount) testsPage else accountPage
+
+        inactivePage.visibility = View.GONE
+        activePage.visibility = View.VISIBLE
+        activePage.alpha = 0f
+        activePage.translationY = 30f
+        activePage.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(350)
+            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+            .start()
+
+        tabAccount.setTextColor(if (isAccount) p.text else p.muted)
+        tabTests.setTextColor(if (isAccount) p.muted else p.text)
+        tabGames.setTextColor(p.muted)
+        tabSettings.setTextColor(p.muted)
+        tabAccount.background = if (isAccount) roundedBackground(p.surfaceAlt) else null
+        tabTests.background = if (isAccount) null else roundedBackground(p.surfaceAlt)
         tabGames.background = null
+        tabSettings.background = null
         scrollContent.post { scrollContent.scrollTo(0, 0) }
     }
 
@@ -325,18 +354,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun roundedBackground(color: String): GradientDrawable {
+        return roundedBackground(Color.parseColor(color))
+    }
+
+    private fun roundedBackground(color: Int): GradientDrawable {
         return GradientDrawable().apply {
-            setColor(Color.parseColor(color))
-            cornerRadius = dp(12).toFloat()
+            setColor(color)
+            cornerRadius = dp(24).toFloat()
         }
     }
 
     private fun Float?.formatValue(): String {
-        return this?.let { String.format(Locale.US, "%.2f", it) } ?: "Not set"
+        return this?.let { String.format(Locale.US, "%.2f", it) } ?: AppText.get(this@MainActivity, "Not set")
     }
 
     private fun Float?.formatPercent(): String {
-        return this?.let { String.format(Locale.US, "%.2f%%", it) } ?: "Not set"
+        return this?.let { String.format(Locale.US, "%.2f%%", it) } ?: AppText.get(this@MainActivity, "Not set")
     }
 
     private fun dp(value: Int): Int {

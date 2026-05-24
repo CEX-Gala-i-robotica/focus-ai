@@ -42,6 +42,7 @@ class SignUpActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
         initViews()
+        AppAppearance.apply(this)
         setupListeners()
         playEntranceAnimation()
     }
@@ -95,18 +96,18 @@ class SignUpActivity : AppCompatActivity() {
     }
 
     private fun validateInput(name: String, email: String, password: String, confirm: String): Boolean {
-        if (name.isEmpty()) { etFullName.error = "Required"; etFullName.requestFocus(); return false }
+        if (name.isEmpty()) { etFullName.error = AppText.get(this, "Required"); etFullName.requestFocus(); return false }
         if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            etEmail.error = "Invalid email"; etEmail.requestFocus(); return false
+            etEmail.error = AppText.get(this, "Invalid email"); etEmail.requestFocus(); return false
         }
-        if (password.length < 6) { etPassword.error = "Min 6 chars"; etPassword.requestFocus(); return false }
-        if (confirm != password) { etConfirmPassword.error = "Passwords don't match"; etConfirmPassword.requestFocus(); return false }
+        if (password.length < 6) { etPassword.error = AppText.get(this, "Min 6 chars"); etPassword.requestFocus(); return false }
+        if (confirm != password) { etConfirmPassword.error = AppText.get(this, "Passwords don't match"); etConfirmPassword.requestFocus(); return false }
         return true
     }
 
     private fun performSignUp(name: String, email: String, password: String) {
         btnSignUp.isEnabled = false
-        btnSignUp.text = "CREATING..."
+        btnSignUp.text = AppText.get(this, "CREATING...")
 
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
@@ -115,7 +116,7 @@ class SignUpActivity : AppCompatActivity() {
                     saveUserToDatabase(uid, name, email)
                 } else {
                     btnSignUp.isEnabled = true
-                    btnSignUp.text = "CREATE ACCOUNT"
+                    btnSignUp.text = AppText.get(this, "CREATE ACCOUNT")
                     Toast.makeText(this, task.exception?.message, Toast.LENGTH_LONG).show()
                 }
             }
@@ -133,13 +134,13 @@ class SignUpActivity : AppCompatActivity() {
             email = email,
             onSuccess = {
                 btnSignUp.isEnabled = true
-                btnSignUp.text = "CREATE ACCOUNT"
+                btnSignUp.text = AppText.get(this, "CREATE ACCOUNT")
                 startActivity(Intent(this, SetupProfileActivity::class.java))
                 finish()
             },
             onError = { e ->
                 btnSignUp.isEnabled = true
-                btnSignUp.text = "CREATE ACCOUNT"
+                btnSignUp.text = AppText.get(this, "CREATE ACCOUNT")
                 Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
             }
         )

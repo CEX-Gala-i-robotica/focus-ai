@@ -4,9 +4,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#050A0F">
+    android:background="#12141D">
 
     <View
+        android:id="@+id/gradientOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/bg_gradient_overlay"
@@ -53,7 +54,9 @@
             android:letterSpacing="0.25"
             android:text="FOCUS"
             android:textColor="#FFFFFF"
-            android:textSize="20sp" />
+            android:textSize="20sp"
+            android:shadowColor="#6600E5FF"
+            android:shadowRadius="10" />
 
         <TextView
             android:id="@+id/btnSignOut"
@@ -66,7 +69,7 @@
             android:paddingEnd="14dp"
             android:paddingBottom="7dp"
             android:text="Sign out"
-            android:textColor="#3D5A80"
+            android:textColor="#8A8F9E"
             android:textSize="13sp" />
     </LinearLayout>
 
@@ -103,7 +106,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Test Results"
-            android:textColor="#7F8FA6"
+            android:textColor="#8A8F9E"
             android:textSize="13sp"
             android:fontFamily="sans-serif-medium" />
 
@@ -114,7 +117,18 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Games"
-            android:textColor="#7F8FA6"
+            android:textColor="#8A8F9E"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/tabSettings"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Settings"
+            android:textColor="#8A8F9E"
             android:textSize="13sp"
             android:fontFamily="sans-serif-medium" />
     </LinearLayout>
@@ -149,9 +163,9 @@
                     android:id="@+id/cardProfile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardBackgroundColor="#0D1B2A"
-                    app:cardCornerRadius="16dp"
-                    app:cardElevation="0dp">
+                    app:cardBackgroundColor="#1A1D29"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="8dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -172,6 +186,7 @@
                                 android:layout_marginEnd="16dp">
 
                                 <View
+                                    android:id="@+id/avatarBackground"
                                     android:layout_width="56dp"
                                     android:layout_height="56dp"
                                     android:background="@drawable/bg_avatar" />
@@ -183,8 +198,10 @@
                                     android:layout_gravity="center"
                                     android:fontFamily="sans-serif-medium"
                                     android:text=""
-                                    android:textColor="#1E6FD9"
-                                    android:textSize="20sp" />
+                                    android:textColor="#00E5FF"
+                                    android:textSize="20sp"
+            android:shadowColor="#6600E5FF"
+            android:shadowRadius="10" />
                             </FrameLayout>
 
                             <LinearLayout
@@ -209,7 +226,7 @@
                                     android:layout_marginTop="2dp"
                                     android:fontFamily="sans-serif-light"
                                     android:text="Loading"
-                                    android:textColor="#7F8FA6"
+                                    android:textColor="#8A8F9E"
                                     android:textSize="13sp" />
                             </LinearLayout>
                         </LinearLayout>
@@ -218,7 +235,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="1dp"
                             android:layout_marginBottom="20dp"
-                            android:background="#16283A" />
+                            android:background="#263044" />
 
                         <LinearLayout
                             android:id="@+id/profileFields"
@@ -244,7 +261,9 @@
                     android:fontFamily="sans-serif-medium"
                     android:text="Test Results"
                     android:textColor="#FFFFFF"
-                    android:textSize="20sp" />
+                    android:textSize="20sp"
+            android:shadowColor="#6600E5FF"
+            android:shadowRadius="10" />
 
                 <LinearLayout
                     android:id="@+id/testResultsContainer"
