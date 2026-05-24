@@ -7,6 +7,7 @@
     android:background="#050A0F">
 
     <View
+        android:id="@+id/gradientOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/bg_gradient_overlay"
@@ -129,6 +130,7 @@
                         android:layout_height="52dp"
                         android:layout_marginBottom="20dp">
                         <View
+                            android:id="@+id/inputBackgroundBirthDate"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />
@@ -164,6 +166,7 @@
                         android:layout_height="52dp"
                         android:layout_marginBottom="20dp">
                         <View
+                            android:id="@+id/inputBackgroundPhone"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />
@@ -209,6 +212,7 @@
                         android:layout_height="52dp"
                         android:layout_marginBottom="20dp">
                         <View
+                            android:id="@+id/inputBackgroundDocEmail"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />
@@ -244,6 +248,7 @@
                         android:layout_height="52dp"
                         android:layout_marginBottom="28dp">
                         <View
+                            android:id="@+id/inputBackgroundDocPhone"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />

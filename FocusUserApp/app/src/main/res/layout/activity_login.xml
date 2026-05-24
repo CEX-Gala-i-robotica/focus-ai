@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#050A0F">
+    android:background="#12141D">
 
     <!-- Background glow -->
     <View
@@ -91,9 +91,9 @@
                 android:id="@+id/cardLogin"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardBackgroundColor="#0D1B2A"
-                app:cardCornerRadius="24dp"
-                app:cardElevation="0dp">
+                app:cardBackgroundColor="#1A1D29"
+                    app:cardCornerRadius="24dp"
+                    app:cardElevation="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -114,7 +114,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Sign in to continue"
-                        android:textColor="#3D5A80"
+                        android:textColor="#8A8F9E"
                         android:textSize="13sp"
                         android:fontFamily="sans-serif-light"
                         android:layout_marginTop="4dp"
@@ -125,7 +125,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="EMAIL"
-                        android:textColor="#1E6FD9"
+                        android:textColor="#00E5FF"
                         android:textSize="10sp"
                         android:letterSpacing="0.18"
                         android:fontFamily="sans-serif-medium"
@@ -135,7 +135,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
                         android:layout_marginBottom="20dp">
-                        <View
+                        <View android:id="@+id/inputBackgroundEmail"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />
@@ -147,8 +147,8 @@
                             android:paddingStart="16dp"
                             android:paddingEnd="16dp"
                             android:hint="you@example.com"
-                            android:textColorHint="#2A3F58"
-                            android:textColor="#E8F0FE"
+                            android:textColorHint="#8A8F9E"
+                            android:textColor="#FFFFFF"
                             android:textSize="14sp"
                             android:fontFamily="sans-serif-light"
                             android:inputType="textEmailAddress"
@@ -161,7 +161,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="PASSWORD"
-                        android:textColor="#1E6FD9"
+                        android:textColor="#00E5FF"
                         android:textSize="10sp"
                         android:letterSpacing="0.18"
                         android:fontFamily="sans-serif-medium"
@@ -171,7 +171,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
                         android:layout_marginBottom="10dp">
-                        <View
+                        <View android:id="@+id/inputBackgroundPassword"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:background="@drawable/bg_input_field" />
@@ -183,8 +183,8 @@
                             android:paddingStart="16dp"
                             android:paddingEnd="48dp"
                             android:hint="password"
-                            android:textColorHint="#2A3F58"
-                            android:textColor="#E8F0FE"
+                            android:textColorHint="#8A8F9E"
+                            android:textColor="#FFFFFF"
                             android:textSize="14sp"
                             android:fontFamily="sans-serif-light"
                             android:inputType="textPassword"
@@ -197,7 +197,7 @@
                             android:layout_gravity="center_vertical|end"
                             android:layout_marginEnd="14dp"
                             android:src="@drawable/ic_eye"
-                            android:tint="#3D5A80"
+                            android:tint="#8A8F9E"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:padding="2dp" />
                     </FrameLayout>
@@ -208,7 +208,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Forgot password?"
-                        android:textColor="#3D5A80"
+                        android:textColor="#8A8F9E"
                         android:textSize="12sp"
                         android:fontFamily="sans-serif-light"
                         android:layout_gravity="end"
@@ -242,12 +242,12 @@
                             android:layout_width="0dp"
                             android:layout_height="1dp"
                             android:layout_weight="1"
-                            android:background="#0F2033" />
+                            android:background="#1A1D29" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="or"
-                            android:textColor="#1E3A5A"
+                            android:textColor="#8A8F9E"
                             android:textSize="11sp"
                             android:fontFamily="sans-serif-light"
                             android:paddingStart="12dp"
@@ -256,7 +256,7 @@
                             android:layout_width="0dp"
                             android:layout_height="1dp"
                             android:layout_weight="1"
-                            android:background="#0F2033" />
+                            android:background="#1A1D29" />
                     </LinearLayout>
 
                     <!-- Google Button -->
@@ -283,7 +283,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Continue with Google"
-                            android:textColor="#E8F0FE"
+                            android:textColor="#FFFFFF"
                             android:textSize="13sp"
                             android:fontFamily="sans-serif-medium" />
                     </LinearLayout>
@@ -299,7 +299,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Don't have an account? "
-                            android:textColor="#2A3F58"
+                            android:textColor="#8A8F9E"
                             android:textSize="13sp"
                             android:fontFamily="sans-serif-light" />
                         <TextView
@@ -307,7 +307,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Sign up"
-                            android:textColor="#1E6FD9"
+                            android:textColor="#00E5FF"
                             android:textSize="13sp"
                             android:fontFamily="sans-serif-medium"
                             android:background="?attr/selectableItemBackgroundBorderless"

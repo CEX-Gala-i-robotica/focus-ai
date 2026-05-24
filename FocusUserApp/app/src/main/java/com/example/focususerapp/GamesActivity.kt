@@ -9,8 +9,10 @@ import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -35,12 +37,12 @@ class GamesActivity : AppCompatActivity() {
     private var gameStartedAt = 0L
 
     private val colors = listOf(
-        ColorChoice("Red", "#EF4444", "RED"),
-        ColorChoice("Green", "#22C55E", "GREEN"),
-        ColorChoice("Blue", "#3B82F6", "BLUE"),
+        ColorChoice("Red", "#FF3366", "RED"),
+        ColorChoice("Green", "#00FF66", "GREEN"),
+        ColorChoice("Blue", "#00E5FF", "BLUE"),
         ColorChoice("Yellow", "#EAB308", "YELLOW"),
-        ColorChoice("Orange", "#F97316", "ORANGE"),
-        ColorChoice("Purple", "#A855F7", "PURPLE")
+        ColorChoice("Orange", "#FFB020", "ORANGE"),
+        ColorChoice("Purple", "#7C3DFF", "PURPLE")
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,9 +52,10 @@ class GamesActivity : AppCompatActivity() {
         window.decorView.systemUiVisibility =
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
 
+        val p = AppAppearance.palette(this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#050A0F"))
+            setBackgroundColor(p.root)
         }
         root.addView(header())
 
@@ -83,27 +86,28 @@ class GamesActivity : AppCompatActivity() {
     }
 
     private fun header(): View {
+        val p = AppAppearance.palette(this)
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(24), dp(48), dp(24), dp(14))
-            setBackgroundColor(Color.parseColor("#08131F"))
+            setBackgroundColor(p.root)
 
             addView(TextView(context).apply {
-                text = "Back"
-                setTextColor(Color.parseColor("#4DA3FF"))
+                text = AppText.get(context, "Back")
+                setTextColor(p.accent)
                 textSize = 14f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 setPadding(dp(14), dp(8), dp(14), dp(8))
-                background = rounded("#10243A", 10)
+                background = rounded(p.surfaceAlt, 24)
                 setOnClickListener {
                     if (activeGame) showMenu() else finish()
                 }
             })
 
             addView(TextView(context).apply {
-                text = "Games"
-                setTextColor(Color.WHITE)
+                text = AppText.get(context, "Games")
+                setTextColor(p.text)
                 textSize = 21f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 gravity = Gravity.CENTER
@@ -112,9 +116,24 @@ class GamesActivity : AppCompatActivity() {
 
             addView(TextView(context).apply {
                 text = "Focus"
-                setTextColor(Color.parseColor("#7F8FA6"))
+                setTextColor(p.muted)
                 textSize = 13f
             })
+        }
+    }
+
+    private fun animateChildrenEntrance() {
+        for (i in 0 until content.childCount) {
+            val child = content.getChildAt(i)
+            child.alpha = 0f
+            child.translationY = 40f
+            child.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(400)
+                .setStartDelay(i * 45L)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+                .start()
         }
     }
 
@@ -125,25 +144,30 @@ class GamesActivity : AppCompatActivity() {
         content.removeAllViews()
 
         content.addView(title("Choose a game", "Play quick cognitive exercises and save every result in Firebase."))
-        addGameCard("Quick Math", "Solve operations in 60 seconds.", "#1E6FD9") {
+        
+        addGameCard("Quick Math", "Solve operations in 60 seconds.", "#00E5FF", "🧮") {
             showDifficulty("Quick Math", listOf("Easy", "Medium", "Hard")) { startQuickMath(it) }
         }
-        addGameCard("Memory", "Find all matching card pairs.", "#8B5CF6") {
+        addGameCard("Memory", "Find all matching card pairs.", "#7C3DFF", "🧠") {
             showDifficulty("Memory", listOf("Easy", "Medium", "Hard")) { startMemory(it) }
         }
-        addGameCard("Sequences", "Watch and repeat the growing sequence.", "#10B981") {
+        addGameCard("Sequences", "Watch and repeat the growing sequence.", "#00FF66", "🔢") {
             showDifficulty("Sequences", listOf("Easy", "Medium", "Hard")) { startSequences(it) }
         }
-        addGameCard("Stroop Test", "Pick the text color, not the word.", "#EC4899") {
+        addGameCard("Stroop Test", "Pick the text color, not the word.", "#FF3366", "🎨") {
             showDifficulty("Stroop Test", listOf("Easy", "Medium", "Hard")) { startStroop(it) }
         }
-        addGameCard("Visual Search", "Find the odd character before time runs out.", "#F59E0B") {
+        addGameCard("Visual Search", "Find the odd character before time runs out.", "#FFB020", "🔍") {
             showDifficulty("Visual Search", listOf("Easy", "Medium", "Hard")) { startVisualSearch(it) }
         }
 
         content.addView(section("History"))
         val historyContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(historyContainer)
+        
+        // Initial entrance animation
+        animateChildrenEntrance()
+
         repository.loadCurrentGameResults(
             onSuccess = { results ->
                 historyContainer.removeAllViews()
@@ -152,46 +176,78 @@ class GamesActivity : AppCompatActivity() {
                 } else {
                     results.take(12).forEach { historyContainer.addView(historyCard(it)) }
                 }
+                
+                // Animate history cards sliding in beautifully
+                for (i in 0 until historyContainer.childCount) {
+                    val child = historyContainer.getChildAt(i)
+                    child.alpha = 0f
+                    child.translationY = 30f
+                    child.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(350)
+                        .setStartDelay(i * 30L)
+                        .setInterpolator(android.view.animation.DecelerateInterpolator(1.2f))
+                        .start()
+                }
             },
-            onError = { historyContainer.addView(emptyState("Could not load game history")) }
+            onError = { 
+                historyContainer.removeAllViews()
+                historyContainer.addView(emptyState("Could not load game history")) 
+            }
         )
     }
 
-    private fun addGameCard(name: String, subtitle: String, accent: String, onClick: () -> Unit) {
+    private fun addGameCard(name: String, subtitle: String, accent: String, iconStr: String, onClick: () -> Unit) {
+        val p = AppAppearance.palette(this)
         content.addView(CardView(this).apply {
-            radius = dp(16).toFloat()
-            cardElevation = 0f
-            setCardBackgroundColor(Color.parseColor("#0D1B2A"))
+            radius = dp(24).toFloat()
+            cardElevation = dp(8).toFloat()
+            setCardBackgroundColor(p.surface)
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(14) }
             isClickable = true
             setOnClickListener { onClick() }
+            
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(18), dp(18), dp(18), dp(18))
-                addView(View(context).apply {
-                    background = rounded(accent, 10)
+                
+                // Emoji Icon View
+                addView(FrameLayout(context).apply {
+                    background = rounded(accent, 14)
                     layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { rightMargin = dp(14) }
+                    
+                    addView(TextView(context).apply {
+                        text = iconStr
+                        textSize = 20f
+                        gravity = Gravity.CENTER
+                        layoutParams = FrameLayout.LayoutParams(match, match)
+                    })
                 })
+
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     layoutParams = LinearLayout.LayoutParams(0, wrap, 1f)
+                    
                     addView(TextView(context).apply {
-                        text = name
-                        setTextColor(Color.WHITE)
+                        text = AppText.get(context, name)
+                        setTextColor(p.text)
                         textSize = 17f
                         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                     })
+                    
                     addView(TextView(context).apply {
-                        text = subtitle
-                        setTextColor(Color.parseColor("#7F8FA6"))
+                        text = AppText.get(context, subtitle)
+                        setTextColor(p.muted)
                         textSize = 13f
                         setPadding(0, dp(4), 0, 0)
                     })
                 })
+
                 addView(TextView(context).apply {
-                    text = "Play"
-                    setTextColor(Color.parseColor("#4DA3FF"))
+                    text = AppText.get(context, "Play")
+                    setTextColor(p.accent)
                     textSize = 13f
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 })
@@ -203,23 +259,26 @@ class GamesActivity : AppCompatActivity() {
         activeGame = true
         stopTicker()
         content.removeAllViews()
+        val p = AppAppearance.palette(this)
         content.addView(title(game, "Choose difficulty"))
         options.forEach { diff ->
             content.addView(Button(this).apply {
-                text = diff
+                text = AppText.get(context, diff)
                 textSize = 16f
-                setTextColor(Color.WHITE)
-                background = rounded("#17304A", 14)
+                setTextColor(p.text)
+                background = rounded(p.surfaceAlt, 24)
                 layoutParams = LinearLayout.LayoutParams(match, dp(56)).apply { bottomMargin = dp(12) }
                 setOnClickListener { start(diff) }
             })
         }
+        animateChildrenEntrance()
     }
 
     private fun startQuickMath(difficulty: String) {
         activeGame = true
         content.removeAllViews()
         gameStartedAt = now()
+        val p = AppAppearance.palette(this)
         val durationSec = 60
         var secondsLeft = durationSec
         var score = 0
@@ -231,26 +290,29 @@ class GamesActivity : AppCompatActivity() {
 
         val scoreText = statText("Score: 0")
         val timerText = statText("60s")
+        
         val question = TextView(this).apply {
-            setTextColor(Color.WHITE)
+            setTextColor(p.text)
             textSize = 44f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(36); bottomMargin = dp(24) }
         }
+        
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_SIGNED
             textSize = 24f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#7F8FA6"))
-            hint = "Answer"
-            background = rounded("#0D1B2A", 14, "#1E6FD9")
+            setTextColor(p.text)
+            setHintTextColor(p.muted)
+            hint = AppText.get(this@GamesActivity, "Answer")
+            background = rounded(p.surface, 24, p.accent)
             setPadding(dp(16), 0, dp(16), 0)
             layoutParams = LinearLayout.LayoutParams(match, dp(60)).apply { bottomMargin = dp(14) }
         }
+        
         val feedback = TextView(this).apply {
-            setTextColor(Color.parseColor("#7F8FA6"))
+            setTextColor(p.muted)
             textSize = 15f
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(14) }
@@ -302,7 +364,7 @@ class GamesActivity : AppCompatActivity() {
                 difficulty,
                 finalScore,
                 mapOf("correct" to correct, "wrong" to wrong, "streak" to bestStreak),
-                "Correct: $correct  Wrong: $wrong  Best streak: $bestStreak"
+                "${AppText.get(this, "Correct")}: $correct  ${AppText.get(this, "Wrong")}: $wrong  ${AppText.get(this, "Best streak")}: $bestStreak"
             )
         }
 
@@ -317,20 +379,23 @@ class GamesActivity : AppCompatActivity() {
                 streak++
                 bestStreak = max(bestStreak, streak)
                 score += 10 + if (streak >= 5) 5 else 0 + if (streak >= 10) 5 else 0
-                feedback.text = "Correct"
-                feedback.setTextColor(Color.parseColor("#22C55E"))
+                feedback.text = AppText.get(this, "Correct")
+                feedback.setTextColor(p.positive)
             } else {
                 wrong++
                 streak = 0
                 score = max(0, score - 3)
-                feedback.text = "Wrong. Answer: $answer"
-                feedback.setTextColor(Color.parseColor("#EF4444"))
+                feedback.text = "${AppText.get(this, "Wrong. Answer:")} $answer"
+                feedback.setTextColor(p.negative)
             }
-            scoreText.text = "Score: $score"
+            scoreText.text = "${AppText.get(this, "Score")}: $score"
             nextQuestion()
         })
         content.addView(feedback)
+        
         nextQuestion()
+        animateChildrenEntrance()
+
         startTicker {
             secondsLeft--
             timerText.text = "${secondsLeft}s"
@@ -342,6 +407,8 @@ class GamesActivity : AppCompatActivity() {
         activeGame = true
         content.removeAllViews()
         gameStartedAt = now()
+        val p = AppAppearance.palette(this)
+        
         val cols = when (difficulty) {
             "Easy" -> 4
             "Medium" -> 4
@@ -353,10 +420,13 @@ class GamesActivity : AppCompatActivity() {
             else -> 6
         }
         val totalPairs = rows * cols / 2
-        val symbols = listOf("A", "B", "C", "D", "E", "F", "G", "H", "K", "L", "M", "N")
+        
+        // Emojis instead of letters for high-fidelity gaming
+        val symbols = listOf("🍎", "🍌", "🍒", "🍉", "🍇", "🍓", "🍍", "🥑", "🍑", "🍋", "🥕", "🌽")
             .take(totalPairs)
             .flatMap { listOf(it, it) }
             .shuffled()
+
         var first: Button? = null
         var firstIndex = -1
         var locked = false
@@ -364,9 +434,11 @@ class GamesActivity : AppCompatActivity() {
         var pairs = 0
         var seconds = 0
         val matched = BooleanArray(symbols.size)
+        
         val movesText = statText("Moves: 0")
         val timeText = statText("00:00")
         val pairsText = statText("Pairs: 0/$totalPairs")
+        
         val grid = GridLayout(this).apply {
             columnCount = cols
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(24) }
@@ -383,7 +455,7 @@ class GamesActivity : AppCompatActivity() {
                 difficulty,
                 finalScore,
                 mapOf("moves" to moves, "pairs" to totalPairs),
-                "Time: ${formatSeconds(seconds)}  Moves: $moves"
+                "${AppText.get(this, "Time")}: ${formatSeconds(seconds)}  ${AppText.get(this, "Moves")}: $moves"
             )
         }
 
@@ -391,8 +463,8 @@ class GamesActivity : AppCompatActivity() {
             val btn = Button(this).apply {
                 text = "?"
                 textSize = 22f
-                setTextColor(Color.WHITE)
-                background = rounded("#17304A", 10)
+                setTextColor(p.text)
+                background = rounded(p.surfaceAlt, 18)
                 layoutParams = GridLayout.LayoutParams().apply {
                     width = 0
                     height = dp(70)
@@ -402,19 +474,20 @@ class GamesActivity : AppCompatActivity() {
                 setOnClickListener {
                     if (locked || matched[index] || text != "?") return@setOnClickListener
                     text = symbol
-                    background = rounded("#1E6FD9", 10)
+                    background = rounded(p.accent, 18)
+                    setTextColor(Color.WHITE)
                     if (first == null) {
                         first = this
                         firstIndex = index
                     } else {
                         moves++
-                        movesText.text = "Moves: $moves"
+                        movesText.text = "${AppText.get(context, "Moves")}: $moves"
                         val second = this
                         if (symbols[firstIndex] == symbol) {
                             matched[firstIndex] = true
                             matched[index] = true
                             pairs++
-                            pairsText.text = "Pairs: $pairs/$totalPairs"
+                            pairsText.text = "${AppText.get(context, "Pairs")}: $pairs/$totalPairs"
                             first = null
                             firstIndex = -1
                             if (pairs == totalPairs) finishGame()
@@ -422,9 +495,11 @@ class GamesActivity : AppCompatActivity() {
                             locked = true
                             handler.postDelayed({
                                 first?.text = "?"
-                                first?.background = rounded("#17304A", 10)
+                                first?.background = rounded(p.surfaceAlt, 18)
+                                first?.setTextColor(p.text)
                                 second.text = "?"
-                                second.background = rounded("#17304A", 10)
+                                second.background = rounded(p.surfaceAlt, 18)
+                                second.setTextColor(p.text)
                                 first = null
                                 firstIndex = -1
                                 locked = false
@@ -439,6 +514,9 @@ class GamesActivity : AppCompatActivity() {
         content.addView(title("Memory", "Find every pair."))
         content.addView(row(timeText, movesText, pairsText))
         content.addView(grid)
+        
+        animateChildrenEntrance()
+
         startTicker {
             seconds++
             timeText.text = formatSeconds(seconds)
@@ -449,6 +527,7 @@ class GamesActivity : AppCompatActivity() {
         activeGame = true
         content.removeAllViews()
         gameStartedAt = now()
+        val p = AppAppearance.palette(this)
         val maxLevels = 20
         val flashMs = when (difficulty) {
             "Easy" -> 650L
@@ -463,13 +542,15 @@ class GamesActivity : AppCompatActivity() {
         val levelText = statText("Level: 1/$maxLevels")
         val scoreText = statText("Score: 0/100")
         val livesText = statText("Lives: 3")
+        
         val status = TextView(this).apply {
-            text = "Watch the sequence"
-            setTextColor(Color.WHITE)
+            text = AppText.get(context, "Watch the sequence")
+            setTextColor(p.text)
             textSize = 18f
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { topMargin = dp(24); bottomMargin = dp(18) }
         }
+        
         val grid = GridLayout(this).apply {
             columnCount = 3
             layoutParams = LinearLayout.LayoutParams(match, wrap)
@@ -482,9 +563,9 @@ class GamesActivity : AppCompatActivity() {
         }
 
         fun updateHud() {
-            levelText.text = "Level: ${min(level, maxLevels)}/$maxLevels"
-            scoreText.text = "Score: ${currentScore().toInt()}/100"
-            livesText.text = "Lives: $lives"
+            levelText.text = "${AppText.get(this, "Level")}: ${min(level, maxLevels)}/$maxLevels"
+            scoreText.text = "${AppText.get(this, "Score")}: ${currentScore().toInt()}/100"
+            livesText.text = "${AppText.get(this, "Lives")}: $lives"
         }
 
         fun finishGame() {
@@ -493,14 +574,15 @@ class GamesActivity : AppCompatActivity() {
                 difficulty,
                 currentScore(),
                 mapOf("rawScore" to round(currentScore()).toInt(), "maxLevel" to max(0, level - 1)),
-                "Level reached: ${max(0, level - 1)}/$maxLevels  Lives: $lives"
+                "${AppText.get(this, "Level reached")}: ${max(0, level - 1)}/$maxLevels  ${AppText.get(this, "Lives")}: $lives"
             )
         }
 
         fun setEnabled(enabled: Boolean) = buttons.forEach { it.isEnabled = enabled }
+        
         fun flash(index: Int, done: () -> Unit = {}) {
             val btn = buttons[index]
-            btn.background = rounded("#4DA3FF", 12)
+            btn.background = rounded(p.accent, 12)
             handler.postDelayed({
                 btn.background = rounded(sequenceColor(index), 12)
                 done()
@@ -510,11 +592,11 @@ class GamesActivity : AppCompatActivity() {
         fun playSequence(pos: Int = 0) {
             waiting = false
             setEnabled(false)
-            status.text = "Watch the sequence"
+            status.text = AppText.get(this, "Watch the sequence")
             if (pos >= sequence.size) {
                 inputIndex = 0
                 waiting = true
-                status.text = "Repeat it"
+                status.text = AppText.get(this, "Repeat it")
                 setEnabled(true)
                 return
             }
@@ -551,7 +633,7 @@ class GamesActivity : AppCompatActivity() {
                             level++
                             waiting = false
                             setEnabled(false)
-                            status.text = "Correct"
+                            status.text = AppText.get(context, "Correct")
                             handler.postDelayed({ nextRound() }, 700)
                         }
                     } else {
@@ -562,7 +644,7 @@ class GamesActivity : AppCompatActivity() {
                         if (lives <= 0) {
                             finishGame()
                         } else {
-                            status.text = "Wrong. Watch again"
+                            status.text = AppText.get(context, "Wrong. Watch again")
                             handler.postDelayed({ playSequence() }, 900)
                         }
                     }
@@ -576,13 +658,16 @@ class GamesActivity : AppCompatActivity() {
         content.addView(row(levelText, scoreText, livesText))
         content.addView(status)
         content.addView(grid)
+        
         nextRound()
+        animateChildrenEntrance()
     }
 
     private fun startStroop(difficulty: String) {
         activeGame = true
         content.removeAllViews()
         gameStartedAt = now()
+        val p = AppAppearance.palette(this)
         val totalRounds = 30
         val activeColors = colors.take(if (difficulty == "Easy") 4 else if (difficulty == "Medium") 5 else 6)
         val limitMs = when (difficulty) {
@@ -600,6 +685,7 @@ class GamesActivity : AppCompatActivity() {
         var roundStart = 0L
         val progress = statText("Round: 0/$totalRounds")
         val scoreText = statText("Score: 0")
+        
         val word = TextView(this).apply {
             textSize = 56f
             typeface = Typeface.DEFAULT_BOLD
@@ -615,7 +701,7 @@ class GamesActivity : AppCompatActivity() {
                 difficulty,
                 finalScore,
                 mapOf("correct" to correct, "wrong" to wrong, "streak" to maxStreak),
-                "$correct correct  ${wrong} wrong  Best streak: $maxStreak"
+                "$correct ${AppText.get(this, "correct")}  $wrong ${AppText.get(this, "wrong")}  ${AppText.get(this, "Best streak")}: $maxStreak"
             )
         }
 
@@ -626,11 +712,11 @@ class GamesActivity : AppCompatActivity() {
             }
             handler.removeCallbacks(ticker ?: Runnable {})
             round++
-            progress.text = "Round: $round/$totalRounds"
+            progress.text = "${AppText.get(this, "Round")}: $round/$totalRounds"
             val ink = activeColors.random()
             val label = activeColors.filter { it.key != ink.key }.random()
             correctKey = ink.key
-            word.text = label.display
+            word.text = AppText.get(this, label.display)
             word.setTextColor(Color.parseColor(ink.hex))
             val options = (listOf(ink, label) + activeColors.filter { it.key != ink.key && it.key != label.key }.shuffled())
                 .distinctBy { it.key }
@@ -640,11 +726,11 @@ class GamesActivity : AppCompatActivity() {
             roundStart = now()
             options.forEach { option ->
                 grid.addView(Button(this).apply {
-                    text = option.display
+                    text = AppText.get(context, option.display)
                     setTextColor(Color.parseColor(option.hex))
                     textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
-                    background = rounded("#0D1B2A", 12, option.hex)
+                    background = rounded(p.surface, 12, Color.parseColor(option.hex))
                     layoutParams = GridLayout.LayoutParams().apply {
                         width = 0
                         height = dp(58)
@@ -663,13 +749,13 @@ class GamesActivity : AppCompatActivity() {
                             wrong++
                             streak = 0
                         }
-                        scoreText.text = "Score: $score"
+                        scoreText.text = "${AppText.get(context, "Score")}: $score"
                         handler.postDelayed({ nextRound() }, 350)
                     }
                 })
             }
             if (limitMs > 0) handler.postDelayed({
-                if (activeGame && progress.text == "Round: $round/$totalRounds") {
+                if (activeGame && progress.text == "${AppText.get(this, "Round")}: $round/$totalRounds") {
                     wrong++
                     streak = 0
                     nextRound()
@@ -681,13 +767,16 @@ class GamesActivity : AppCompatActivity() {
         content.addView(row(progress, scoreText))
         content.addView(word)
         content.addView(grid)
+        
         nextRound()
+        animateChildrenEntrance()
     }
 
     private fun startVisualSearch(difficulty: String) {
         activeGame = true
         content.removeAllViews()
         gameStartedAt = now()
+        val p = AppAppearance.palette(this)
         val totalRounds = 8
         val timeLimit = when (difficulty) {
             "Easy" -> 25
@@ -714,7 +803,7 @@ class GamesActivity : AppCompatActivity() {
                 difficulty,
                 normalized,
                 mapOf("rawScore" to score, "round" to round, "totalRounds" to totalRounds, "completed" to won),
-                "Score: $score  Round: $round/$totalRounds"
+                "${AppText.get(this, "Score")}: $score  ${AppText.get(this, "Round")}: $round/$totalRounds"
             )
         }
 
@@ -743,16 +832,16 @@ class GamesActivity : AppCompatActivity() {
             targetIndex = Random.nextInt(total)
             grid.columnCount = cols
             grid.removeAllViews()
-            roundText.text = "Round: $round/$totalRounds"
-            scoreText.text = "Score: $score"
-            livesText.text = "Lives: $lives"
+            roundText.text = "${AppText.get(this, "Round")}: $round/$totalRounds"
+            scoreText.text = "${AppText.get(this, "Score")}: $score"
+            livesText.text = "${AppText.get(this, "Lives")}: $lives"
             timerText.text = "${secondsLeft}s"
             repeat(total) { index ->
                 grid.addView(Button(this).apply {
                     text = if (index == targetIndex) pair.second else pair.first
                     textSize = if (cols <= 8) 18f else 14f
-                    setTextColor(Color.WHITE)
-                    background = rounded("#0D1B2A", 7)
+                    setTextColor(p.text)
+                    background = rounded(p.surface, 7)
                     layoutParams = GridLayout.LayoutParams().apply {
                         width = 0
                         height = dp(if (cols <= 8) 46 else 36)
@@ -766,8 +855,8 @@ class GamesActivity : AppCompatActivity() {
                             nextRound()
                         } else {
                             lives--
-                            livesText.text = "Lives: $lives"
-                            background = rounded("#EF4444", 7)
+                            livesText.text = "${AppText.get(context, "Lives")}: $lives"
+                            background = rounded("#FF3366", 7)
                             if (lives <= 0) finishGame(false)
                         }
                     }
@@ -786,7 +875,9 @@ class GamesActivity : AppCompatActivity() {
         content.addView(title("Visual Search", "Find the odd character."))
         content.addView(row(roundText, scoreText, livesText, timerText))
         content.addView(grid)
+        
         nextRound()
+        animateChildrenEntrance()
     }
 
     private fun saveAndShowResult(
@@ -799,22 +890,23 @@ class GamesActivity : AppCompatActivity() {
         activeGame = false
         stopTicker()
         val duration = formatMillis(now() - gameStartedAt)
+        val p = AppAppearance.palette(this)
         repository.saveGameResult(
             game = game,
             duration = duration,
             difficulty = difficulty,
             score = score,
             extra = extra,
-            onSuccess = { Toast.makeText(this, "Result saved", Toast.LENGTH_SHORT).show() },
-            onError = { Toast.makeText(this, "Could not save result", Toast.LENGTH_SHORT).show() }
+            onSuccess = { Toast.makeText(this, AppText.get(this, "Result saved"), Toast.LENGTH_SHORT).show() },
+            onError = { Toast.makeText(this, AppText.get(this, "Could not save result"), Toast.LENGTH_SHORT).show() }
         )
 
         content.removeAllViews()
         content.addView(title("Result", game))
         content.addView(CardView(this).apply {
-            radius = dp(18).toFloat()
-            cardElevation = 0f
-            setCardBackgroundColor(Color.parseColor("#0D1B2A"))
+            radius = dp(24).toFloat()
+            cardElevation = dp(8).toFloat()
+            setCardBackgroundColor(p.surface)
             layoutParams = LinearLayout.LayoutParams(match, wrap)
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -822,13 +914,13 @@ class GamesActivity : AppCompatActivity() {
                 setPadding(dp(24), dp(28), dp(24), dp(28))
                 addView(TextView(context).apply {
                     text = String.format(Locale.US, "%.1f / 100", score)
-                    setTextColor(Color.WHITE)
+                    setTextColor(p.text)
                     textSize = 32f
                     typeface = Typeface.DEFAULT_BOLD
                 })
                 addView(TextView(context).apply {
-                    text = "$summary\nDuration: $duration  Difficulty: $difficulty"
-                    setTextColor(Color.parseColor("#7F8FA6"))
+                    text = "$summary\n${AppText.get(context, "Duration")}: $duration  ${AppText.get(context, "Choose difficulty")}: ${AppText.get(context, difficulty)}"
+                    setTextColor(p.muted)
                     textSize = 14f
                     gravity = Gravity.CENTER
                     setPadding(0, dp(12), 0, dp(18))
@@ -836,32 +928,34 @@ class GamesActivity : AppCompatActivity() {
                 addView(primaryButton("Back to Games") { showMenu() })
             })
         })
+        animateChildrenEntrance()
     }
 
     private fun historyCard(result: GameResult): View {
+        val p = AppAppearance.palette(this)
         return CardView(this).apply {
-            radius = dp(14).toFloat()
-            cardElevation = 0f
-            setCardBackgroundColor(Color.parseColor("#0D1B2A"))
+            radius = dp(24).toFloat()
+            cardElevation = dp(6).toFloat()
+            setCardBackgroundColor(p.surface)
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(10) }
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(16), dp(14), dp(16), dp(14))
                 addView(row(TextView(context).apply {
-                    text = result.game.ifBlank { "Game" }
-                    setTextColor(Color.WHITE)
+                    text = AppText.get(context, result.game.ifBlank { "Game" })
+                    setTextColor(p.text)
                     textSize = 15f
                     typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
                 }, TextView(context).apply {
                     text = result.scor?.let { String.format(Locale.US, "%.1f", it) } ?: "-"
-                    setTextColor(Color.WHITE)
+                    setTextColor(p.text)
                     textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
                     gravity = Gravity.END
                 }))
                 addView(TextView(context).apply {
-                    text = "${result.dateTime.ifBlank { "No date" }}  ${result.duration}  ${result.difficulty}"
-                    setTextColor(Color.parseColor("#7F8FA6"))
+                    text = "${result.dateTime.ifBlank { AppText.get(context, "No date") }}  ${result.duration}  ${AppText.get(context, result.difficulty)}"
+                    setTextColor(p.muted)
                     textSize = 12f
                     setPadding(0, dp(6), 0, 0)
                 })
@@ -870,18 +964,19 @@ class GamesActivity : AppCompatActivity() {
     }
 
     private fun title(text: String, subtitle: String): View {
+        val p = AppAppearance.palette(this)
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(match, wrap).apply { bottomMargin = dp(18) }
             addView(TextView(context).apply {
-                this.text = text
-                setTextColor(Color.WHITE)
+                this.text = AppText.get(context, text)
+                setTextColor(p.text)
                 textSize = 24f
                 typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             })
             addView(TextView(context).apply {
-                this.text = subtitle
-                setTextColor(Color.parseColor("#7F8FA6"))
+                this.text = AppText.get(context, subtitle)
+                setTextColor(p.muted)
                 textSize = 14f
                 setPadding(0, dp(5), 0, 0)
             })
@@ -889,20 +984,29 @@ class GamesActivity : AppCompatActivity() {
     }
 
     private fun section(text: String): View = TextView(this).apply {
-        this.text = text
-        setTextColor(Color.WHITE)
+        this.text = AppText.get(context, text)
+        setTextColor(AppAppearance.palette(context).text)
         textSize = 18f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setPadding(0, dp(12), 0, dp(12))
     }
 
     private fun statText(textValue: String): TextView = TextView(this).apply {
-        text = textValue
-        setTextColor(Color.WHITE)
+        text = localizeStat(textValue)
+        setTextColor(AppAppearance.palette(context).text)
         textSize = 13f
         gravity = Gravity.CENTER
-        background = rounded("#17304A", 12)
+        background = rounded(AppAppearance.palette(context).surfaceAlt, 18)
         setPadding(dp(10), dp(10), dp(10), dp(10))
+    }
+
+    private fun localizeStat(textValue: String): String {
+        val separator = textValue.indexOf(':')
+        return if (separator > 0) {
+            AppText.get(this, textValue.substring(0, separator)) + textValue.substring(separator)
+        } else {
+            AppText.get(this, textValue)
+        }
     }
 
     private fun row(vararg views: View): LinearLayout = LinearLayout(this).apply {
@@ -917,21 +1021,21 @@ class GamesActivity : AppCompatActivity() {
     }
 
     private fun primaryButton(textValue: String, onClick: () -> Unit): Button = Button(this).apply {
-        text = textValue
+        text = AppText.get(context, textValue)
         setTextColor(Color.WHITE)
         textSize = 15f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        background = rounded("#1E6FD9", 14)
+        background = AppAppearance.gradientButton(context)
         layoutParams = LinearLayout.LayoutParams(match, dp(54)).apply { bottomMargin = dp(12) }
         setOnClickListener { onClick() }
     }
 
     private fun emptyState(message: String): View = TextView(this).apply {
-        text = message
-        setTextColor(Color.parseColor("#7F8FA6"))
+        text = AppText.get(context, message)
+        setTextColor(AppAppearance.palette(context).muted)
         textSize = 14f
         gravity = Gravity.CENTER
-        background = rounded("#0D1B2A", 14)
+        background = rounded(AppAppearance.palette(context).surface, 24)
         setPadding(dp(18), dp(24), dp(18), dp(24))
     }
 
@@ -952,14 +1056,18 @@ class GamesActivity : AppCompatActivity() {
     }
 
     private fun sequenceColor(index: Int): String {
-        return listOf("#EF4444", "#3B82F6", "#22C55E", "#F59E0B", "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16", "#F97316")[index]
+        return listOf("#FF3366", "#00E5FF", "#00FF66", "#FFB020", "#7C3DFF", "#FF3366", "#00E5FF", "#00FF66", "#FFB020")[index]
     }
 
     private fun rounded(color: String, radius: Int, stroke: String? = null): GradientDrawable {
+        return rounded(Color.parseColor(color), radius, stroke?.let { Color.parseColor(it) })
+    }
+
+    private fun rounded(color: Int, radius: Int, strokeColor: Int? = null): GradientDrawable {
         return GradientDrawable().apply {
-            setColor(Color.parseColor(color))
+            setColor(color)
             cornerRadius = dp(radius).toFloat()
-            if (stroke != null) setStroke(dp(1), Color.parseColor(stroke))
+            if (strokeColor != null) setStroke(dp(1), strokeColor)
         }
     }
 

@@ -73,6 +73,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         initViews()
+        AppAppearance.apply(this)
         setupListeners()
         playEntranceAnimation()
     }
@@ -108,14 +109,14 @@ class LoginActivity : AppCompatActivity() {
             val password = etPassword.text.toString().trim()
             if (!validateInput(email, password)) return@setOnClickListener
             btnLogin.isEnabled = false
-            btnLogin.text = "SIGNING IN..."
+            btnLogin.text = AppText.get(this, "SIGNING IN...")
             auth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         checkSetupAndRedirect(auth.currentUser!!.uid)
                     } else {
                         btnLogin.isEnabled = true
-                        btnLogin.text = "SIGN IN"
+                        btnLogin.text = AppText.get(this, "SIGN IN")
                         Toast.makeText(this, task.exception?.message, Toast.LENGTH_LONG).show()
                     }
                 }
@@ -135,9 +136,9 @@ class LoginActivity : AppCompatActivity() {
 
         tvForgotPassword.setOnClickListener {
             val email = etEmail.text.toString().trim()
-            if (email.isEmpty()) { etEmail.error = "Enter email first"; return@setOnClickListener }
+            if (email.isEmpty()) { etEmail.error = AppText.get(this, "Enter email first"); return@setOnClickListener }
             auth.sendPasswordResetEmail(email)
-                .addOnSuccessListener { Toast.makeText(this, "Reset email sent!", Toast.LENGTH_SHORT).show() }
+                .addOnSuccessListener { Toast.makeText(this, AppText.get(this, "Reset email sent!"), Toast.LENGTH_SHORT).show() }
                 .addOnFailureListener { Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show() }
         }
     }
@@ -199,17 +200,17 @@ class LoginActivity : AppCompatActivity() {
 
     private fun validateInput(email: String, password: String): Boolean {
         if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            etEmail.error = "Invalid email"; etEmail.requestFocus(); return false
+            etEmail.error = AppText.get(this, "Invalid email"); etEmail.requestFocus(); return false
         }
         if (password.length < 6) {
-            etPassword.error = "Minimum 6 characters"; etPassword.requestFocus(); return false
+            etPassword.error = AppText.get(this, "Minimum 6 characters"); etPassword.requestFocus(); return false
         }
         return true
     }
 
     private fun setGoogleLoading(loading: Boolean) {
         btnGoogle.isEnabled = !loading
-        tvGoogleText.text = if (loading) "Connecting..." else "Continue with Google"
+        tvGoogleText.text = AppText.get(this, if (loading) "Connecting..." else "Continue with Google")
     }
 
     private fun playEntranceAnimation() {

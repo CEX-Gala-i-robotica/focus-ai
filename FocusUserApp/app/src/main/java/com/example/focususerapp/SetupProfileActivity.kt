@@ -36,6 +36,7 @@ class SetupProfileActivity : AppCompatActivity() {
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
 
         initViews()
+        AppAppearance.apply(this)
         loadUserName()
         setupListeners()
         playEntranceAnimation()
@@ -55,7 +56,7 @@ class SetupProfileActivity : AppCompatActivity() {
     private fun loadUserName() {
         repository.loadCurrentPatient(
             onSuccess = { profile, _ ->
-                if (profile.name.isNotEmpty()) tvWelcomeName.text = "Hello, ${profile.name}"
+                if (profile.name.isNotEmpty()) tvWelcomeName.text = "${AppText.get(this, "Hello")}, ${profile.name}"
             },
             onError = {}
         )
@@ -79,15 +80,15 @@ class SetupProfileActivity : AppCompatActivity() {
     }
 
     private fun validateInput(birthDate: String, phone: String): Boolean {
-        if (birthDate.isEmpty()) { etBirthDate.error = "Required"; etBirthDate.requestFocus(); return false }
-        if (phone.isEmpty()) { etPhoneNumber.error = "Required"; etPhoneNumber.requestFocus(); return false }
+        if (birthDate.isEmpty()) { etBirthDate.error = AppText.get(this, "Required"); etBirthDate.requestFocus(); return false }
+        if (phone.isEmpty()) { etPhoneNumber.error = AppText.get(this, "Required"); etPhoneNumber.requestFocus(); return false }
         return true
     }
 
     private fun saveProfile(birthDate: String, phone: String, doctorEmail: String, doctorPhone: String) {
         val uid = auth.currentUser?.uid ?: return
         btnSave.isEnabled = false
-        btnSave.text = "SAVING..."
+        btnSave.text = AppText.get(this, "SAVING...")
 
         repository.updateSetupProfile(
             birthDate = birthDate,
@@ -96,13 +97,13 @@ class SetupProfileActivity : AppCompatActivity() {
             doctorPhone = doctorPhone,
             onSuccess = {
                 btnSave.isEnabled = true
-                btnSave.text = "SAVE & CONTINUE"
+                btnSave.text = AppText.get(this, "SAVE & CONTINUE")
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             },
             onError = { e ->
                 btnSave.isEnabled = true
-                btnSave.text = "SAVE & CONTINUE"
+                btnSave.text = AppText.get(this, "SAVE & CONTINUE")
                 Toast.makeText(this, e.message, Toast.LENGTH_LONG).show()
             }
         )
