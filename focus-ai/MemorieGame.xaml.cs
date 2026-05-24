@@ -35,7 +35,7 @@ namespace focus_ai
         private int _totalPairs = 8;
         private int _rows = 4;
         private int _cols = 4;
-        private string _difficulty = "Ușor";
+        private string _difficulty = "Easy";
 
         private DispatcherTimer _timer = new();
         private int _seconds = 0;
@@ -69,9 +69,9 @@ namespace focus_ai
         {
             if (CardGrid == null) return;
 
-            if (sender == DiffEasy) { _rows = 4; _cols = 4; _difficulty = "Ușor"; }
-            else if (sender == DiffMedium) { _rows = 4; _cols = 5; _difficulty = "Mediu"; }
-            else { _rows = 4; _cols = 6; _difficulty = "Dificil"; }
+            if (sender == DiffEasy) { _rows = 4; _cols = 4; _difficulty = "Easy"; }
+            else if (sender == DiffMedium) { _rows = 4; _cols = 5; _difficulty = "Medium"; }
+            else { _rows = 4; _cols = 6; _difficulty = "Hard"; }
 
             CardGrid.Rows = _rows;
             CardGrid.Columns = _cols;
@@ -197,8 +197,8 @@ namespace focus_ai
             double score = Math.Max(0, 100 - movePen - timePen);
 
             int m = _seconds / 60, s = _seconds % 60;
-            WinSubtitle.Text = $"Timp: {m:D2}:{s:D2}  •  Mișcări: {_moves}";
-            WinScore.Text = $"Scor: {score:F1} / 100";
+            WinSubtitle.Text = $"Time: {m:D2}:{s:D2}  •  Moves: {_moves}";
+            WinScore.Text = $"Score: {score:F1} / 100";
             WinOverlay.Visibility = Visibility.Visible;
 
             _ = SaveActivityToFirebaseAsync(score);
@@ -217,7 +217,7 @@ namespace focus_ai
 
                 var payload = new
                 {
-                    game = "Memorie",
+                    game = "Memory",
                     dateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                     duration = durationStr,
                     moves = _moves,
@@ -241,7 +241,7 @@ namespace focus_ai
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Firebase] Eroare: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Firebase] Error: {ex.Message}");
             }
         }
 

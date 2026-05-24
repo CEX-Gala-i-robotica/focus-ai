@@ -60,11 +60,11 @@
                                        Foreground="{DynamicResource TxtPrimary}"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock Text="Test de inhibiție vizuală"
+                    <TextBlock Text="Visual inhibition test"
                                FontSize="22" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"/>
                     <TextBlock x:Name="InstructionText"
-                               Text="Apasă senzorul DOAR când ecranul este VERDE. Ignoră stimulii ROȘII."
+                               Text="Press the sensor ONLY when the screen is GREEN. Ignore RED stimuli."
                                FontSize="12" Foreground="{DynamicResource TxtSecondary}"
                                Margin="0,4,0,0"/>
                 </StackPanel>
@@ -73,7 +73,7 @@
                 <Border Grid.Column="1" Background="{DynamicResource BgCard}"
                         CornerRadius="14" Padding="24,12" VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="TIMP RĂMAS" FontSize="9" FontWeight="SemiBold"
+                        <TextBlock Text="TIME LEFT" FontSize="9" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center" Margin="0,0,0,3"/>
                         <TextBlock x:Name="CountdownText"
@@ -83,7 +83,7 @@
                                    FontFamily="Consolas"
                                    HorizontalAlignment="Center"/>
                         <TextBlock x:Name="TimerStatusText"
-                                   Text="În așteptare"
+                                   Text="Waiting"
                                    FontSize="10" Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -152,20 +152,20 @@
                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                             MaxWidth="480">
                     <TextBlock x:Name="OverlayTitle"
-                               Text="Pregătit pentru testul GO/NO-GO?"
+                               Text="Ready for the GO/NO-GO test?"
                                FontSize="26" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"
                                HorizontalAlignment="Center" TextWrapping="Wrap"
                                TextAlignment="Center"/>
                     <TextBlock x:Name="OverlayBody"
-                               Text="Testul durează 30 de secunde. Apasă senzorul NUMAI când apare culoarea VERDE (GO). Ignoră culoarea ROȘIE (NO-GO). Reacțiile false sunt penalizate."
+                               Text="The test lasts 30 seconds. Press the sensor ONLY when GREEN appears (GO). Ignore RED (NO-GO). False reactions are penalized."
                                FontSize="13" Foreground="{DynamicResource TxtSecondary}"
                                HorizontalAlignment="Center" TextWrapping="Wrap"
                                TextAlignment="Center" Margin="0,14,0,32"
                                LineHeight="21"/>
 
                     <Button x:Name="BeginButton"
-                            Content="▶  Începe testul"
+                            Content="▶  Start test"
                             HorizontalAlignment="Center"
                             Padding="32,14"
                             FontSize="14" FontWeight="SemiBold"
@@ -204,7 +204,7 @@
 
                 <!-- Correct GO -->
                 <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                    <TextBlock Text="✅  GO CORECTE" FontSize="9" FontWeight="SemiBold"
+                    <TextBlock Text="✅  CORRECT GO" FontSize="9" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="CorrectGoText" Text="0"
                                FontSize="20" FontWeight="Bold"
@@ -214,7 +214,7 @@
 
                 <!-- False positives -->
                 <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                    <TextBlock Text="❌  FALSE POZITIVE" FontSize="9" FontWeight="SemiBold"
+                    <TextBlock Text="❌  FALSE POSITIVES" FontSize="9" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="FalsePosText" Text="0"
                                FontSize="20" FontWeight="Bold"
@@ -224,7 +224,7 @@
 
                 <!-- Avg reaction time -->
                 <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                    <TextBlock Text="⚡  TIMP MEDIU" FontSize="9" FontWeight="SemiBold"
+                    <TextBlock Text="⚡  AVERAGE TIME" FontSize="9" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                     <TextBlock x:Name="AvgRtText" Text="-- ms"
                                FontSize="20" FontWeight="Bold"

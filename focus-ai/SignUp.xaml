@@ -84,12 +84,12 @@
                     </EventTrigger>
                 </StackPanel.Triggers>
 
-                <TextBlock Text="Creează cont"
+                <TextBlock Text="Create account"
                            FontSize="26" FontWeight="SemiBold"
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            Margin="0 5 0 0" HorizontalAlignment="Center"/>
 
-                <TextBlock Text="Creează un cont de medic"
+                <TextBlock Text="Create a doctor account"
                            FontSize="13" Foreground="{DynamicResource TextSecBrush}"
                            Margin="0 0 0 24" HorizontalAlignment="Center"/>
 
@@ -101,7 +101,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Prenume" FontSize="12" FontWeight="Medium"
+                        <TextBlock Text="First name" FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 0 0 4"/>
                         <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                             <TextBox x:Name="NameTextBox"/>
@@ -109,7 +109,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Nume" FontSize="12" FontWeight="Medium"
+                        <TextBlock Text="Last name" FontSize="12" FontWeight="Medium"
                                    Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 0 0 4"/>
                         <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                             <TextBox x:Name="SurnameTextBox"/>
@@ -117,7 +117,7 @@
                     </StackPanel>
                 </Grid>
 
-                <TextBlock Text="Data nașterii" FontSize="12" FontWeight="Medium"
+                <TextBlock Text="Birth date" FontSize="12" FontWeight="Medium"
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 16 0 4"/>
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
                         Padding="6 2" Background="{DynamicResource InputBgBrush}">
@@ -127,13 +127,13 @@
                                 Height="34"/>
                 </Border>
 
-                <TextBlock Text="Telefon" FontSize="12" FontWeight="Medium"
+                <TextBlock Text="Phone" FontSize="12" FontWeight="Medium"
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 16 0 4"/>
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                     <TextBox x:Name="PhoneTextBox"/>
                 </Border>
 
-                <TextBlock Text="Adresă cabinet" FontSize="12" FontWeight="Medium"
+                <TextBlock Text="Office address" FontSize="12" FontWeight="Medium"
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 16 0 4"/>
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                     <TextBox x:Name="CabinetAddressTextBox"/>
@@ -145,14 +145,14 @@
                     <TextBox x:Name="EmailTextBox"/>
                 </Border>
 
-                <TextBlock Text="Parolă" FontSize="12" FontWeight="Medium"
+                <TextBlock Text="Password" FontSize="12" FontWeight="Medium"
                            Foreground="{DynamicResource TextPrimaryBrush}" Margin="0 16 0 4"/>
                 <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                     <PasswordBox x:Name="PasswordBox"/>
                 </Border>
 
                 <Button x:Name="SignUpButton"
-                        Content="Înregistrare"
+                        Content="Sign up"
                         Foreground="White"
                         Margin="0 20 0 10" Height="44" Cursor="Hand"
                         Click="SignUpButton_Click">
@@ -168,7 +168,7 @@
                 <Grid Margin="0 4 0 10">
                     <Line X1="0" X2="1" Stretch="Fill"
                           Stroke="{DynamicResource DividerBrush}" StrokeThickness="1"/>
-                    <TextBlock Text="sau"
+                    <TextBlock Text="or"
                                Background="{DynamicResource CardBgBrush}"
                                Padding="10 0" HorizontalAlignment="Center"
                                Foreground="{DynamicResource TextSecBrush}" FontSize="12"/>
@@ -184,7 +184,7 @@
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <Image Source="https://user-images.githubusercontent.com/194400/70987158-4069c900-20b7-11ea-892e-8a2e1166b6b7.png"
                                            Width="18" Height="18" Margin="0 0 10 0"/>
-                                    <TextBlock Text="Continuă cu Google" Foreground="White"
+                                    <TextBlock Text="Continue with Google" Foreground="White"
                                                FontSize="13" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -195,7 +195,7 @@
                 <TextBlock HorizontalAlignment="Center" Margin="0 18 0 10"
                            FontSize="12" Foreground="{DynamicResource TextSecBrush}">
                     <Hyperlink Click="LoginLink_Click" Foreground="#4285F4" TextDecorations="None">
-                        Ai deja cont? Autentifică-te
+                        Already have an account? Sign in
                     </Hyperlink>
                 </TextBlock>
             </StackPanel>
