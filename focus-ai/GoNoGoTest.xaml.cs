@@ -66,6 +66,7 @@ namespace focus_ai
         public GoNoGoTest(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             ThemeManager.Apply(isDark);
 
@@ -209,14 +210,14 @@ namespace focus_ai
             {
                 CircleBrush.Color = GoColor;   // VERDE forțat direct
                 StimulusLabel.Text = "GO";
-                StimulusSubLabel.Text = "Press!";
+                StimulusSubLabel.Text = LanguageManager.T("Press!");
                 _pulseAnim?.Begin();
             }
             else
             {
                 CircleBrush.Color = NoGoColor;  // ROȘU forțat direct
                 StimulusLabel.Text = "NO-GO";
-                StimulusSubLabel.Text = "Do not press";
+                StimulusSubLabel.Text = LanguageManager.T("Do not press");
             }
 
             _stimulusTimer.Interval = TimeSpan.FromMilliseconds(
@@ -330,13 +331,13 @@ namespace focus_ai
 
         private void ShowResultOverlay(GoNoGoResult r)
         {
-            OverlayTitle.Text = "Test finalizat!";
+            OverlayTitle.Text = LanguageManager.T("Test finalizat!");
             OverlayBody.Text =
-                $"Correct GO: {r.CorrectGo}   |   Missed GO: {r.MissedGo}\n" +
-                $"False positives: {r.FalsePositives}   |   Correct NO-GO: {r.CorrectRejects}\n" +
-                $"Average reaction time: {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : "N/A")}";
+                $"{LanguageManager.T("Correct GO:")} {r.CorrectGo}   |   {LanguageManager.T("Missed GO:")} {r.MissedGo}\n" +
+                $"{LanguageManager.T("False positives:")} {r.FalsePositives}   |   {LanguageManager.T("Correct NO-GO:")} {r.CorrectRejects}\n" +
+                $"{LanguageManager.T("Average reaction time:")} {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : "N/A")}";
 
-            BeginButton.Content = "✕  Close";
+            BeginButton.Content = LanguageManager.T("✕  Close");
             BeginButton.Click -= BeginButton_Click;
             BeginButton.Click += (_, _) => Close();
 

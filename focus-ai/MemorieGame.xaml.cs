@@ -54,6 +54,7 @@ namespace focus_ai
         public MemorieGame(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -197,8 +198,8 @@ namespace focus_ai
             double score = Math.Max(0, 100 - movePen - timePen);
 
             int m = _seconds / 60, s = _seconds % 60;
-            WinSubtitle.Text = $"Time: {m:D2}:{s:D2}  •  Moves: {_moves}";
-            WinScore.Text = $"Score: {score:F1} / 100";
+            WinSubtitle.Text = $"{LanguageManager.T("Time:")} {m:D2}:{s:D2}  •  {LanguageManager.T("Moves:")} {_moves}";
+            WinScore.Text = $"{LanguageManager.T("Score:")} {score:F1} / 100";
             WinOverlay.Visibility = Visibility.Visible;
 
             _ = SaveActivityToFirebaseAsync(score);

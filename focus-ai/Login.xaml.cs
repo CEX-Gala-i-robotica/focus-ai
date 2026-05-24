@@ -27,6 +27,7 @@ namespace focus_ai
             InitializeComponent();
             WindowHelper.MoveToSecondMonitor(this);
             ApplySystemTheme();
+            LanguageManager.Register(this, LanguageToggleBtn);
             LoadRememberedCredentials();
         }
 
@@ -134,7 +135,7 @@ namespace focus_ai
 
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Email and password are required.", "Warning",
+                MessageBox.Show(LanguageManager.T("Email and password are required."), LanguageManager.T("Warning"),
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -169,19 +170,19 @@ namespace focus_ai
                     var message = error["error"]?["message"]?.ToString();
 
                     if (message == "EMAIL_NOT_FOUND" || message == "INVALID_PASSWORD" || message == "INVALID_LOGIN_CREDENTIALS")
-                        MessageBox.Show("Incorrect email or password.", "Sign-in error",
+                        MessageBox.Show(LanguageManager.T("Incorrect email or password."), LanguageManager.T("Sign-in error"),
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                     else if (message == "USER_DISABLED")
-                        MessageBox.Show("The account has been disabled.", "Sign-in error",
+                        MessageBox.Show(LanguageManager.T("The account has been disabled."), LanguageManager.T("Sign-in error"),
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                     else
-                        MessageBox.Show(message, "Sign-in error",
+                        MessageBox.Show(message, LanguageManager.T("Sign-in error"),
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -222,13 +223,13 @@ namespace focus_ai
                 else
                 {
                     var error = JObject.Parse(responseJson);
-                    MessageBox.Show(error["error"]?["message"]?.ToString() ?? "Google sign-in failed.",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(error["error"]?["message"]?.ToString() ?? LanguageManager.T("Google sign-in failed."),
+                        LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -260,7 +261,7 @@ namespace focus_ai
 
             if (string.IsNullOrEmpty(email))
             {
-                MessageBox.Show("Enter your email address to reset your password.", "Password reset",
+                MessageBox.Show(LanguageManager.T("Enter your email address to reset your password."), LanguageManager.T("Password reset"),
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -275,15 +276,15 @@ namespace focus_ai
                     new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
 
                 if (response.IsSuccessStatusCode)
-                    MessageBox.Show("Password reset email sent. Check your inbox.", "Password reset",
+                    MessageBox.Show(LanguageManager.T("Password reset email sent. Check your inbox."), LanguageManager.T("Password reset"),
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                 else
-                    MessageBox.Show("Could not send the reset email. Check the address you entered.", "Error",
+                    MessageBox.Show(LanguageManager.T("Could not send the reset email. Check the address you entered."), LanguageManager.T("Error"),
                                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -291,7 +292,7 @@ namespace focus_ai
         {
             LoginButton.IsEnabled = !busy;
             GoogleSignUpButton.IsEnabled = !busy;
-            LoginButton.Content = busy ? "Processing..." : "Sign in";
+            LoginButton.Content = busy ? LanguageManager.T("Processing...") : LanguageManager.T("Sign in");
         }
 
         private void SignUpLink_Click(object sender, RoutedEventArgs e)

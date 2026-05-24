@@ -63,6 +63,7 @@ namespace focus_ai
         public StroopGame(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -267,7 +268,7 @@ namespace focus_ai
             if (_streak >= 3)
             {
                 StreakBadge.Visibility = Visibility.Visible;
-                TxtStreak.Text = $"🔥 {_streak} in a row!";
+                TxtStreak.Text = $"🔥 {_streak} {LanguageManager.T("in a row!")}";
             }
             else
             {
@@ -308,13 +309,13 @@ namespace focus_ai
         private void UpdateScoreUI()
         {
             TxtScore.Text   = _score.ToString();
-            TxtCorrect.Text = $"{_correctCount} correct";
-            TxtWrong.Text   = $"{_wrongCount} wrong";
+            TxtCorrect.Text = $"{_correctCount} {LanguageManager.T("correct")}";
+            TxtWrong.Text   = $"{_wrongCount} {LanguageManager.T("wrong")}";
         }
 
         private void UpdateProgress()
         {
-            TxtProgress.Text = $"Round {_currentRound} / {TotalRounds}";
+            TxtProgress.Text = $"{LanguageManager.T("Round")} {_currentRound} / {TotalRounds}";
             Dispatcher.InvokeAsync(() =>
             {
                 double parentW    = ((Border)ProgressBar.Parent).ActualWidth;
@@ -338,14 +339,14 @@ namespace focus_ai
             string emoji = finalScore >= 85 ? "🏆"
                          : finalScore >= 60 ? "🥈"
                          : "💪";
-            string title = finalScore >= 85 ? "Excellent!"
-                         : finalScore >= 60 ? "Well done!"
-                         : "Keep going!";
+            string title = finalScore >= 85 ? LanguageManager.T("Excellent!")
+                         : finalScore >= 60 ? LanguageManager.T("Well done!")
+                         : LanguageManager.T("Keep going!");
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"{_correctCount} correct  •  Accuracy: {accuracy:F1}%  •  Average time: {avgTime:F2}s";
-            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"{_correctCount} {LanguageManager.T("correct")}  •  {LanguageManager.T("Accuracy:")} {accuracy:F1}%  •  {LanguageManager.T("Average time:")} {avgTime:F2}s";
+            WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 

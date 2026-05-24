@@ -54,6 +54,17 @@
     </Window.Background>
 
     <Grid>
+        <Button x:Name="LanguageToggleBtn"
+                Width="42" Height="32"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,14,14,0"
+                FontSize="16"
+                BorderThickness="0"
+                Background="#1A1A1A"
+                Foreground="White"
+                Cursor="Hand"/>
+
         <Border Width="390"
                 CornerRadius="20"
                 Padding="28"
