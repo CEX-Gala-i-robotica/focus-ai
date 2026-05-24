@@ -30,14 +30,15 @@ namespace focus_ai
             IsSetupMode = isSetupMode;
 
             ThemeManager.Apply(isDark);
+            LanguageManager.Register(this, LanguageToggleBtn);
 
             SubHeaderEmail.Text = GetReg("Email");
 
             if (isSetupMode)
             {
-                this.Title = "Set up profile";
-                HeaderTitle.Text = "Set up profile";
-                SaveBtn.Content = "Continue";
+                this.Title = LanguageManager.T("Set up profile");
+                HeaderTitle.Text = LanguageManager.T("Set up profile");
+                SaveBtn.Content = LanguageManager.T("Continue");
                 CancelBtn.IsEnabled = false;
                 CancelBtn.Opacity = 0.4;
             }
@@ -233,7 +234,7 @@ namespace focus_ai
                 var resp = await client.PatchAsync(doctorProfileUrl, content);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Could not save data to Firebase.", "Error",
+                    MessageBox.Show(LanguageManager.T("Could not save data to Firebase."), LanguageManager.T("Error"),
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
@@ -245,7 +246,7 @@ namespace focus_ai
             }
             catch
             {
-                MessageBox.Show("Could not save data to Firebase.", "Error",
+                MessageBox.Show(LanguageManager.T("Could not save data to Firebase."), LanguageManager.T("Error"),
                                 MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }

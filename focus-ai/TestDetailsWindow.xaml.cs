@@ -15,6 +15,7 @@ namespace focus_ai
                                   string spo2Raw, string hrRaw, string distRaw)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             Loaded += (_, _) => DrawAll(mapRaw, ecgRaw, spo2Raw, hrRaw, distRaw);
         }
@@ -267,8 +268,12 @@ namespace focus_ai
             double w, double h,
             Func<double, double> Tx, Func<double, double> Ty)
         {
-            var gridBrush  = new SolidColorBrush(Color.FromArgb(25, 255, 255, 255));
-            var labelBrush = new SolidColorBrush(Color.FromArgb(110, 100, 130, 160));
+            var gridBrush = ThemeManager.IsDark
+                ? new SolidColorBrush(Color.FromArgb(25, 255, 255, 255))
+                : new SolidColorBrush(Color.FromArgb(45, 15, 23, 42));
+            var labelBrush = ThemeManager.IsDark
+                ? new SolidColorBrush(Color.FromArgb(110, 100, 130, 160))
+                : new SolidColorBrush(Color.FromArgb(150, 71, 85, 105));
 
             double stepX = NiceStep((maxX - minX) / 6);
             double stepY = NiceStep((maxY - minY) / 5);
@@ -303,7 +308,9 @@ namespace focus_ai
             double w, double h,
             Func<double, double> Tx, Func<double, double> Ty)
         {
-            var axisBrush = new SolidColorBrush(Color.FromArgb(160, 77, 255, 223));
+            var axisBrush = ThemeManager.IsDark
+                ? new SolidColorBrush(Color.FromArgb(160, 77, 255, 223))
+                : new SolidColorBrush(Color.FromArgb(170, 37, 99, 235));
 
             double yZero = (minY <= 0 && maxY >= 0) ? Ty(0) : h;
             graph.Children.Add(SolidLine(0, yZero, w, yZero, axisBrush, 1.5));
