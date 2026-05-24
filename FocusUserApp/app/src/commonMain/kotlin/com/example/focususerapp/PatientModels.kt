@@ -6,6 +6,7 @@ data class PatientProfile(
     val email: String = "",
     val phone: String = "",
     val birthDate: String = "",
+    val nfc: String = "",
     val setup: Boolean = false
 ) {
     val fullName: String
