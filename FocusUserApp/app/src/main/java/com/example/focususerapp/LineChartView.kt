@@ -16,6 +16,10 @@ class LineChartView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    private companion object {
+        const val MAX_RENDER_POINTS = 360
+    }
+
     private var values: List<Float> = emptyList()
     private var lineColor: Int = Color.parseColor("#00E5FF")
     
@@ -47,10 +51,11 @@ class LineChartView @JvmOverloads constructor(
     }
 
     fun setData(points: List<Float>, color: Int = lineColor) {
-        values = points
+        values = points.downsample(MAX_RENDER_POINTS)
         if (lineColor != color) {
             lineColor = color
             gradientShader = null
+            fillPaint.shader = null
         }
         isPathDirty = true
         invalidate()
@@ -61,6 +66,7 @@ class LineChartView @JvmOverloads constructor(
         cachedWidth = w
         cachedHeight = h
         gradientShader = null
+        fillPaint.shader = null
         isPathDirty = true
     }
 
@@ -76,8 +82,12 @@ class LineChartView @JvmOverloads constructor(
         val horizontalPadding = 16f
         val verticalPadding = 18f
 
-        val minValue = values.minOrNull() ?: 0f
-        val maxValue = values.maxOrNull() ?: 0f
+        var minValue = Float.MAX_VALUE
+        var maxValue = -Float.MAX_VALUE
+        for (value in values) {
+            if (value < minValue) minValue = value
+            if (value > maxValue) maxValue = value
+        }
         val range = (maxValue - minValue).takeIf { it > 0f } ?: 1f
         val usableWidth = chartWidth - horizontalPadding * 2f
         val usableHeight = chartHeight - verticalPadding * 2f
@@ -146,8 +156,16 @@ class LineChartView @JvmOverloads constructor(
         canvas.drawPath(fillPath, fillPaint)
 
         linePaint.color = lineColor
-        linePaint.setShadowLayer(14f, 0f, 0f, lineColor)
-        setLayerType(LAYER_TYPE_SOFTWARE, linePaint)
         canvas.drawPath(linePath, linePaint)
+    }
+
+    private fun List<Float>.downsample(maxPoints: Int): List<Float> {
+        if (size <= maxPoints) return this
+        val sampled = ArrayList<Float>(maxPoints)
+        val step = (size - 1).toFloat() / (maxPoints - 1).toFloat()
+        repeat(maxPoints) { index ->
+            sampled.add(this[(index * step).toInt().coerceAtMost(lastIndex)])
+        }
+        return sampled
     }
 }

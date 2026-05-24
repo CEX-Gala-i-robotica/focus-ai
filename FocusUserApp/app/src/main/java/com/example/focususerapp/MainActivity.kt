@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (::brandContainer.isInitialized) {
             AppAppearance.apply(this)
-            showPage(if (accountPage.visibility == View.VISIBLE) Page.Account else Page.Tests)
+            showPage(if (accountPage.visibility == View.VISIBLE) Page.Account else Page.Tests, animate = false)
         }
     }
 
@@ -315,7 +315,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showPage(page: Page) {
+    private fun showPage(page: Page, animate: Boolean = true) {
         val isAccount = page == Page.Account
         val p = AppAppearance.palette(this)
         
@@ -324,14 +324,20 @@ class MainActivity : AppCompatActivity() {
 
         inactivePage.visibility = View.GONE
         activePage.visibility = View.VISIBLE
-        activePage.alpha = 0f
-        activePage.translationY = 30f
-        activePage.animate()
-            .alpha(1f)
-            .translationY(0f)
-            .setDuration(350)
-            .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
-            .start()
+        activePage.animate().cancel()
+        if (animate) {
+            activePage.alpha = 0f
+            activePage.translationY = 30f
+            activePage.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220)
+                .setInterpolator(android.view.animation.DecelerateInterpolator(1.5f))
+                .start()
+        } else {
+            activePage.alpha = 1f
+            activePage.translationY = 0f
+        }
 
         tabAccount.setTextColor(if (isAccount) p.text else p.muted)
         tabTests.setTextColor(if (isAccount) p.muted else p.text)

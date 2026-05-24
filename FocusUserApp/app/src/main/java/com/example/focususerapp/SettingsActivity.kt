@@ -92,12 +92,12 @@ class SettingsActivity : AppCompatActivity() {
             addView(optionRow("🌙", "Dark mode", AppSettings.isDark(context)) {
                 AppSettings.setTheme(context, AppSettings.THEME_DARK)
                 Toast.makeText(context, AppText.get(context, "Theme updated"), Toast.LENGTH_SHORT).show()
-                recreate()
+                refreshUi()
             })
             addView(optionRow("☀️", "Light mode", !AppSettings.isDark(context)) {
                 AppSettings.setTheme(context, AppSettings.THEME_LIGHT)
                 Toast.makeText(context, AppText.get(context, "Theme updated"), Toast.LENGTH_SHORT).show()
-                recreate()
+                refreshUi()
             })
         })
         content.addView(settingsCard("Language") {
@@ -105,19 +105,24 @@ class SettingsActivity : AppCompatActivity() {
             addView(optionRow("🇬🇧", "English", currentLang == AppSettings.LANG_EN) {
                 AppSettings.setLanguage(context, AppSettings.LANG_EN)
                 Toast.makeText(context, AppText.get(context, "Language updated"), Toast.LENGTH_SHORT).show()
-                recreate()
+                refreshUi()
             })
             addView(optionRow("🇷🇴", "Romanian", currentLang == AppSettings.LANG_RO) {
                 AppSettings.setLanguage(context, AppSettings.LANG_RO)
                 Toast.makeText(context, AppText.get(context, "Language updated"), Toast.LENGTH_SHORT).show()
-                recreate()
+                refreshUi()
             })
             addView(optionRow("🇹🇷", "Turkish", currentLang == AppSettings.LANG_TR) {
                 AppSettings.setLanguage(context, AppSettings.LANG_TR)
                 Toast.makeText(context, AppText.get(context, "Language updated"), Toast.LENGTH_SHORT).show()
-                recreate()
+                refreshUi()
             })
         })
+    }
+
+    private fun refreshUi() {
+        buildUi()
+        AppAppearance.apply(this)
     }
 
     private fun title(title: String, subtitle: String): View {

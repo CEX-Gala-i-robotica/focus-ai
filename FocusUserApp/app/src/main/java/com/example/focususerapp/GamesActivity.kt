@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.InputType
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -530,9 +531,9 @@ class GamesActivity : AppCompatActivity() {
         val p = AppAppearance.palette(this)
         val maxLevels = 20
         val flashMs = when (difficulty) {
-            "Easy" -> 650L
-            "Medium" -> 450L
-            else -> 300L
+            "Easy" -> 780L
+            "Medium" -> 620L
+            else -> 480L
         }
         var level = 1
         var lives = 3
@@ -582,9 +583,29 @@ class GamesActivity : AppCompatActivity() {
         
         fun flash(index: Int, done: () -> Unit = {}) {
             val btn = buttons[index]
-            btn.background = rounded(p.accent, 12)
+            btn.animate().cancel()
+            btn.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            btn.text = (index + 1).toString()
+            btn.setTextColor(Color.parseColor(sequenceColor(index)))
+            btn.background = rounded(Color.WHITE, 14, Color.WHITE)
+            btn.elevation = dp(10).toFloat()
+            btn.animate()
+                .scaleX(1.08f)
+                .scaleY(1.08f)
+                .setDuration(90)
+                .start()
             handler.postDelayed({
-                btn.background = rounded(sequenceColor(index), 12)
+                btn.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(120)
+                    .withEndAction {
+                        btn.text = (index + 1).toString()
+                        btn.setTextColor(Color.WHITE)
+                        btn.background = rounded(sequenceColor(index), 12)
+                        btn.elevation = 0f
+                    }
+                    .start()
                 done()
             }, flashMs)
         }
@@ -592,7 +613,7 @@ class GamesActivity : AppCompatActivity() {
         fun playSequence(pos: Int = 0) {
             waiting = false
             setEnabled(false)
-            status.text = AppText.get(this, "Watch the sequence")
+            status.text = "${AppText.get(this, "Watch the sequence")}: ${pos + 1}/${sequence.size}"
             if (pos >= sequence.size) {
                 inputIndex = 0
                 waiting = true
@@ -615,7 +636,10 @@ class GamesActivity : AppCompatActivity() {
 
         repeat(9) { idx ->
             val btn = Button(this).apply {
-                text = ""
+                text = (idx + 1).toString()
+                setTextColor(Color.WHITE)
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
                 background = rounded(sequenceColor(idx), 12)
                 isEnabled = false
                 layoutParams = GridLayout.LayoutParams().apply {
@@ -837,10 +861,14 @@ class GamesActivity : AppCompatActivity() {
             livesText.text = "${AppText.get(this, "Lives")}: $lives"
             timerText.text = "${secondsLeft}s"
             repeat(total) { index ->
-                grid.addView(Button(this).apply {
+                grid.addView(TextView(this).apply {
                     text = if (index == targetIndex) pair.second else pair.first
                     textSize = if (cols <= 8) 18f else 14f
                     setTextColor(p.text)
+                    gravity = Gravity.CENTER
+                    typeface = Typeface.DEFAULT_BOLD
+                    isClickable = true
+                    isFocusable = true
                     background = rounded(p.surface, 7)
                     layoutParams = GridLayout.LayoutParams().apply {
                         width = 0
