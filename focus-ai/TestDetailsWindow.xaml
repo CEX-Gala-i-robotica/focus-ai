@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Test Details"
         Height="860" Width="1100"           
-        Background="#0D0F14"
+        Background="{DynamicResource BgRoot}"
         FontFamily="Segoe UI"
         WindowState="Maximized"
         ResizeMode="CanMinimize">
@@ -15,10 +15,10 @@
             <RowDefinition Height="Auto"/>   <!-- stats (jos, în coloana dreaptă) -->
         </Grid.RowDefinitions>
 
-        <!-- Header (sus, întreaga lățime) -->
+        <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="TEST DETAILS · EVOLUTION CHARTS"
-                   Foreground="#4DFFDF"
+                   Foreground="{DynamicResource AccentSecFg}"
                    FontSize="11" FontWeight="Bold"
                    Margin="0,0,0,12" Opacity="0.7"/>
 
@@ -31,7 +31,8 @@
 
             <!-- ========== COLȚUL STÂNG: MAP ========== -->
             <Border Grid.Column="0"
-                    BorderBrush="#1E2330" BorderThickness="1"
+                    Background="{DynamicResource BgCard}"
+                    BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
                     CornerRadius="3" Margin="0,0,10,0" Padding="50,8,12,30">
                 <Grid>
                     <Canvas x:Name="MapYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
@@ -61,7 +62,8 @@
                     <TextBlock Grid.Row="0" Text="ECG  (x1 - left · x2 - right)"
                                Foreground="#4DFFDF" FontSize="9" Opacity="0.55"
                                Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" BorderBrush="#1E2330" BorderThickness="1"
+                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
+                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
                             CornerRadius="3" Padding="50,8,12,30">
                         <Grid>
                             <Canvas x:Name="EcgYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
@@ -80,7 +82,8 @@
                     <TextBlock Grid.Row="0" Text="SPO2  (%)"
                                Foreground="#4D9FFF" FontSize="9" Opacity="0.55"
                                Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" BorderBrush="#1E2330" BorderThickness="1"
+                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
+                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
                             CornerRadius="3" Padding="50,8,12,30">
                         <Grid>
                             <Canvas x:Name="Spo2YLabels" Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
@@ -99,7 +102,8 @@
                     <TextBlock Grid.Row="0" Text="HR  (bpm)"
                                Foreground="#FF6B4D" FontSize="9" Opacity="0.55"
                                Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" BorderBrush="#1E2330" BorderThickness="1"
+                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
+                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
                             CornerRadius="3" Padding="50,8,12,30">
                         <Grid>
                             <Canvas x:Name="HrYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
@@ -118,7 +122,8 @@
                     <TextBlock Grid.Row="0" Text="DIST  (active moments)"
                                Foreground="#A0A0FF" FontSize="9" Opacity="0.55"
                                Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" BorderBrush="#1E2330" BorderThickness="1"
+                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
+                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
                             CornerRadius="3" Padding="50,4,12,4">
                         <Canvas x:Name="DistCanvas" Background="Transparent" ClipToBounds="True"/>
                     </Border>
@@ -128,7 +133,7 @@
 
         <!-- Statistici (jos, sub coloana dreaptă) -->
         <TextBlock x:Name="StatsText" Grid.Row="2"
-                   Foreground="#4A5568" FontSize="10" FontFamily="Consolas"
+                   Foreground="{DynamicResource TxtMuted}" FontSize="10" FontFamily="Consolas"
                    Margin="0,10,0,0" HorizontalAlignment="Right"/>
     </Grid>
 </Window>

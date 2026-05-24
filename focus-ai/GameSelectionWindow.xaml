@@ -27,13 +27,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- Culori pentru fundalurile iconițelor jocurilor -->
-        <SolidColorBrush x:Key="GameCard1Bg" Color="#3B82F6" Opacity="0.15"/>
-        <SolidColorBrush x:Key="GameCard2Bg" Color="#8B5CF6" Opacity="0.15"/>
-        <SolidColorBrush x:Key="GameCard3Bg" Color="#10B981" Opacity="0.15"/>
-        <SolidColorBrush x:Key="GameCard4Bg" Color="#F59E0B" Opacity="0.15"/>
-        <SolidColorBrush x:Key="GameCard5Bg" Color="#EF4444" Opacity="0.15"/>
     </Window.Resources>
 
     <Grid Background="{DynamicResource BgRoot}">

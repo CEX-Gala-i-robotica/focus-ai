@@ -91,7 +91,12 @@
         <StackPanel>
 
             <!-- Header -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
+            <Grid Margin="0,0,0,28">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
                 <Border Width="42" Height="42" CornerRadius="12"
                         Background="{DynamicResource AccentSecBg}" Margin="0,0,14,0">
                     <TextBlock x:Name="HeaderInitials" Text="U"
@@ -99,7 +104,7 @@
                                Foreground="{DynamicResource AccentSecFg}"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <StackPanel VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
                     <TextBlock x:Name="HeaderTitle" Text="Edit profile"
                                FontSize="18" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"/>
@@ -107,7 +112,16 @@
                                FontSize="11"
                                Foreground="{DynamicResource TxtMuted}"/>
                 </StackPanel>
-            </StackPanel>
+                <Button x:Name="LanguageToggleBtn"
+                        Grid.Column="2"
+                        Width="42" Height="32"
+                        Margin="12,4,0,0"
+                        FontSize="16"
+                        BorderThickness="0"
+                        Background="{DynamicResource BgToggle}"
+                        Foreground="{DynamicResource TxtPrimary}"
+                        Cursor="Hand"/>
+            </Grid>
 
             <!-- Section: Date personale -->
             <TextBlock Text="PERSONAL DETAILS" FontSize="10" FontWeight="SemiBold"

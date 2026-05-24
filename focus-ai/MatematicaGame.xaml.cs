@@ -42,6 +42,7 @@ namespace focus_ai
         public MatematicaGame(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -236,14 +237,14 @@ namespace focus_ai
             string emoji = finalScore >= 80 ? "🏆"
                          : finalScore >= 50 ? "👍"
                          : "💪";
-            string title = finalScore >= 80 ? "Excellent!"
-                         : finalScore >= 50 ? "Good!"
-                         : "Keep practicing!";
+            string title = finalScore >= 80 ? LanguageManager.T("Excellent!")
+                         : finalScore >= 50 ? LanguageManager.T("Good!")
+                         : LanguageManager.T("Keep practicing!");
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"{_correct} correct  •  {_wrong} wrong  •  Best streak: {_bestStreak}";
-            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"{_correct} {LanguageManager.T("correct")}  •  {_wrong} {LanguageManager.T("wrong")}  •  {LanguageManager.T("Best streak:")} {_bestStreak}";
+            WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 

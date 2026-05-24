@@ -52,6 +52,7 @@ namespace focus_ai
         public StartTest(Dashboard dashboard, bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _dashboard = dashboard;
             _isDark = isDark;
@@ -83,7 +84,7 @@ namespace focus_ai
 
             _timerStarted = true;
             _timer.Start();
-            TimerStatusText.Text = "Running";
+            TimerStatusText.Text = LanguageManager.T("Running");
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
 
             BioCollector.Instance.StartStreaming(reset: true);
@@ -92,7 +93,7 @@ namespace focus_ai
         private void StopTimer()
         {
             _timer.Stop();
-            TimerStatusText.Text = "Completed";
+            TimerStatusText.Text = LanguageManager.T("Completed");
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(96, 165, 250));
         }
 
@@ -240,7 +241,7 @@ namespace focus_ai
             ProgDot3.Fill = _done3 ? green : gray;
 
             int doneCount = (_done1 ? 1 : 0) + (_done2 ? 1 : 0) + (_done3 ? 1 : 0);
-            ProgressText.Text = $"{doneCount} / 3 stages completed";
+            ProgressText.Text = $"{doneCount} / 3 {LanguageManager.T("stages completed")}";
         }
 
         private void UpdateCard(
@@ -255,11 +256,11 @@ namespace focus_ai
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = new SolidColorBrush(Color.FromRgb(20, 83, 45));
-                statusText.Text = "✓  Completed";
+                statusText.Text = $"✓  {LanguageManager.T("Completed")}";
                 statusText.Foreground = new SolidColorBrush(Color.FromRgb(74, 222, 128));
 
                 startBtn.IsEnabled = false;
-                startBtnText.Text = "Completed";
+                startBtnText.Text = LanguageManager.T("Completed");
             }
             else
             {
@@ -268,11 +269,11 @@ namespace focus_ai
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = (SolidColorBrush)FindResource("BgNavActive");
-                statusText.Text = "Not completed";
+                statusText.Text = LanguageManager.T("Not completed");
                 statusText.Foreground = (SolidColorBrush)FindResource("TxtMuted");
 
                 startBtn.IsEnabled = true;
-                startBtnText.Text = "▶  Start stage";
+                startBtnText.Text = LanguageManager.T("▶  Start stage");
             }
         }
 
@@ -281,11 +282,11 @@ namespace focus_ai
             string time = _elapsed.ToString(@"mm\:ss");
 
             string summary =
-                $"🎉 All stages are complete!\n\n" +
-                $"Total time: {time}\n" +
-                $"Do you want to save the results to Firebase?";
+                $"🎉 {LanguageManager.T("All stages are complete!")}\n\n" +
+                $"{LanguageManager.T("Total time:")} {time}\n" +
+                $"{LanguageManager.T("Do you want to save the results to Firebase?")}";
 
-            var result = MessageBox.Show(summary, "Test completed",
+            var result = MessageBox.Show(summary, LanguageManager.T("Test completed"),
                 MessageBoxButton.YesNo, MessageBoxImage.Information);
 
             if (result == MessageBoxResult.Yes)

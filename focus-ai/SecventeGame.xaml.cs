@@ -64,6 +64,7 @@ namespace focus_ai
         public SecventeGame(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -240,7 +241,7 @@ namespace focus_ai
 
             UpdateHUD();
             UpdateProgress(0, _sequence.Count);
-            StatusMessage.Text = $"🔵  Watch the sequence... (Level {_level}/{MaxLevels})";
+            StatusMessage.Text = $"🔵  {LanguageManager.T("Watch the sequence...")} ({LanguageManager.T("Level")} {_level}/{MaxLevels})";
 
             await Task.Delay(_delayMs + 200);
 
@@ -251,7 +252,7 @@ namespace focus_ai
             }
 
             _phase = GamePhase.Waiting;
-            StatusMessage.Text = "👆  Repeat the sequence!";
+            StatusMessage.Text = $"👆  {LanguageManager.T("Repeat the sequence!")}";
             SetButtonsEnabled(true);
         }
 
@@ -280,7 +281,7 @@ namespace focus_ai
                     SetButtonsEnabled(false);
 
                     _level++;
-                    StatusMessage.Text = $"✅  Correct! Current score: {GetCurrentScore():F0}/100";
+                    StatusMessage.Text = $"✅  {LanguageManager.T("Correct! Current score:")} {GetCurrentScore():F0}/100";
                     UpdateHUD();
 
                     await Task.Delay(900);
@@ -304,7 +305,10 @@ namespace focus_ai
                 }
                 else
                 {
-                    StatusMessage.Text = $"❌  Wrong! You have {_lives} {"life".PluralRo(_lives)} left. Replaying the sequence...";
+                    string livesText = LanguageManager.Current == AppLanguage.Romanian
+                        ? (_lives == 1 ? "viata" : "vieti")
+                        : (_lives == 1 ? "life" : "lives");
+                    StatusMessage.Text = $"❌  {LanguageManager.T("Wrong! You have")} {_lives} {livesText} {LanguageManager.T("left. Replaying the sequence...")}";
                     await Task.Delay(1200);
 
                     _playerInput.Clear();
@@ -320,7 +324,7 @@ namespace focus_ai
                     }
 
                     _phase = GamePhase.Waiting;
-                    StatusMessage.Text = "👆  Repeat the sequence!";
+                    StatusMessage.Text = $"👆  {LanguageManager.T("Repeat the sequence!")}";
                     SetButtonsEnabled(true);
                 }
             }
@@ -370,18 +374,18 @@ namespace focus_ai
             if (won || completedLevels == MaxLevels)
             {
                 emoji = "🏆";
-                title = "Congratulations! You completed all levels!";
+                title = LanguageManager.T("Congratulations! You completed all levels!");
             }
             else
             {
                 emoji = _lives == 0 ? "💀" : "🎯";
-                title = _lives == 0 ? "Game Over!" : "Well played!";
+                title = _lives == 0 ? LanguageManager.T("Game Over!") : LanguageManager.T("Well played!");
             }
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"Level reached: {completedLevels}/{MaxLevels}  •  Score: {finalScore:F1}/100  •  Difficulty: {_difficulty}";
-            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"{LanguageManager.T("Level reached:")} {completedLevels}/{MaxLevels}  •  {LanguageManager.T("Score:")} {finalScore:F1}/100  •  {LanguageManager.T("Difficulty:")} {LanguageManager.T(_difficulty)}";
+            WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 
