@@ -22,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var brandContainer: LinearLayout
     private lateinit var tabAccount: TextView
     private lateinit var tabTests: TextView
+    private lateinit var tabGames: TextView
     private lateinit var accountPage: LinearLayout
     private lateinit var testsPage: LinearLayout
     private lateinit var scrollContent: ScrollView
@@ -61,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         brandContainer = findViewById(R.id.brandContainer)
         tabAccount = findViewById(R.id.tabAccount)
         tabTests = findViewById(R.id.tabTests)
+        tabGames = findViewById(R.id.tabGames)
         accountPage = findViewById(R.id.accountPage)
         testsPage = findViewById(R.id.testsPage)
         scrollContent = findViewById(R.id.scrollContent)
@@ -76,6 +78,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupListeners() {
         tabAccount.setOnClickListener { showPage(Page.Account) }
         tabTests.setOnClickListener { showPage(Page.Tests) }
+        tabGames.setOnClickListener { startActivity(Intent(this, GamesActivity::class.java)) }
         btnSignOut.setOnClickListener {
             auth.signOut()
             startActivity(Intent(this, LoginActivity::class.java))
@@ -305,8 +308,10 @@ class MainActivity : AppCompatActivity() {
         testsPage.visibility = if (isAccount) View.GONE else View.VISIBLE
         tabAccount.setTextColor(Color.parseColor(if (isAccount) "#FFFFFF" else "#7F8FA6"))
         tabTests.setTextColor(Color.parseColor(if (isAccount) "#7F8FA6" else "#FFFFFF"))
+        tabGames.setTextColor(Color.parseColor("#7F8FA6"))
         tabAccount.background = if (isAccount) roundedBackground("#17304A") else null
         tabTests.background = if (isAccount) null else roundedBackground("#17304A")
+        tabGames.background = null
         scrollContent.post { scrollContent.scrollTo(0, 0) }
     }
 

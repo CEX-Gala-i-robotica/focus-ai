@@ -3,6 +3,9 @@ package com.example.focususerapp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.FirebaseDatabase
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class PatientRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -45,6 +48,55 @@ class PatientRepository(
         database.reference.child("patients").child(uid)
             .updateChildren(updates)
             .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener(onError)
+    }
+
+    fun saveGameResult(
+        game: String,
+        duration: String,
+        difficulty: String,
+        score: Double,
+        extra: Map<String, Any?> = emptyMap(),
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
+        val payload = linkedMapOf<String, Any?>(
+            "game" to game,
+            "dateTime" to SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()),
+            "duration" to duration,
+            "difficulty" to difficulty,
+            "scor" to kotlin.math.round(score * 100.0) / 100.0
+        )
+        payload.putAll(extra)
+
+        val patientRef = database.reference
+            .child("patients")
+            .child(uid)
+            .child("activityResults")
+            .push()
+
+        patientRef.setValue(payload)
+            .addOnSuccessListener {
+                val activityId = patientRef.key
+                if (activityId != null) {
+                    database.reference.child("activityResults").child(uid).child(activityId).setValue(payload)
+                    database.reference.child(uid).child("activities").child(activityId).setValue(payload)
+                }
+                onSuccess()
+            }
+            .addOnFailureListener(onError)
+    }
+
+    fun loadCurrentGameResults(
+        onSuccess: (List<GameResult>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
+        database.reference.child("patients").child(uid).child("activityResults").get()
+            .addOnSuccessListener { snapshot ->
+                onSuccess(parseGameResults(snapshot))
+            }
             .addOnFailureListener(onError)
     }
 
@@ -142,6 +194,24 @@ class PatientRepository(
                 scor = test.floatValue("scor"),
                 spo2 = parseNumberSeries(test.child("spo2").value),
                 tr2 = test.floatValue("tr2")
+            )
+        }.sortedByDescending { it.id }
+    }
+
+    private fun parseGameResults(snapshot: DataSnapshot): List<GameResult> {
+        return snapshot.children.map { item ->
+            val details = item.children
+                .filter { child -> child.key !in setOf("game", "dateTime", "duration", "difficulty", "scor") }
+                .associate { child -> child.key.orEmpty() to child.value?.toString().orEmpty() }
+
+            GameResult(
+                id = item.key.orEmpty(),
+                game = item.stringValue("game"),
+                dateTime = item.stringValue("dateTime"),
+                duration = item.stringValue("duration"),
+                difficulty = item.stringValue("difficulty"),
+                scor = item.floatValue("scor"),
+                details = details
             )
         }.sortedByDescending { it.id }
     }

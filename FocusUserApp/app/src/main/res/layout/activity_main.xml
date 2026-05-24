@@ -106,6 +106,17 @@
             android:textColor="#7F8FA6"
             android:textSize="13sp"
             android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/tabGames"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Games"
+            android:textColor="#7F8FA6"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
     </LinearLayout>
 
     <ScrollView
