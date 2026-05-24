@@ -122,10 +122,7 @@
                         Foreground="{DynamicResource TxtPrimary}"
                         Cursor="Hand"/>
             </Grid>
-
-            <!-- Section: Date personale -->
-            <TextBlock Text="PERSONAL DETAILS" FontSize="10" FontWeight="SemiBold"
-                       Foreground="{DynamicResource TxtMuted}" Margin="0,0,0,14"/>
+            
 
             <!-- Name -->
             <Grid Margin="0,0,0,16">

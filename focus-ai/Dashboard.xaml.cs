@@ -33,18 +33,22 @@ namespace focus_ai
         private bool _isLoadingTests = false;
         private bool _isLoadingActivities = false;
         private bool _isLoadingPatients = false;
+        private bool _isPatientVerified = false;
 
         private List<TestEntry> _testsCache = new();
         private List<ActivityEntry> _activitiesCache = new();
         private List<PatientEntry> _patientsCache = new();
         private string _selectedPatientId = "";
         private string _selectedPatientName = "";
+        private string _verifiedPatientId = "";
 
         private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw);
         private record ActivityEntry(string Id, string DateTime, string Duration,
                                      string Game, string Difficulty, double Scor);
         private record PatientEntry(string Id, string Name, string Email, string Phone, string Nfc,
-                                    int TestCount, int ActivityCount, PredictionSummary Prediction);
+                                    int TestCount, double TotalTestScore,
+                                    int ActivityCount, double TotalActivityScore,
+                                    PredictionSummary Prediction);
         private record PredictionSummary(string Direction, double Confidence, string Reason);
 
         public Dashboard()
@@ -79,7 +83,7 @@ namespace focus_ai
 
         private void NewTest_Click(object sender, RoutedEventArgs e)
         {
-            if (!EnsurePatientSelected()) return;
+            if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view test history"))) return;
 
             var startTest = new StartTest(this, _isDark);
             startTest.Closed += async (s, args) =>
@@ -131,6 +135,11 @@ namespace focus_ai
             }
             else if (sender == TabTestari)
             {
+                if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view test history")))
+                {
+                    return;
+                }
+
                 PanelTestari.Visibility = Visibility.Visible;
                 if (_testsCache.Count == 0 || TestLoadingState.Visibility == Visibility.Visible)
                 {
@@ -139,6 +148,11 @@ namespace focus_ai
             }
             else
             {
+                if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view activity history")))
+                {
+                    return;
+                }
+
                 PanelActivitati.Visibility = Visibility.Visible;
                 if (_activitiesCache.Count == 0 && ActLoadingState.Visibility != Visibility.Visible)
                 {
@@ -169,7 +183,7 @@ namespace focus_ai
         {
             try
             {
-                string uid = GetActivePatientId();
+                string uid = GetReg("Uid");
                 string token = GetReg("IdToken");
                 if (string.IsNullOrEmpty(uid)) return;
 
@@ -254,7 +268,7 @@ namespace focus_ai
                 string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
 
-                if (string.IsNullOrEmpty(uid))
+                if (!CanAccessSelectedPatientHistory())
                 {
                     Dispatcher.Invoke(ShowTestEmpty);
                     return;
@@ -273,6 +287,11 @@ namespace focus_ai
                 {
                     json = await _http.GetStringAsync(
                         $"{_dbUrl}/{uid}/tests.json?auth={token}", _cts.Token);
+                }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/testResults.json?auth={token}", _cts.Token);
                 }
 
                 if (string.IsNullOrEmpty(json) || json == "null")
@@ -469,6 +488,14 @@ namespace focus_ai
             var captured = t;
             btn.Click += async (_, _) =>
             {
+                if (!CanAccessSelectedPatientHistory())
+                {
+                    MessageBox.Show(LanguageManager.T("Select a patient to view test history"),
+                        "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+                    TabPacienti.IsChecked = true;
+                    return;
+                }
+
                 string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
                 string json = await _http.GetStringAsync(
@@ -483,6 +510,11 @@ namespace focus_ai
                     json = await _http.GetStringAsync(
                         $"{_dbUrl}/{uid}/tests/{captured.Id}.json?auth={token}", _cts.Token);
                 }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/testResults/{captured.Id}.json?auth={token}", _cts.Token);
+                }
 
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -492,7 +524,8 @@ namespace focus_ai
                     root.TryGetProperty("ecg",  out var e) ? e.GetString() ?? "" : "",
                     root.TryGetProperty("spo2", out var s) ? s.GetString() ?? "" : "",
                     root.TryGetProperty("hr",   out var h) ? h.GetString() ?? "" : "",
-                    root.TryGetProperty("dist", out var d) ? d.GetString() ?? "" : ""
+                    root.TryGetProperty("dist", out var d) ? d.GetString() ?? "" : "",
+                    root.TryGetProperty("cpt", out var cpt) ? cpt.GetRawText() : ""
                 );
                 win.Show();
             };
@@ -530,7 +563,7 @@ namespace focus_ai
                 string uid = GetActivePatientId();
                 string token = GetReg("IdToken");
 
-                if (string.IsNullOrEmpty(uid))
+                if (!CanAccessSelectedPatientHistory())
                 {
                     Dispatcher.Invoke(ShowActivitiesEmpty);
                     return;
@@ -549,6 +582,11 @@ namespace focus_ai
                 {
                     json = await _http.GetStringAsync(
                         $"{_dbUrl}/{uid}/activities.json?auth={token}", _cts.Token);
+                }
+                if (string.IsNullOrEmpty(json) || json == "null")
+                {
+                    json = await _http.GetStringAsync(
+                        $"{_dbUrl}/{uid}/activityResults.json?auth={token}", _cts.Token);
                 }
 
                 if (string.IsNullOrEmpty(json) || json == "null")
@@ -801,18 +839,12 @@ namespace focus_ai
 
         private void UpdateProfileStats(List<TestEntry> tests, List<ActivityEntry> activities)
         {
-            StatNrTestari.Text = tests.Count > 0 ? tests.Count.ToString() : "0";
-            StatScorMediu.Text = tests.Count > 0 ? $"{tests.Average(t => t.Scor):F1}" : "—";
-
-            StatNrActivitati.Text = activities.Count > 0 ? activities.Count.ToString() : "0";
-            StatScorMaxActivitati.Text = activities.Count > 0
-                ? $"{activities.Max(a => a.Scor):F1}"
-                : "—";
+            UpdateDoctorStats(_patientsCache);
         }
 
         private void NewGame_Click(object sender, RoutedEventArgs e)
         {
-            if (!EnsurePatientSelected()) return;
+            if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view activity history"))) return;
 
             var gameSelection = new GameSelectionWindow(this, _isDark);
             gameSelection.Show();
@@ -833,7 +865,6 @@ namespace focus_ai
         public async void RefreshActivitiesAfterGame()
         {
             await LoadActivitiesFromFirebaseAsync();
-            UpdateProfileStats(_testsCache, _activitiesCache);
             _ = LoadPatientsFromFirebaseAsync();
         }
 
@@ -871,8 +902,12 @@ namespace focus_ai
                                    profile.TryGetValue("phone", out var ph2) ? ph2 : "";
                     string nfc = profile.TryGetValue("nfc", out var nf) ? nf : "";
 
+                    double totalTestScore = tests.Sum(t => t.Scor);
+                    double totalActivityScore = activities.Sum(a => a.Scor);
                     patients.Add(new PatientEntry(patientId, name, patientEmail, phone, nfc,
-                        tests.Count, activities.Count, prediction));
+                        tests.Count, totalTestScore,
+                        activities.Count, totalActivityScore,
+                        prediction));
                 }
 
                 Dispatcher.Invoke(() => RenderPatients(patients.OrderBy(p => p.Name).ToList()));
@@ -918,6 +953,13 @@ namespace focus_ai
                 using var doc = JsonDocument.Parse(legacyJson);
                 foreach (var user in doc.RootElement.EnumerateObject())
                 {
+                    if (user.Value.TryGetProperty("doctorId", out var directDoctorId) &&
+                        directDoctorId.GetString() == doctorId)
+                    {
+                        ids.Add(user.Name);
+                        continue;
+                    }
+
                     if (!user.Value.TryGetProperty("profile", out var profile)) continue;
                     string docEmail = profile.TryGetProperty("doctor-email", out var de) ? de.GetString() ?? "" : "";
                     if (!string.IsNullOrWhiteSpace(email) &&
@@ -938,6 +980,8 @@ namespace focus_ai
                 json = await SafeGetAsync($"{_dbUrl}/patients/{patientId}/profile.json?auth={token}");
             if (string.IsNullOrEmpty(json) || json == "null")
                 json = await SafeGetAsync($"{_dbUrl}/{patientId}/profile.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}.json?auth={token}");
 
             var profile = new Dictionary<string, string>();
             if (string.IsNullOrEmpty(json) || json == "null") return profile;
@@ -958,6 +1002,8 @@ namespace focus_ai
                 json = await SafeGetAsync($"{_dbUrl}/testResults/{patientId}.json?auth={token}");
             if (string.IsNullOrEmpty(json) || json == "null")
                 json = await SafeGetAsync($"{_dbUrl}/{patientId}/tests.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}/testResults.json?auth={token}");
 
             return string.IsNullOrEmpty(json) || json == "null" ? new List<TestEntry>() : ParseTests(json);
         }
@@ -969,6 +1015,8 @@ namespace focus_ai
                 json = await SafeGetAsync($"{_dbUrl}/activityResults/{patientId}.json?auth={token}");
             if (string.IsNullOrEmpty(json) || json == "null")
                 json = await SafeGetAsync($"{_dbUrl}/{patientId}/activities.json?auth={token}");
+            if (string.IsNullOrEmpty(json) || json == "null")
+                json = await SafeGetAsync($"{_dbUrl}/{patientId}/activityResults.json?auth={token}");
 
             return string.IsNullOrEmpty(json) || json == "null" ? new List<ActivityEntry>() : ParseActivities(json);
         }
@@ -1009,8 +1057,7 @@ namespace focus_ai
             PatientsPositive.Text = patients.Count(p => p.Prediction.Direction == "positive").ToString();
             PatientsAttention.Text = patients.Count(p => p.Prediction.Direction == "negative").ToString();
 
-            StatNrTestari.Text = patients.Sum(p => p.TestCount).ToString();
-            StatNrActivitati.Text = patients.Sum(p => p.ActivityCount).ToString();
+            UpdateDoctorStats(patients);
 
             if (patients.Count == 0)
             {
@@ -1027,6 +1074,28 @@ namespace focus_ai
 
             LanguageManager.Apply(this);
         }
+
+        private void UpdateDoctorStats(List<PatientEntry> patients)
+        {
+            if (StatNrPacienti == null) return;
+
+            int patientCount = patients.Count;
+            int testCount = patients.Sum(p => p.TestCount);
+            int activityCount = patients.Sum(p => p.ActivityCount);
+
+            StatNrPacienti.Text = patientCount.ToString();
+            StatNrTestari.Text = patientCount > 0 ? FormatAverage(patients.Average(p => p.TestCount)) : "0";
+            StatNrActivitati.Text = patientCount > 0 ? FormatAverage(patients.Average(p => p.ActivityCount)) : "0";
+            StatScorMediu.Text = testCount > 0
+                ? FormatAverage(patients.Sum(p => p.TotalTestScore) / testCount)
+                : "—";
+            StatScorMediuActivitati.Text = activityCount > 0
+                ? FormatAverage(patients.Sum(p => p.TotalActivityScore) / activityCount)
+                : "—";
+        }
+
+        private static string FormatAverage(double value)
+            => value % 1 == 0 ? value.ToString("F0") : value.ToString("F1");
 
         private Border BuildPatientRow(int idx, PatientEntry patient)
         {
@@ -1095,7 +1164,7 @@ namespace focus_ai
 
             var btn = new Button
             {
-                Content = patient.Id == _selectedPatientId ? LanguageManager.T("Selected") : LanguageManager.T("Scan NFC"),
+                Content = patient.Id == _verifiedPatientId ? LanguageManager.T("Selected") : LanguageManager.T("Scan NFC"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Background = btnBg,
@@ -1156,21 +1225,28 @@ namespace focus_ai
         {
             _selectedPatientId = patient.Id;
             _selectedPatientName = patient.Name;
-            FocusSession.ActivePatientId = patient.Id;
+            _verifiedPatientId = "";
+            _isPatientVerified = false;
 
             SelectedPatientTestsLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
             SelectedPatientActivitiesLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
 
-            _ = LoadTestsFromFirebaseAsync();
-            _ = LoadActivitiesFromFirebaseAsync();
+            _testsCache.Clear();
+            _activitiesCache.Clear();
+            ShowTestEmpty();
+            ShowActivitiesEmpty();
             RenderPatients(_patientsCache);
-            TabTestari.IsChecked = true;
         }
 
         private async Task TrySelectPatientWithNfcAsync(PatientEntry patient)
         {
-            if (patient.Id == _selectedPatientId)
+            if (patient.Id == _verifiedPatientId)
+            {
+                TabTestari.IsChecked = true;
                 return;
+            }
+
+            SelectPatient(patient);
 
             if (string.IsNullOrWhiteSpace(patient.Nfc))
             {
@@ -1208,7 +1284,13 @@ namespace focus_ai
                 return;
             }
 
-            SelectPatient(patient);
+            FocusSession.ActivePatientId = patient.Id;
+            _verifiedPatientId = patient.Id;
+            _isPatientVerified = true;
+            RenderPatients(_patientsCache);
+            TabTestari.IsChecked = true;
+            await LoadTestsFromFirebaseAsync();
+            await LoadActivitiesFromFirebaseAsync();
         }
 
         private static string NormalizeNfcUid(string uid)
@@ -1265,6 +1347,23 @@ namespace focus_ai
                 "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
             TabPacienti.IsChecked = true;
             return false;
+        }
+
+        private bool EnsurePatientHistoryUnlocked(string message)
+        {
+            if (CanAccessSelectedPatientHistory()) return true;
+
+            MessageBox.Show(message, "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
+            TabPacienti.IsChecked = true;
+            return false;
+        }
+
+        private bool CanAccessSelectedPatientHistory()
+        {
+            string selectedPatientId = GetActivePatientId();
+            return !string.IsNullOrWhiteSpace(selectedPatientId)
+                && _isPatientVerified
+                && string.Equals(_verifiedPatientId, selectedPatientId, StringComparison.Ordinal);
         }
 
         private void ShowPatientsLoading()

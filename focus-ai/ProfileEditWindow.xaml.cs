@@ -30,7 +30,8 @@ namespace focus_ai
             IsSetupMode = isSetupMode;
 
             ThemeManager.Apply(isDark);
-            LanguageManager.Register(this, LanguageToggleBtn);
+            LanguageToggleBtn.Visibility = isSetupMode ? Visibility.Visible : Visibility.Collapsed;
+            LanguageManager.Register(this, isSetupMode ? LanguageToggleBtn : null);
 
             SubHeaderEmail.Text = GetReg("Email");
 

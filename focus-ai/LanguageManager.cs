@@ -125,7 +125,11 @@ namespace focus_ai
             ["No activities yet"] = "Nu exista activitati inca",
             ["Loading..."] = "Se incarca...",
             ["Selected patient:"] = "Pacient selectat:",
+            ["Doctor patients"] = "Pacientii medicului",
+            ["Average tests"] = "Media testelor",
+            ["Average activities"] = "Media activitatilor",
             ["Average test score"] = "Scor mediu la teste",
+            ["Average activity score"] = "Scor mediu la activitati",
             ["Best activity score"] = "Cel mai bun scor la activitati",
             ["STATISTICS"] = "STATISTICI",
             ["STATISTICI"] = "STATISTICI",
@@ -259,6 +263,7 @@ namespace focus_ai
             ["COGNITIVE ASSESSMENT"] = "EVALUARE COGNITIVA",
             ["Cognitive test"] = "Test cognitiv",
             ["Complete all 3 stages in any order. The timer starts when the first stage begins."] = "Completeaza cele 3 etape in orice ordine. Cronometrul porneste cand incepe prima etapa.",
+            ["Complete all 4 stages in any order. The timer starts when the first stage begins."] = "Completeaza cele 4 etape in orice ordine. Cronometrul porneste cand incepe prima etapa.",
             ["TOTAL TIME"] = "TIMP TOTAL",
             ["Running"] = "Ruleaza",
             ["Completed"] = "Finalizat",
@@ -269,8 +274,11 @@ namespace focus_ai
             ["Respond as quickly as possible to the sound cue. Measures reaction time to auditory stimuli."] = "Raspunde cat mai repede la semnalul sonor. Masoara timpul de reactie la stimuli auditivi.",
             ["GO/NO-GO visual reaction"] = "Reactie vizuala GO/NO-GO",
             ["Respond to GO stimuli and inhibit reactions to NO-GO stimuli. Evaluates inhibitory control and visual processing speed."] = "Raspunde la stimulii GO si inhiba reactiile la stimulii NO-GO. Evalueaza controlul inhibitor si viteza de procesare vizuala.",
+            ["X/AX-CPT hybrid"] = "X/AX-CPT hibrid",
+            ["Respond only when X appears immediately after A. Measures sustained attention, working memory and inhibitory control."] = "Raspunde doar cand X apare imediat dupa A. Masoara atentia sustinuta, memoria de lucru si controlul inhibitor.",
             ["▶  Start stage"] = "▶  Porneste etapa",
             ["0 / 3 stages completed"] = "0 / 3 etape finalizate",
+            ["0 / 4 stages completed"] = "0 / 4 etape finalizate",
             ["✕  Cancel test"] = "✕  Anuleaza testul",
             ["The color matters, not the word!"] = "Conteaza culoarea, nu cuvantul!",
             ["HOW TO PLAY"] = "CUM SE JOACA",
@@ -317,6 +325,65 @@ namespace focus_ai
             ["Round"] = "Runda",
             ["Keep going!"] = "Continua!",
             ["Accuracy:"] = "Precizie:",
+            ["Practice"] = "Practica",
+            ["Test"] = "Test",
+            ["Main test"] = "Test principal",
+            ["Hybrid CPT - Attention & Inhibitory Control Test"] = "Hybrid CPT - Test de atentie si control inhibitor",
+            ["instructions"] = "instructiuni",
+            ["countdown"] = "numaratoare inversa",
+            ["practice"] = "practica",
+            ["practice_feedback"] = "feedback practica",
+            ["main_test"] = "test principal",
+            ["fixation"] = "fixare",
+            ["results"] = "rezultate",
+            ["PROGRESS"] = "PROGRES",
+            ["Trial {0} / {1}"] = "Trial {0} / {1}",
+            ["In this test, letters will appear one at a time on the screen."] = "In acest test, literele vor aparea una cate una pe ecran.",
+            ["Press SPACE:"] = "Apasa SPACE:",
+            ["- when you see a target X"] = "- cand vezi un X tinta",
+            ["- or when X appears after A"] = "- sau cand X apare dupa A",
+            ["Respond:"] = "Raspunde:",
+            ["- as quickly as possible"] = "- cat mai rapid",
+            ["- but as accurately as possible"] = "- dar cat mai corect",
+            ["Do NOT press:"] = "NU apasa:",
+            ["- for other letters"] = "- pentru alte litere",
+            ["- for X after letters other than A (example: BX, CX)"] = "- pentru X dupa alte litere decat A (exemplu: BX, CX)",
+            ["The test measures:"] = "Testul masoara:",
+            ["- attention"] = "- atentia",
+            ["- reaction speed"] = "- viteza de reactie",
+            ["- impulse control"] = "- controlul impulsurilor",
+            ["- working memory"] = "- memoria de lucru",
+            ["Start practice"] = "Incepe practica",
+            ["Fixation"] = "Fixare",
+            ["Results Dashboard"] = "Panou rezultate",
+            ["Mean Reaction Time"] = "Timp mediu de reactie",
+            ["Total Hits"] = "Hit-uri totale",
+            ["Total Misses"] = "Ratari totale",
+            ["Total False Alarms"] = "Alarme false totale",
+            ["Correct Rejections"] = "Respingeri corecte",
+            ["Automatic Interpretation"] = "Interpretare automata",
+            ["Finish"] = "Finalizeaza",
+            ["Get ready"] = "Pregateste-te",
+            ["Practice: feedback is shown after each response."] = "Practica: feedback-ul este afisat dupa fiecare raspuns.",
+            ["Test: respond only to X after A."] = "Test: raspunde doar la X dupa A.",
+            ["Main test: respond only when the target rule is met."] = "Test principal: raspunde doar cand regula tinta este indeplinita.",
+            ["Correct"] = "Corect",
+            ["Miss"] = "Ratare",
+            ["False alarm"] = "Alarma falsa",
+            ["CORRECT"] = "CORECT",
+            ["TOO SLOW"] = "PREA LENT",
+            ["MISSED TARGET"] = "AI RATAT TARGETUL",
+            ["DO NOT PRESS"] = "NU TREBUIA SA APESI",
+            ["Accuracy"] = "Precizie",
+            ["Mean RT"] = "RT mediu",
+            ["Hit Rate"] = "Rata raspunsurilor corecte",
+            ["False Alarm Rate"] = "Rata alarmelor false",
+            ["CPT completed."] = "CPT finalizat.",
+            ["High accuracy + low RT: good attention and efficient processing."] = "Precizie mare + RT mic: atentie buna si procesare eficienta.",
+            ["Many false alarms: increased impulsivity / reduced inhibitory control."] = "Multe alarme false: impulsivitate crescuta / control inhibitor redus.",
+            ["Many misses: possible sustained attention deficit."] = "Multe ratari: posibil deficit de atentie sustinuta.",
+            ["Very high RT: slow processing or hesitation in maintaining the rule."] = "RT foarte mare: procesare lenta sau ezitare in mentinerea regulii.",
+            ["Performance is within a good range for this task: stable responses, low errors and adequate pace."] = "Performanta este in limite bune pentru aceasta sarcina: raspunsuri stabile, erori reduse si ritm adecvat.",
             ["Average time:"] = "Timp mediu:",
             ["Keep practicing!"] = "Continua sa exersezi!",
             ["Best streak:"] = "Cea mai buna serie:",
@@ -606,17 +673,8 @@ namespace focus_ai
 
         private static AppLanguage Load()
         {
-            try
-            {
-                using var key = Registry.CurrentUser.OpenSubKey(RegPath);
-                return string.Equals(key?.GetValue(RegKey)?.ToString(), "ro", StringComparison.OrdinalIgnoreCase)
-                    ? AppLanguage.Romanian
-                    : AppLanguage.English;
-            }
-            catch
-            {
-                return AppLanguage.English;
-            }
+            // Always return English as default language
+            return AppLanguage.English;
         }
 
         private static void Save()

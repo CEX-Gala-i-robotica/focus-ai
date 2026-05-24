@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,7 +22,7 @@ namespace focus_ai
         private readonly Dashboard _dashboard;
         private readonly bool _isDark;
         private const string RegPath = @"Software\FocusAI";
-        private bool _done1, _done2, _done3;
+        private bool _done1, _done2, _done3, _done4;
 
         private readonly DispatcherTimer _timer = new();
         private TimeSpan _elapsed = TimeSpan.Zero;
@@ -46,6 +47,7 @@ namespace focus_ai
         private string _mapData = "";
         private double _reactionTimeSec = 0;
         private double _goNoGoAccuracy = 0;
+        private CptHybridResult? _cptResult;
 
         private static readonly HttpClient _http = new();
 
@@ -100,6 +102,7 @@ namespace focus_ai
         private void StartStep1_Click(object sender, RoutedEventArgs e) => RunStep(1);
         private void StartStep2_Click(object sender, RoutedEventArgs e) => RunStep(2);
         private void StartStep3_Click(object sender, RoutedEventArgs e) => RunStep(3);
+        private void StartStep4_Click(object sender, RoutedEventArgs e) => RunStep(4);
 
         private async void RunStep(int stepIndex)
         {
@@ -112,7 +115,7 @@ namespace focus_ai
                 if (stepCompleted)
                 {
                     MarkStepDone(stepIndex);
-                    if (_done1 && _done2 && _done3)
+                    if (AllStepsDone())
                     {
                         StopTimer();
                         BioCollector.Instance.StopStreaming();
@@ -124,7 +127,7 @@ namespace focus_ai
             }
             finally
             {
-                if (!(_done1 && _done2 && _done3))
+                if (!AllStepsDone())
                     Show();
             }
         }
@@ -148,6 +151,16 @@ namespace focus_ai
                     goNoGoWin.ShowDialog();
                     _goNoGoAccuracy = goNoGoWin.Accuracy;
                     return true;
+
+                case 4:
+                    var cptWin = new CptHybridTest(_isDark);
+                    bool? cptCompleted = cptWin.ShowDialog();
+                    if (cptCompleted == true && cptWin.Result != null)
+                    {
+                        _cptResult = cptWin.Result;
+                        return true;
+                    }
+                    return false;
 
                 default:
                     return false;
@@ -224,24 +237,29 @@ namespace focus_ai
                 case 1: _done1 = true; break;
                 case 2: _done2 = true; break;
                 case 3: _done3 = true; break;
+                case 4: _done4 = true; break;
             }
             RefreshUI();
         }
+
+        private bool AllStepsDone() => _done1 && _done2 && _done3 && _done4;
 
         private void RefreshUI()
         {
             UpdateCard(Card1Border, Status1Badge, Status1Text, StartBtn1, StartBtn1Text, _done1);
             UpdateCard(Card2Border, Status2Badge, Status2Text, StartBtn2, StartBtn2Text, _done2);
             UpdateCard(Card3Border, Status3Badge, Status3Text, StartBtn3, StartBtn3Text, _done3);
+            UpdateCard(Card4Border, Status4Badge, Status4Text, StartBtn4, StartBtn4Text, _done4);
 
             var green = new SolidColorBrush(Color.FromRgb(34, 197, 94));
             var gray = new SolidColorBrush(Color.FromRgb(55, 65, 81));
             ProgDot1.Fill = _done1 ? green : gray;
             ProgDot2.Fill = _done2 ? green : gray;
             ProgDot3.Fill = _done3 ? green : gray;
+            ProgDot4.Fill = _done4 ? green : gray;
 
-            int doneCount = (_done1 ? 1 : 0) + (_done2 ? 1 : 0) + (_done3 ? 1 : 0);
-            ProgressText.Text = $"{doneCount} / 3 {LanguageManager.T("stages completed")}";
+            int doneCount = (_done1 ? 1 : 0) + (_done2 ? 1 : 0) + (_done3 ? 1 : 0) + (_done4 ? 1 : 0);
+            ProgressText.Text = $"{doneCount} / 4 {LanguageManager.T("stages completed")}";
         }
 
         private void UpdateCard(
@@ -297,7 +315,7 @@ namespace focus_ai
         }
 
         private double ComputeScore(string mapStr, double reactionSec,
-                                    double goNoGoAcc, string distStr)
+                                    double goNoGoAcc, double cptAccuracy, string distStr)
         {
             double mapScore = 0;
             if (!string.IsNullOrWhiteSpace(mapStr))
@@ -325,7 +343,8 @@ namespace focus_ai
             if (reactionSec > 0)
                 rtScore = Math.Min(1.0 / reactionSec * 25.0, 25.0);
 
-            double goNoGoScore = goNoGoAcc / 100.0 * 25.0;
+            double goNoGoScore = goNoGoAcc / 100.0 * 20.0;
+            double cptScore = cptAccuracy / 100.0 * 10.0;
 
             int distZeroCount = 0;
             if (!string.IsNullOrWhiteSpace(distStr))
@@ -335,7 +354,7 @@ namespace focus_ai
             }
             double penalty = 5.0 * distZeroCount;
 
-            double score = mapScore + rtScore + goNoGoScore - penalty;
+            double score = mapScore + rtScore + goNoGoScore + cptScore - penalty;
 
             return Math.Round(Math.Max(0, Math.Min(100, score)), 2);
         }
@@ -349,7 +368,8 @@ namespace focus_ai
             string spo2Str = string.Join(",", bio.SpO2.Where(v => v != 0));
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
 
-            double scor = ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, distStr);
+            double cptAccuracy = _cptResult?.Accuracy ?? 0;
+            double scor = ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, cptAccuracy, distStr);
 
             string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
             string duration = _elapsed.ToString(@"mm\:ss");
@@ -357,18 +377,41 @@ namespace focus_ai
             string uid = FocusSession.DataOwnerId;
             string token = GetReg("IdToken");
             string testId = await GetNextTestIdAsync(uid);
-            string json = "{"
-                + $"\"dateTime\":\"{Escape(dateTime)}\","
-                + $"\"duration\":\"{Escape(duration)}\","
-                + $"\"map\":\"{Escape(_mapData)}\","
-                + $"\"ecg\":\"{Escape(ecgStr)}\","
-                + $"\"hr\":\"{Escape(hrStr)}\","
-                + $"\"spo2\":\"{Escape(spo2Str)}\","
-                + $"\"dist\":\"{Escape(distStr)}\","
-                + $"\"tr2\":{_reactionTimeSec.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)},"
-                + $"\"precizie_gonogo\":{_goNoGoAccuracy.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)},"
-                + $"\"scor\":{scor.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}"
-                + "}";
+            var payload = new
+            {
+                dateTime,
+                duration,
+                map = _mapData,
+                ecg = ecgStr,
+                hr = hrStr,
+                spo2 = spo2Str,
+                dist = distStr,
+                tr2 = Math.Round(_reactionTimeSec, 3),
+                precizie_gonogo = Math.Round(_goNoGoAccuracy, 2),
+                cpt = _cptResult == null ? null : new
+                {
+                    accuracy = Math.Round(_cptResult.Accuracy, 2),
+                    mean_reaction_time_ms = Math.Round(_cptResult.MeanReactionTimeMs, 2),
+                    hit_rate = Math.Round(_cptResult.HitRate, 4),
+                    false_alarm_rate = Math.Round(_cptResult.FalseAlarmRate, 4),
+                    hits = _cptResult.Hits,
+                    misses = _cptResult.Misses,
+                    false_alarms = _cptResult.FalseAlarms,
+                    correct_rejections = _cptResult.CorrectRejections,
+                    interpretation = _cptResult.Interpretation,
+                    trials = _cptResult.Trials.Select(t => new
+                    {
+                        stimulus = t.Stimulus,
+                        previous_stimulus = t.PreviousStimulus,
+                        is_target = t.IsTarget,
+                        responded = t.Responded,
+                        reaction_time_ms = t.ReactionTimeMs,
+                        response_type = t.ResponseType
+                    }).ToList()
+                },
+                scor = Math.Round(scor, 2)
+            };
+            string json = JsonSerializer.Serialize(payload);
 
             string newUrl = $"{_dbUrl.TrimEnd('/')}/patients/{uid}/testResults/{testId}.json?auth={token}";
             string rootResultsUrl = $"{_dbUrl.TrimEnd('/')}/testResults/{uid}/{testId}.json?auth={token}";

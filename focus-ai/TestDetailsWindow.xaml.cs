@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -12,17 +13,19 @@ namespace focus_ai
     {
         // ── Constructor ──────────────────────────────────────────────────────
         public TestDetailsWindow(string mapRaw, string ecgRaw,
-                                  string spo2Raw, string hrRaw, string distRaw)
+                                  string spo2Raw, string hrRaw, string distRaw,
+                                  string cptRaw = "")
         {
             InitializeComponent();
             LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
-            Loaded += (_, _) => DrawAll(mapRaw, ecgRaw, spo2Raw, hrRaw, distRaw);
+            Loaded += (_, _) => DrawAll(mapRaw, ecgRaw, spo2Raw, hrRaw, distRaw, cptRaw);
         }
 
         // ── Main dispatcher ──────────────────────────────────────────────────
         private void DrawAll(string mapRaw, string ecgRaw,
-                              string spo2Raw, string hrRaw, string distRaw)
+                              string spo2Raw, string hrRaw, string distRaw,
+                              string cptRaw)
         {
             // MAP – scatter (original behaviour)
             var mapPoints = ParseXY(mapRaw);
@@ -76,12 +79,35 @@ namespace focus_ai
             double hrMax   = hr.Any()              ? hr.Max() : 0;
             int distActive = dist.Count(v => v > 0);
 
+            string cptStats = BuildCptStats(cptRaw);
             StatsText.Text =
                 $"  MAP {mapN} pt   ·   " +
                 $"ECG {ecgPairs.Count} pt   ·   " +
                 $"SPO2 [{spo2Min:F0}–{spo2Max:F0}]%   ·   " +
                 $"HR [{hrMin:F0}–{hrMax:F0}] bpm   ·   " +
-                $"DIST {distActive}/{dist.Count} active";
+                $"DIST {distActive}/{dist.Count} active" +
+                cptStats;
+        }
+
+        private static string BuildCptStats(string cptRaw)
+        {
+            if (string.IsNullOrWhiteSpace(cptRaw) || cptRaw == "null") return "";
+
+            try
+            {
+                using var doc = JsonDocument.Parse(cptRaw);
+                var root = doc.RootElement;
+                double accuracy = root.TryGetProperty("accuracy", out var acc) ? acc.GetDouble() : 0;
+                double hitRate = root.TryGetProperty("hit_rate", out var hit) ? hit.GetDouble() : 0;
+                double falseAlarmRate = root.TryGetProperty("false_alarm_rate", out var fa) ? fa.GetDouble() : 0;
+                double meanRt = root.TryGetProperty("mean_reaction_time_ms", out var rt) ? rt.GetDouble() : 0;
+
+                return $"   ·   CPT Accuracy {accuracy:F1}%   ·   Mean RT {meanRt:F0} ms   ·   Hit Rate {hitRate:F2}   ·   False Alarm Rate {falseAlarmRate:F2}";
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════
