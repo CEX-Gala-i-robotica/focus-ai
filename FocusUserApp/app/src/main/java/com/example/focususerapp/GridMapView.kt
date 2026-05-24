@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 
@@ -13,10 +14,16 @@ class GridMapView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
+    private companion object {
+        const val MAX_RENDER_POINTS = 500
+        const val MAX_DRAWN_DOTS = 160
+    }
+
     private var points: List<Pair<Float, Float>> = emptyList()
 
     private var xCoords = FloatArray(0)
     private var yCoords = FloatArray(0)
+    private val routePath = Path()
     private var isCoordsDirty = true
     private var cachedWidth = 0
     private var cachedHeight = 0
@@ -44,7 +51,7 @@ class GridMapView @JvmOverloads constructor(
     }
 
     fun setPoints(newPoints: List<Pair<Float, Float>>) {
-        points = newPoints
+        points = newPoints.downsample(MAX_RENDER_POINTS)
         isCoordsDirty = true
         invalidate()
     }
@@ -61,6 +68,7 @@ class GridMapView @JvmOverloads constructor(
         if (points.isEmpty() || cachedWidth == 0 || cachedHeight == 0) {
             xCoords = FloatArray(0)
             yCoords = FloatArray(0)
+            routePath.reset()
             return
         }
 
@@ -73,18 +81,30 @@ class GridMapView @JvmOverloads constructor(
         val chartHeight = cachedHeight.toFloat()
         val padding = 18f
 
-        val minX = points.minOf { it.first }
-        val maxX = points.maxOf { it.first }
-        val minY = points.minOf { it.second }
-        val maxY = points.maxOf { it.second }
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for ((x, y) in points) {
+            if (x < minX) minX = x
+            if (x > maxX) maxX = x
+            if (y < minY) minY = y
+            if (y > maxY) maxY = y
+        }
         val rangeX = (maxX - minX).takeIf { it > 0f } ?: 1f
         val rangeY = (maxY - minY).takeIf { it > 0f } ?: 1f
         val usableWidth = chartWidth - padding * 2f
         val usableHeight = chartHeight - padding * 2f
 
+        routePath.reset()
         points.forEachIndexed { index, (x, y) ->
             xCoords[index] = padding + ((x - minX) / rangeX) * usableWidth
             yCoords[index] = chartHeight - padding - ((y - minY) / rangeY) * usableHeight
+            if (index == 0) {
+                routePath.moveTo(xCoords[index], yCoords[index])
+            } else {
+                routePath.lineTo(xCoords[index], yCoords[index])
+            }
         }
     }
 
@@ -115,16 +135,21 @@ class GridMapView @JvmOverloads constructor(
             updateCoordinates()
         }
 
-        linePaint.setShadowLayer(14f, 0f, 0f, linePaint.color)
-        pointPaint.setShadowLayer(12f, 0f, 0f, pointPaint.color)
-        setLayerType(LAYER_TYPE_SOFTWARE, linePaint)
+        canvas.drawPath(routePath, linePaint)
 
-        for (i in 0 until points.lastIndex) {
-            canvas.drawLine(xCoords[i], yCoords[i], xCoords[i + 1], yCoords[i + 1], linePaint)
-        }
-
-        for (i in points.indices) {
+        val dotStep = (points.size / MAX_DRAWN_DOTS).coerceAtLeast(1)
+        for (i in points.indices step dotStep) {
             canvas.drawCircle(xCoords[i], yCoords[i], 7f, pointPaint)
         }
+    }
+
+    private fun List<Pair<Float, Float>>.downsample(maxPoints: Int): List<Pair<Float, Float>> {
+        if (size <= maxPoints) return this
+        val sampled = ArrayList<Pair<Float, Float>>(maxPoints)
+        val step = (size - 1).toFloat() / (maxPoints - 1).toFloat()
+        repeat(maxPoints) { index ->
+            sampled.add(this[(index * step).toInt().coerceAtMost(lastIndex)])
+        }
+        return sampled
     }
 }

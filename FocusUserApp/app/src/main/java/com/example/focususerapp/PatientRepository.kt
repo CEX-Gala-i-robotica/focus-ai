@@ -3,6 +3,7 @@ package com.example.focususerapp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.FirebaseDatabase
+import com.google.android.gms.tasks.Tasks
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -18,10 +19,15 @@ class PatientRepository(
         onError: (Exception) -> Unit
     ) {
         val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
-        database.reference.child("patients").child(uid).get()
-            .addOnSuccessListener { patientSnapshot ->
-                if (patientSnapshot.exists()) {
-                    onSuccess(parseProfile(patientSnapshot), parseTests(patientSnapshot.child("testResults")))
+        val patientRef = database.reference.child("patients").child(uid)
+        val profileKeys = listOf("name", "surname", "email", "phone", "birthDate", "setup")
+        val tasks = profileKeys.map { key -> patientRef.child(key).get() } + patientRef.child("testResults").get()
+
+        Tasks.whenAllSuccess<DataSnapshot>(tasks)
+            .addOnSuccessListener { snapshots ->
+                val byKey = snapshots.associateBy { it.key.orEmpty() }
+                if (profileKeys.any { byKey[it]?.exists() == true }) {
+                    onSuccess(parseProfileFields(byKey), parseTests(byKey["testResults"] ?: return@addOnSuccessListener))
                 } else {
                     loadLegacyPatient(uid, onSuccess, onError)
                 }
@@ -93,7 +99,10 @@ class PatientRepository(
         onError: (Exception) -> Unit
     ) {
         val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
-        database.reference.child("patients").child(uid).child("activityResults").get()
+        database.reference.child("patients").child(uid).child("activityResults")
+            .orderByKey()
+            .limitToLast(12)
+            .get()
             .addOnSuccessListener { snapshot ->
                 onSuccess(parseGameResults(snapshot))
             }
@@ -167,6 +176,17 @@ class PatientRepository(
         )
     }
 
+    private fun parseProfileFields(fields: Map<String, DataSnapshot>): PatientProfile {
+        return PatientProfile(
+            name = fields.stringValue("name"),
+            surname = fields.stringValue("surname"),
+            email = fields.stringValue("email"),
+            phone = fields.stringValue("phone"),
+            birthDate = fields.stringValue("birthDate"),
+            setup = fields["setup"]?.getValue(Boolean::class.java) ?: false
+        )
+    }
+
     private fun parseLegacyProfile(snapshot: DataSnapshot): PatientProfile {
         return PatientProfile(
             name = snapshot.stringValue("name"),
@@ -218,6 +238,11 @@ class PatientRepository(
 
     private fun DataSnapshot.stringValue(key: String): String {
         return child(key).getValue(String::class.java) ?: child(key).value?.toString().orEmpty()
+    }
+
+    private fun Map<String, DataSnapshot>.stringValue(key: String): String {
+        val value = this[key]?.value
+        return value?.toString().orEmpty()
     }
 
     private fun DataSnapshot.floatValue(key: String): Float? {
