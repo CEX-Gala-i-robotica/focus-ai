@@ -86,35 +86,35 @@ namespace focus_ai
             string name = NameTextBox.Text.Trim();
             string surname = SurnameTextBox.Text.Trim();
             string phone = PhoneTextBox.Text.Trim();
-            string cabinetAddress = CabinetAddressTextBox.Text.Trim();
+            string adress = CabinetAddressTextBox.Text.Trim();
 
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(surname) ||
                 !BirthDatePicker.SelectedDate.HasValue || string.IsNullOrEmpty(phone) ||
-                string.IsNullOrEmpty(cabinetAddress) || string.IsNullOrEmpty(email) ||
+                string.IsNullOrEmpty(adress) || string.IsNullOrEmpty(email) ||
                 string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Completează toate câmpurile pentru contul de medic.", "Atenție",
+                MessageBox.Show("Fill in all fields for the doctor account.", "Warning",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!IsValidEmail(email))
             {
-                MessageBox.Show("Adresa de email nu este validă.", "Atenție",
+                MessageBox.Show("The email address is not valid.", "Warning",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!IsValidPhone(phone))
             {
-                MessageBox.Show("Numărul de telefon nu este valid.", "Atenție",
+                MessageBox.Show("The phone number is not valid.", "Warning",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (password.Length < 6)
             {
-                MessageBox.Show("Parola trebuie să aibă cel puțin 6 caractere.", "Atenție",
+                MessageBox.Show("The password must be at least 6 characters long.", "Warning",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -138,9 +138,9 @@ namespace focus_ai
                     string token = parsed["idToken"]?.ToString() ?? "";
                     string authEmail = parsed["email"]?.ToString() ?? email;
                     await CreateDoctorShellAsync(uid, authEmail, token, name, surname,
-                        BirthDatePicker.SelectedDate!.Value, phone, cabinetAddress, setup: true);
+                        BirthDatePicker.SelectedDate!.Value, phone, adress, setup: true);
 
-                    MessageBox.Show("Cont creat cu succes! Te poți autentifica acum.", "Succes",
+                    MessageBox.Show("Account created successfully. You can sign in now.", "Success",
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                     new Login().Show();
                     Close();
@@ -148,13 +148,13 @@ namespace focus_ai
                 else
                 {
                     var error = JObject.Parse(responseJson);
-                    MessageBox.Show(error["error"]?["message"]?.ToString(), "Eroare înregistrare",
+                    MessageBox.Show(error["error"]?["message"]?.ToString(), "Sign-up error",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -194,13 +194,13 @@ namespace focus_ai
                 }
                 else
                 {
-                    MessageBox.Show("Autentificare Google eșuată.", "Eroare",
+                    MessageBox.Show("Google sign-in failed.", "Error",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -241,7 +241,7 @@ namespace focus_ai
         {
             SignUpButton.IsEnabled       = !busy;
             GoogleSignUpButton.IsEnabled = !busy;
-            SignUpButton.Content         = busy ? "Se procesează…" : "Înregistrare";
+            SignUpButton.Content         = busy ? "Processing..." : "Sign up";
         }
 
         private void LoginLink_Click(object sender, RoutedEventArgs e)
@@ -283,7 +283,7 @@ namespace focus_ai
             }
             catch
             {
-                return false; // la eroare, mergi la Dashboard
+                return false;
             }
         }
 
@@ -295,7 +295,7 @@ namespace focus_ai
 
         private async Task CreateDoctorShellAsync(string uid, string email, string token,
             string name, string surname, DateTime? birthDate, string phone,
-            string cabinetAddress, bool setup)
+            string adress, bool setup)
         {
             if (string.IsNullOrWhiteSpace(uid)) return;
 
@@ -311,7 +311,7 @@ namespace focus_ai
                     surname,
                     birthDate = birthDate?.ToString("dd.MM.yyyy") ?? "",
                     phone,
-                    cabinetAddress,
+                    adress,
                     email,
                     setup,
                     createdAt = now,

@@ -116,7 +116,7 @@ namespace focus_ai
             _secondsLeft = TEST_DURATION_SEC;
 
             CountdownText.Text         = _secondsLeft.ToString();
-            TimerStatusText.Text       = "În desfășurare";
+            TimerStatusText.Text       = "Running";
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
 
             // 🔥 IMPORTANT
@@ -209,14 +209,14 @@ namespace focus_ai
             {
                 CircleBrush.Color = GoColor;   // VERDE forțat direct
                 StimulusLabel.Text = "GO";
-                StimulusSubLabel.Text = "Apasă!";
+                StimulusSubLabel.Text = "Press!";
                 _pulseAnim?.Begin();
             }
             else
             {
                 CircleBrush.Color = NoGoColor;  // ROȘU forțat direct
                 StimulusLabel.Text = "NO-GO";
-                StimulusSubLabel.Text = "Nu apăsa";
+                StimulusSubLabel.Text = "Do not press";
             }
 
             _stimulusTimer.Interval = TimeSpan.FromMilliseconds(
@@ -262,14 +262,14 @@ namespace focus_ai
                 {
                     _correctGo++;
                     _reactionTimes.Add(rtMs.Value);
-                    // apăsat corect pe GO (verde) – flash alb apoi rămâne verde
+                    // Correct press on GO.
                     FlashCircle(Colors.White, GoColor);
                     wasCorrect = true;
                 }
                 else
                 {
                     _falsePositives++;
-                    // apăsat greșit pe NO-GO (roșu) – flash alb apoi rămâne roșu
+                    // Wrong press on NO-GO.
                     FlashCircle(Colors.White, NoGoColor);
                     wasCorrect = false;
                 }
@@ -332,11 +332,11 @@ namespace focus_ai
         {
             OverlayTitle.Text = "Test finalizat!";
             OverlayBody.Text =
-                $"GO corecte: {r.CorrectGo}   |   Omisiuni: {r.MissedGo}\n" +
-                $"False pozitive: {r.FalsePositives}   |   NO-GO corecte: {r.CorrectRejects}\n" +
-                $"Timp mediu reacție: {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : "N/A")}";
+                $"Correct GO: {r.CorrectGo}   |   Missed GO: {r.MissedGo}\n" +
+                $"False positives: {r.FalsePositives}   |   Correct NO-GO: {r.CorrectRejects}\n" +
+                $"Average reaction time: {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : "N/A")}";
 
-            BeginButton.Content = "✕  Închide";
+            BeginButton.Content = "✕  Close";
             BeginButton.Click -= BeginButton_Click;
             BeginButton.Click += (_, _) => Close();
 

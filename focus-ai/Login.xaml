@@ -96,7 +96,7 @@
                            Foreground="{DynamicResource TextPrimaryBrush}"
                            Margin="0 10 0 4" HorizontalAlignment="Center"/>
 
-                <TextBlock Text="Autentifică-te în cont"
+                <TextBlock Text="Sign in to your account"
                            FontSize="13" Foreground="{DynamicResource TextSecBrush}"
                            Margin="0 0 0 24" HorizontalAlignment="Center"/>
 
@@ -111,13 +111,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Parolă" FontSize="12" FontWeight="Medium"
+                <TextBlock Text="Password" FontSize="12" FontWeight="Medium"
                                Foreground="{DynamicResource TextPrimaryBrush}"
                                VerticalAlignment="Center" Grid.Column="0"/>
                     <TextBlock Grid.Column="1" FontSize="11" VerticalAlignment="Center">
                         <Hyperlink Click="ForgotPasswordLink_Click"
                                    Foreground="#4285F4" TextDecorations="None">
-                            Ai uitat parola?
+                            Forgot password?
                         </Hyperlink>
                     </TextBlock>
                 </Grid>
@@ -126,11 +126,11 @@
                 </Border>
 
                 <CheckBox x:Name="RememberMeCheckBox"
-                          Content="Ține-mă minte"
+                          Content="Remember me"
                           Margin="0 14 0 0"/>
 
                 <Button x:Name="LoginButton"
-                        Content="Autentificare"
+                        Content="Sign in"
                         Foreground="White"
                         Margin="0 18 0 10" Height="44" Cursor="Hand"
                         Click="LoginButton_Click">
@@ -162,7 +162,7 @@
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <Image Source="https://user-images.githubusercontent.com/194400/70987158-4069c900-20b7-11ea-892e-8a2e1166b6b7.png"
                                            Width="18" Height="18" Margin="0 0 10 0"/>
-                                    <TextBlock Text="Continuă cu Google" Foreground="White"
+                                    <TextBlock Text="Continue with Google" Foreground="White"
                                                FontSize="13" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
@@ -173,7 +173,7 @@
                 <TextBlock HorizontalAlignment="Center" Margin="0 18 0 0"
                            FontSize="12" Foreground="{DynamicResource TextSecBrush}">
                     <Hyperlink Click="SignUpLink_Click" Foreground="#4285F4" TextDecorations="None">
-                        Nu ai cont? Înregistrează-te
+                        No account? Sign up
                     </Hyperlink>
                 </TextBlock>
             </StackPanel>

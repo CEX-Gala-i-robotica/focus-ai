@@ -18,8 +18,7 @@ namespace focus_ai
         private bool _surnameOk  = true;
         private bool _phoneOk    = true;
         private bool _birthOk    = true;
-        private bool _docEmailOk = true;
-        private bool _docPhoneOk = true;
+        private bool _addressOk = true;
 
         public ProfileData? Result { get; private set; }
         public bool IsSetupMode { get; private set; }
@@ -36,9 +35,9 @@ namespace focus_ai
 
             if (isSetupMode)
             {
-                this.Title = "Configurează profilul";
-                HeaderTitle.Text = "Configurează profilul";
-                SaveBtn.Content = "Continuă";
+                this.Title = "Set up profile";
+                HeaderTitle.Text = "Set up profile";
+                SaveBtn.Content = "Continue";
                 CancelBtn.IsEnabled = false;
                 CancelBtn.Opacity = 0.4;
             }
@@ -82,8 +81,7 @@ namespace focus_ai
                     BoxName.Text        = profile.Name        ?? "";
                     BoxSurname.Text     = profile.Surname     ?? "";
                     BoxPhone.Text       = profile.EffectivePhone;
-                    BoxDoctorEmail.Text = profile.CabinetAddress ?? "";
-                    BoxDoctorPhone.Text = profile.DoctorPhone ?? "";
+                    BoxAddress.Text     = profile.Adress ?? "";
 
                     if (DateTime.TryParseExact(
                             profile.EffectiveBirthDate, "dd.MM.yyyy",
@@ -130,18 +128,11 @@ namespace focus_ai
             SetFieldState(BoxPhoneBorder, ErrPhone, _phoneOk);
         }
 
-        private void DoctorEmail_Changed(object sender, TextChangedEventArgs e)
+        private void Address_Changed(object sender, TextChangedEventArgs e)
         {
-            string val  = BoxDoctorEmail.Text.Trim();
-            _docEmailOk = val.Length > 0;
-            SetFieldState(BoxDoctorEmailBorder, ErrDoctorEmail, _docEmailOk);
-        }
-
-        private void DoctorPhone_Changed(object sender, TextChangedEventArgs e)
-        {
-            string val  = BoxDoctorPhone.Text.Trim();
-            _docPhoneOk = string.IsNullOrEmpty(val) || IsValidPhone(val);
-            SetFieldState(BoxDoctorPhoneBorder, ErrDoctorPhone, _docPhoneOk);
+            string val  = BoxAddress.Text.Trim();
+            _addressOk = val.Length > 0;
+            SetFieldState(BoxAddressBorder, ErrAddress, _addressOk);
         }
 
         // ═══════════════════════════════════════════════════
@@ -199,7 +190,10 @@ namespace focus_ai
                 : new SolidColorBrush(Colors.Red);
             ErrBirth.Visibility = _birthOk ? Visibility.Collapsed : Visibility.Visible;
 
-            if (!_nameOk || !_surnameOk || !_birthOk || !_phoneOk || !_docEmailOk || !_docPhoneOk)
+            _addressOk = BoxAddress.Text.Trim().Length > 0;
+            SetFieldState(BoxAddressBorder, ErrAddress, _addressOk);
+
+            if (!_nameOk || !_surnameOk || !_birthOk || !_phoneOk || !_addressOk)
                 return;
 
             string birthStr = BirthDatePicker.SelectedDate!.Value.ToString("dd.MM.yyyy");
@@ -211,8 +205,7 @@ namespace focus_ai
                 BirthDate   = birthStr,
                 Phone       = BoxPhone.Text.Trim(),
                 DoctorEmail = GetReg("Email"),
-                CabinetAddress = BoxDoctorEmail.Text.Trim(),
-                DoctorPhone = BoxDoctorPhone.Text.Trim()
+                Adress = BoxAddress.Text.Trim()
             };
 
             try
@@ -230,7 +223,7 @@ namespace focus_ai
                     surname = profile.Surname,
                     birthDate = profile.BirthDate,
                     phone = profile.Phone,
-                    cabinetAddress = profile.CabinetAddress,
+                    adress = profile.Adress,
                     email = GetReg("Email"),
                     setup = true,
                     updatedAt = DateTime.UtcNow.ToString("O")
@@ -240,7 +233,7 @@ namespace focus_ai
                 var resp = await client.PatchAsync(doctorProfileUrl, content);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Eroare la salvarea în Firebase.", "Eroare",
+                    MessageBox.Show("Could not save data to Firebase.", "Error",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
@@ -252,12 +245,12 @@ namespace focus_ai
             }
             catch
             {
-                MessageBox.Show("Eroare la salvarea în Firebase.", "Eroare",
+                MessageBox.Show("Could not save data to Firebase.", "Error",
                                 MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
-            // Marchează profilul ca setat
+            // Mark profile as configured.
             try
             {
                 string userId  = GetReg("Uid");
@@ -295,8 +288,7 @@ namespace focus_ai
                 k.SetValue("BirthDate",   p.EffectiveBirthDate);
                 k.SetValue("Phone",       p.EffectivePhone);
                 k.SetValue("DoctorEmail", p.DoctorEmail ?? "");
-                k.SetValue("DoctorPhone", p.DoctorPhone ?? "");
-                k.SetValue("CabinetAddress", p.CabinetAddress ?? "");
+                k.SetValue("Adress", p.Adress ?? "");
             }
             catch { }
         }

@@ -52,9 +52,9 @@ namespace focus_ai
             SizeChanged += (_, _) => { if (_gameActive) UpdateProgressBar(); };
         }
 
-        private void BtnEasy_Click(object s, RoutedEventArgs e)   => StartGame(Difficulty.Easy,   "Ușor");
-        private void BtnMedium_Click(object s, RoutedEventArgs e) => StartGame(Difficulty.Medium, "Mediu");
-        private void BtnHard_Click(object s, RoutedEventArgs e)   => StartGame(Difficulty.Hard,   "Dificil");
+        private void BtnEasy_Click(object s, RoutedEventArgs e)   => StartGame(Difficulty.Easy,   "Easy");
+        private void BtnMedium_Click(object s, RoutedEventArgs e) => StartGame(Difficulty.Medium, "Medium");
+        private void BtnHard_Click(object s, RoutedEventArgs e)   => StartGame(Difficulty.Hard,   "Hard");
 
         private void StartGame(Difficulty diff, string label)
         {
@@ -193,7 +193,7 @@ namespace focus_ai
                 _wrong++;
                 _streak = 0;
                 _score  = Math.Max(0, _score - 3);
-                ShowFeedback($"✗  Răspuns: {_correctAnswer}", "#EF4444");
+                ShowFeedback($"✗  Answer: {_correctAnswer}", "#EF4444");
             }
 
             UpdateHUD();
@@ -236,14 +236,14 @@ namespace focus_ai
             string emoji = finalScore >= 80 ? "🏆"
                          : finalScore >= 50 ? "👍"
                          : "💪";
-            string title = finalScore >= 80 ? "Excelent!"
-                         : finalScore >= 50 ? "Bine!"
-                         : "Continuă să exersezi!";
+            string title = finalScore >= 80 ? "Excellent!"
+                         : finalScore >= 50 ? "Good!"
+                         : "Keep practicing!";
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"{_correct} corecte  •  {_wrong} greșite  •  Seria maximă: {_bestStreak}";
-            WinScore.Text    = $"Scor final: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"{_correct} correct  •  {_wrong} wrong  •  Best streak: {_bestStreak}";
+            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 
@@ -263,7 +263,7 @@ namespace focus_ai
 
                 var payload = new
                 {
-                    game       = "Matematică rapidă",
+                    game       = "Quick Math",
                     dateTime   = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                     duration   = duration,
                     difficulty = _difficultyLabel,

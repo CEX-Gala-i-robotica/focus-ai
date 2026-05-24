@@ -22,14 +22,14 @@ namespace focus_ai
         private readonly bool _isDark;
         private const int TotalRounds = 30;
 
-        private static readonly (string Key, string Hex, string RomanianName)[] Colors =
+        private static readonly (string Key, string Hex, string DisplayName)[] Colors =
         {
-            ("Roșu",       "#EF4444", "ROȘU"),
-            ("Verde",      "#22C55E", "VERDE"),
-            ("Albastru",   "#3B82F6", "ALBASTRU"),
-            ("Galben",     "#EAB308", "GALBEN"),
-            ("Portocaliu", "#F97316", "PORTOCALIU"),
-            ("Violet",     "#A855F7", "VIOLET"),
+            ("Red",    "#EF4444", "RED"),
+            ("Green",  "#22C55E", "GREEN"),
+            ("Blue",   "#3B82F6", "BLUE"),
+            ("Yellow", "#EAB308", "YELLOW"),
+            ("Orange", "#F97316", "ORANGE"),
+            ("Purple", "#A855F7", "PURPLE"),
         };
 
         private int _numColors;
@@ -44,8 +44,8 @@ namespace focus_ai
         private int _maxStreak       = 0;
         private bool _waitingForNext = false;
         private string _correctColorKey  = "";
-        private string _wordColorKey     = "";   // culoarea REALĂ a cuvântului scris
-        private string _difficulty       = "Ușor";
+        private string _wordColorKey     = "";
+        private string _difficulty       = "Easy";
 
         private readonly List<double> _responseTimes = new();
         private readonly Stopwatch _roundStopwatch   = new();
@@ -58,7 +58,6 @@ namespace focus_ai
         private readonly Random _rng = new();
         private bool _closedByButton = false;
 
-        // Păstrăm lista de chei a opțiunilor afișate pe butoane (pentru Tag)
         private List<string> _currentOptionKeys = new();
 
         public StroopGame(bool isDark)
@@ -81,21 +80,21 @@ namespace focus_ai
         {
             if (DiffEasy.IsChecked == true)
             {
-                _difficulty       = "Ușor";
+                _difficulty       = "Easy";
                 _numColors        = 4;
                 _numOptions       = 4;
                 _timeLimitSeconds = 0;
             }
             else if (DiffMedium.IsChecked == true)
             {
-                _difficulty       = "Mediu";
+                _difficulty       = "Medium";
                 _numColors        = 5;
                 _numOptions       = 4;
                 _timeLimitSeconds = 5.0;
             }
             else
             {
-                _difficulty       = "Dificil";
+                _difficulty       = "Hard";
                 _numColors        = 6;
                 _numOptions       = 4;
                 _timeLimitSeconds = 3.5;
@@ -147,7 +146,7 @@ namespace focus_ai
             _correctColorKey = inkColor.Key;
             _wordColorKey    = wordColor.Key;   // culoarea reală a cuvântului scris
 
-            WordLabel.Text       = wordColor.RomanianName;
+            WordLabel.Text       = wordColor.DisplayName;
             WordLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(inkColor.Hex));
 
             // ── Construim lista de 4 opțiuni ──────────────────────────────────────
@@ -190,7 +189,7 @@ namespace focus_ai
                 _btns[i].Background  = bgBrush;
                 _btns[i].BorderBrush = new SolidColorBrush(btnColor);
                 _btns[i].Foreground  = new SolidColorBrush(btnColor);
-                _btns[i].Content     = cInfo.RomanianName;
+                _btns[i].Content     = cInfo.DisplayName;
                 _btns[i].Tag         = key;
                 _btns[i].IsEnabled   = true;
                 _btns[i].Opacity     = 1.0;
@@ -265,11 +264,10 @@ namespace focus_ai
                 _streak = 0;
             }
 
-            // Actualizăm badge-ul streak
             if (_streak >= 3)
             {
                 StreakBadge.Visibility = Visibility.Visible;
-                TxtStreak.Text = $"🔥 {_streak} la rând!";
+                TxtStreak.Text = $"🔥 {_streak} in a row!";
             }
             else
             {
@@ -310,13 +308,13 @@ namespace focus_ai
         private void UpdateScoreUI()
         {
             TxtScore.Text   = _score.ToString();
-            TxtCorrect.Text = $"{_correctCount} corecte";
-            TxtWrong.Text   = $"{_wrongCount} greșite";
+            TxtCorrect.Text = $"{_correctCount} correct";
+            TxtWrong.Text   = $"{_wrongCount} wrong";
         }
 
         private void UpdateProgress()
         {
-            TxtProgress.Text = $"Runda {_currentRound} / {TotalRounds}";
+            TxtProgress.Text = $"Round {_currentRound} / {TotalRounds}";
             Dispatcher.InvokeAsync(() =>
             {
                 double parentW    = ((Border)ProgressBar.Parent).ActualWidth;
@@ -325,7 +323,7 @@ namespace focus_ai
         }
 
         // ═══════════════════════════════════════════════════
-        //  END GAME — overlay identic cu MemorieGame
+        //  END GAME
         // ═══════════════════════════════════════════════════
         private void EndGame()
         {
@@ -340,14 +338,14 @@ namespace focus_ai
             string emoji = finalScore >= 85 ? "🏆"
                          : finalScore >= 60 ? "🥈"
                          : "💪";
-            string title = finalScore >= 85 ? "Excelent!"
-                         : finalScore >= 60 ? "Bine făcut!"
-                         : "Nu te descuraja!";
+            string title = finalScore >= 85 ? "Excellent!"
+                         : finalScore >= 60 ? "Well done!"
+                         : "Keep going!";
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"{_correctCount} corecte  •  Acuratețe: {accuracy:F1}%  •  Timp mediu: {avgTime:F2}s";
-            WinScore.Text    = $"Scor final: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"{_correctCount} correct  •  Accuracy: {accuracy:F1}%  •  Average time: {avgTime:F2}s";
+            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 

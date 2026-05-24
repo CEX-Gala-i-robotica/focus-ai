@@ -23,7 +23,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="BtnBack"
-                            Content="← Înapoi"
+                            Content="← Back"
                             FontSize="13" FontWeight="SemiBold"
                             Background="{DynamicResource AccentSecBg}"
                             Foreground="{DynamicResource AccentSecFg}"
@@ -56,7 +56,7 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Background="{DynamicResource BgStatBlue}" CornerRadius="10" Padding="14,8" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="RUNDA" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="ROUND" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatBlue}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="TxtRound" Text="0/8" FontSize="18" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
@@ -64,7 +64,7 @@
                     </Border>
                     <Border Background="{DynamicResource BgStatGreen}" CornerRadius="10" Padding="14,8" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="SCOR" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="SCORE" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatGreen}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="TxtScore" Text="0" FontSize="18" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
@@ -72,14 +72,14 @@
                     </Border>
                     <Border Background="{DynamicResource BgStatOrange}" CornerRadius="10" Padding="14,8" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="VIEȚI" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="LIVES" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatOrange}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="TxtLives" Text="❤️❤️❤️" FontSize="14" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                     <Border Background="{DynamicResource BgStatPurple}" CornerRadius="10" Padding="14,8">
                         <StackPanel>
-                            <TextBlock Text="TIMP" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="TIME" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatPurple}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="TxtTimer" Text="20" FontSize="18" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
@@ -100,9 +100,9 @@
                                    Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,10"/>
                         <TextBlock FontSize="14" Foreground="{DynamicResource TxtSecondary}" HorizontalAlignment="Center"
                                    TextWrapping="Wrap" TextAlignment="Center" MaxWidth="400" Margin="0,0,0,28" LineHeight="22">
-                            Grila e plină cu un singur caracter repetat.&#x0a;
-                            Undeva e ascuns unul diferit — găsește-l înainte să expire timpul!&#x0a;
-                            Cu fiecare rundă, grila devine mai mare.
+                            The grid is filled with one repeated character.&#x0a;
+                            One different character is hidden somewhere. Find it before time runs out.&#x0a;
+                            The grid grows with every round.
                         </TextBlock>
 
                         <Border Background="{DynamicResource BgNavHover}" CornerRadius="12" Padding="20,14" Margin="0,0,0,28">
@@ -115,21 +115,21 @@
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="8 runde  •  3 vieți" FontSize="13" Foreground="{DynamicResource TxtMuted}"
+                        <TextBlock Text="8 rounds  •  3 lives" FontSize="13" Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center" Margin="0,0,0,24"/>
 
-                        <TextBlock Text="DIFICULTATE" FontSize="10" FontWeight="SemiBold"
+                        <TextBlock Text="DIFFICULTY" FontSize="10" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,28">
-                            <RadioButton x:Name="RbEasy" Content="Ușor  (25s)" GroupName="Diff" Margin="0,0,16,0"
+                            <RadioButton x:Name="RbEasy" Content="Easy  (25s)" GroupName="Diff" Margin="0,0,16,0"
                                          Foreground="{DynamicResource TxtPrimary}" FontSize="13" Cursor="Hand"/>
-                            <RadioButton x:Name="RbMedium" Content="Mediu  (20s)" GroupName="Diff" IsChecked="True" Margin="0,0,16,0"
+                            <RadioButton x:Name="RbMedium" Content="Medium  (20s)" GroupName="Diff" IsChecked="True" Margin="0,0,16,0"
                                          Foreground="{DynamicResource TxtPrimary}" FontSize="13" Cursor="Hand"/>
-                            <RadioButton x:Name="RbHard" Content="Dificil  (15s)" GroupName="Diff"
+                            <RadioButton x:Name="RbHard" Content="Hard  (15s)" GroupName="Diff"
                                          Foreground="{DynamicResource TxtPrimary}" FontSize="13" Cursor="Hand"/>
                         </StackPanel>
 
-                        <Button x:Name="BtnStart" Content="▶  Începe jocul" Background="{DynamicResource AccentPrimary}"
+                        <Button x:Name="BtnStart" Content="▶  Start game" Background="{DynamicResource AccentPrimary}"
                                 Foreground="White" FontSize="15" FontWeight="SemiBold" BorderThickness="0" Cursor="Hand"
                                 Padding="32,14" Click="BtnStart_Click" HorizontalAlignment="Center">
                             <Button.Template>
@@ -183,7 +183,7 @@
                     <Border x:Name="TimerBar" CornerRadius="4" Background="{DynamicResource AccentPrimary}"
                             HorizontalAlignment="Left" Width="0"/>
                 </Border>
-                <TextBlock Grid.Column="1" x:Name="TxtRoundInfo" Text="Runda 1/8" FontSize="11"
+                <TextBlock Grid.Column="1" x:Name="TxtRoundInfo" Text="Round 1/8" FontSize="11"
                            Foreground="{DynamicResource TxtMuted}" Margin="16,0,0,0" VerticalAlignment="Center"/>
             </Grid>
         </Border>
@@ -197,18 +197,18 @@
                 <StackPanel>
                     <TextBlock x:Name="WinEmoji" Text="🏆" FontSize="64"
                                HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                    <TextBlock x:Name="WinTitle" Text="Felicitări!" FontSize="26"
+                    <TextBlock x:Name="WinTitle" Text="Congratulations!" FontSize="26"
                                FontWeight="Bold" Foreground="{DynamicResource TxtPrimary}"
                                HorizontalAlignment="Center" Margin="0,0,0,8"/>
                     <TextBlock x:Name="WinSubtitle" Text=""
                                FontSize="14" Foreground="{DynamicResource TxtSecondary}"
                                HorizontalAlignment="Center" TextWrapping="Wrap"
                                TextAlignment="Center" Margin="0,0,0,24"/>
-                    <TextBlock x:Name="WinScore" Text="Scor: 0"
+                    <TextBlock x:Name="WinScore" Text="Score: 0"
                                FontSize="18" FontWeight="Bold"
                                Foreground="{DynamicResource AccentPrimary}"
                                HorizontalAlignment="Center" Margin="0,0,0,28"/>
-                    <Button Content="🔄  Joacă din nou"
+                    <Button Content="🔄  Play again"
                             Click="BtnRestart_Click"
                             Background="{DynamicResource AccentPrimary}"
                             Foreground="White" FontSize="14" FontWeight="SemiBold"
@@ -231,7 +231,7 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
-                    <Button Content="← Înapoi la meniu"
+                    <Button Content="← Back to menu"
                             Click="BtnHome_Click"
                             Background="Transparent"
                             Foreground="{DynamicResource AccentPrimary}"

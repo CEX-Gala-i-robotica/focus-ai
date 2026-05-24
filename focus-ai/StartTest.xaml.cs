@@ -83,7 +83,7 @@ namespace focus_ai
 
             _timerStarted = true;
             _timer.Start();
-            TimerStatusText.Text = "În desfășurare";
+            TimerStatusText.Text = "Running";
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
 
             BioCollector.Instance.StartStreaming(reset: true);
@@ -92,7 +92,7 @@ namespace focus_ai
         private void StopTimer()
         {
             _timer.Stop();
-            TimerStatusText.Text = "Finalizat";
+            TimerStatusText.Text = "Completed";
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(96, 165, 250));
         }
 
@@ -159,15 +159,15 @@ namespace focus_ai
 
             if (!Directory.Exists(EyeTrackerDir))
             {
-                MessageBox.Show($"Directorul eye-tracker nu a fost găsit:\n{EyeTrackerDir}",
-                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"The eye-tracker directory was not found:\n{EyeTrackerDir}",
+                    "Eye Tracker Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
 
             if (!File.Exists(scriptPath))
             {
-                MessageBox.Show($"Scriptul Python nu a fost găsit:\n{scriptPath}",
-                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"The Python script was not found:\n{scriptPath}",
+                    "Eye Tracker Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
 
@@ -198,20 +198,20 @@ namespace focus_ai
                     return true;
                 }
 
-                MessageBox.Show("Scriptul nu a returnat coordonate.\nVerifică eye tracker-ul.",
+                MessageBox.Show("The script did not return coordinates.\nCheck the eye tracker.",
                     "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
             catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 2)
             {
-                MessageBox.Show("Python nu a fost găsit în PATH.\n\n" + ex.Message,
-                    "Eroare – Python lipsă", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Python was not found in PATH.\n\n" + ex.Message,
+                    "Python Missing", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Eroare neașteptată:\n{ex.Message}",
-                    "Eroare – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Unexpected error:\n{ex.Message}",
+                    "Eye Tracker Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }
         }
@@ -240,7 +240,7 @@ namespace focus_ai
             ProgDot3.Fill = _done3 ? green : gray;
 
             int doneCount = (_done1 ? 1 : 0) + (_done2 ? 1 : 0) + (_done3 ? 1 : 0);
-            ProgressText.Text = $"{doneCount} / 3 etape finalizate";
+            ProgressText.Text = $"{doneCount} / 3 stages completed";
         }
 
         private void UpdateCard(
@@ -255,11 +255,11 @@ namespace focus_ai
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = new SolidColorBrush(Color.FromRgb(20, 83, 45));
-                statusText.Text = "✓  Finalizată";
+                statusText.Text = "✓  Completed";
                 statusText.Foreground = new SolidColorBrush(Color.FromRgb(74, 222, 128));
 
                 startBtn.IsEnabled = false;
-                startBtnText.Text = "Finalizată";
+                startBtnText.Text = "Completed";
             }
             else
             {
@@ -268,11 +268,11 @@ namespace focus_ai
                 border.BorderThickness = new Thickness(1.5);
 
                 statusBadge.Background = (SolidColorBrush)FindResource("BgNavActive");
-                statusText.Text = "Neparcursă";
+                statusText.Text = "Not completed";
                 statusText.Foreground = (SolidColorBrush)FindResource("TxtMuted");
 
                 startBtn.IsEnabled = true;
-                startBtnText.Text = "▶  Start etapă";
+                startBtnText.Text = "▶  Start stage";
             }
         }
 
@@ -281,11 +281,11 @@ namespace focus_ai
             string time = _elapsed.ToString(@"mm\:ss");
 
             string summary =
-                $"🎉 Toate etapele au fost finalizate!\n\n" +
-                $"Timp total: {time}\n" +
-                $"Dorești să salvezi rezultatele în Firebase?";
+                $"🎉 All stages are complete!\n\n" +
+                $"Total time: {time}\n" +
+                $"Do you want to save the results to Firebase?";
 
-            var result = MessageBox.Show(summary, "Test finalizat",
+            var result = MessageBox.Show(summary, "Test completed",
                 MessageBoxButton.YesNo, MessageBoxImage.Information);
 
             if (result == MessageBoxResult.Yes)
@@ -385,29 +385,28 @@ namespace focus_ai
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // Try to send email to doctor
                     bool emailSent = await SendEmailToDoctorAsync(uid, testId);
                     if (emailSent)
                     {
-                        MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}\nUn email a fost trimis medicului.",
+                        MessageBox.Show($"Results were saved to Firebase.\nTest ID: {testId}\nAn email was sent to the doctor.",
                             "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
                     {
-                        MessageBox.Show($"Rezultatele au fost salvate în Firebase!\nTest ID: {testId}\nNu s-a putut trimite emailul către medic (adresă lipsă sau eroare).",
+                        MessageBox.Show($"Results were saved to Firebase.\nTest ID: {testId}\nThe email could not be sent to the doctor (missing address or error).",
                             "Focus AI", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
                 else
                 {
                     string body = await response.Content.ReadAsStringAsync();
-                    MessageBox.Show($"Eroare Firebase ({response.StatusCode}):\n{body}",
+                    MessageBox.Show($"Firebase error ({response.StatusCode}):\n{body}",
                         "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Eroare la trimiterea datelor:\n{ex.Message}",
+                MessageBox.Show($"Could not send data:\n{ex.Message}",
                     "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -431,17 +430,17 @@ namespace focus_ai
                     return false;
 
                 string link = $"https://sitefocus.vercel.app/{uid}/{testId}";
-                string subject = "Focus AI - Rezultate test pacient";
+                string subject = "Focus AI - Patient test results";
                 string htmlContent = $@"
                     <html>
                     <body>
                         <h2>Focus AI</h2>
-                        <p>Un pacient a finalizat testul cognitiv.</p>
-                        <p><strong>ID test:</strong> {testId}</p>
-                        <p><strong>Link rezultate:</strong> <a href='{link}'>{link}</a></p>
-                        <p>Vă rugăm să accesați link-ul pentru a vizualiza detaliile complete.</p>
+                        <p>A patient completed the cognitive test.</p>
+                        <p><strong>Test ID:</strong> {testId}</p>
+                        <p><strong>Results link:</strong> <a href='{link}'>{link}</a></p>
+                        <p>Please open the link to view the full details.</p>
                         <hr/>
-                        <small>Acest mesaj a fost generat automat de aplicația Focus AI.</small>
+                        <small>This message was generated automatically by Focus AI.</small>
                     </body>
                     </html>";
 
@@ -524,8 +523,8 @@ namespace focus_ai
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             var confirm = MessageBox.Show(
-                "Ești sigur că vrei să anulezi testul?\nProgresul curent nu va fi salvat.",
-                "Anulare test", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                "Are you sure you want to cancel the test?\nCurrent progress will not be saved.",
+                "Cancel test", MessageBoxButton.YesNo, MessageBoxImage.Warning);
 
             if (confirm == MessageBoxResult.Yes)
             {

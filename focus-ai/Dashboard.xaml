@@ -197,7 +197,7 @@
 
                     <Button x:Name="ThemeToggleBtn" Grid.Column="1"
                             Style="{StaticResource IconButtonStyle}"
-                            ToolTip="Comută tema"
+                            ToolTip="Toggle theme"
                             Click="ThemeToggle_Click"
                             VerticalAlignment="Center">
                         <TextBlock x:Name="ThemeIcon" Text="☀️" FontSize="16"/>
@@ -211,19 +211,19 @@
                     <TextBlock Text="MENIU" FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}"
                                Margin="10,0,0,12"/>
-                    <RadioButton x:Name="TabProfil" Content="Profil medic"
+                    <RadioButton x:Name="TabProfil" Content="Doctor profile"
                                  GroupName="NavTabs" IsChecked="True"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="👤" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabPacienti" Content="Pacienți"
+                    <RadioButton x:Name="TabPacienti" Content="Patients"
                                  GroupName="NavTabs"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="🧑‍⚕️" Margin="0,4,0,0" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabTestari" Content="Testări pacient"
+                    <RadioButton x:Name="TabTestari" Content="Patient tests"
                                  GroupName="NavTabs"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="📋" Margin="0,4,0,0" Checked="Tab_Checked"/>
-                    <RadioButton x:Name="TabActivitati" Content="Activități pacient"
+                    <RadioButton x:Name="TabActivitati" Content="Patient activities"
                                  GroupName="NavTabs"
                                  Style="{StaticResource NavTabStyle}"
                                  Tag="🎮" Margin="0,4,0,0" Checked="Tab_Checked"/>
@@ -282,11 +282,11 @@
 
                 <ScrollViewer x:Name="PanelProfil" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock x:Name="TitleProfil" Text="Profil medic"
+                        <TextBlock x:Name="TitleProfil" Text="Doctor profile"
                                    FontSize="22" FontWeight="Bold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,6"/>
-                        <TextBlock Text="Datele contului medical și sumarul pacienților asociați"
+                        <TextBlock Text="Medical account details and associated patient summary"
                                    FontSize="13"
                                    Foreground="{DynamicResource TxtSecondary}"
                                    Margin="0,0,0,26"/>
@@ -309,7 +309,7 @@
                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock x:Name="ProfileFullName" Text="Utilizator"
+                                    <TextBlock x:Name="ProfileFullName" Text="User"
                                                FontSize="18" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"
                                                Margin="0,0,0,3"/>
@@ -324,7 +324,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Border Background="{DynamicResource AccentSecBg}"
                                                 CornerRadius="20" Padding="10,4" Margin="0,0,8,0">
-                                            <TextBlock Text="Cont activ" FontSize="11"
+                                            <TextBlock Text="Active account" FontSize="11"
                                                        Foreground="{DynamicResource AccentSecFg}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
@@ -332,13 +332,13 @@
                                                 Background="{DynamicResource BgStatGreen}"
                                                 CornerRadius="20" Padding="10,4"
                                                 Visibility="Collapsed">
-                                            <TextBlock Text="Cont medic" FontSize="11"
+                                            <TextBlock Text="Doctor account" FontSize="11"
                                                        Foreground="{DynamicResource TxtStatGreen}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
                                     </StackPanel>
                                 </StackPanel>
-                                <Button Grid.Column="2" Content="✏️  Editează profilul"
+                                <Button Grid.Column="2" Content="✏️  Edit profile"
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         VerticalAlignment="Center"
                                         Click="EditProfile_Click"/>
@@ -368,7 +368,7 @@
                                     <TextBlock x:Name="StatNrTestari" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Testări pacienți" FontSize="12"
+                                    <TextBlock Text="Patient tests" FontSize="12"
                                                Foreground="{DynamicResource TxtStatBlue}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -382,7 +382,7 @@
                                     <TextBlock x:Name="StatScorMediu" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Scor mediu testări" FontSize="12"
+                                    <TextBlock Text="Average test score" FontSize="12"
                                                Foreground="{DynamicResource TxtStatGreen}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -396,7 +396,7 @@
                                     <TextBlock x:Name="StatNrActivitati" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Activități pacienți" FontSize="12"
+                                    <TextBlock Text="Patient activities" FontSize="12"
                                                Foreground="{DynamicResource TxtStatPurple}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -410,7 +410,7 @@
                                     <TextBlock x:Name="StatScorMaxActivitati" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Scor maxim activități" FontSize="12"
+                                    <TextBlock Text="Best activity score" FontSize="12"
                                                Foreground="{DynamicResource TxtStatOrange}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -428,15 +428,15 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Pacienți"
+                                <TextBlock Text="Patients"
                                            FontSize="22" FontWeight="Bold"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            Margin="0,0,0,6"/>
-                                <TextBlock Text="Pacienții asociați contului tău medical"
+                                <TextBlock Text="Patients associated with your medical account"
                                            FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
-                            <Button Grid.Column="1" Content="⟳  Reîncarcă"
+                            <Button Grid.Column="1" Content="⟳  Reload"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     VerticalAlignment="Center"
                                     Click="RefreshPatients_Click"/>
@@ -453,7 +453,7 @@
                             <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatBlue}">
                                 <StackPanel>
-                                    <TextBlock Text="PACIENȚI" FontSize="10" FontWeight="SemiBold"
+                                    <TextBlock Text="PATIENTS" FontSize="10" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatBlue}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsTotal" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
@@ -463,7 +463,7 @@
                             <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatGreen}">
                                 <StackPanel>
-                                    <TextBlock Text="EVOLUȚIE POZITIVĂ" FontSize="10" FontWeight="SemiBold"
+                                    <TextBlock Text="POSITIVE TREND" FontSize="10" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatGreen}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsPositive" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
@@ -473,7 +473,7 @@
                             <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatOrange}">
                                 <StackPanel>
-                                    <TextBlock Text="ATENȚIE" FontSize="10" FontWeight="SemiBold"
+                                    <TextBlock Text="ATTENTION" FontSize="10" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatOrange}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsAttention" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
@@ -487,7 +487,7 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
                                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                <TextBlock Text="Se încarcă pacienții..." FontSize="13"
+                                <TextBlock Text="Loading patients..." FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
                             </StackPanel>
@@ -498,11 +498,11 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="🧑‍⚕️" FontSize="38"
                                            HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                                <TextBlock Text="Niciun pacient asociat"
+                                <TextBlock Text="No associated patients"
                                            FontSize="15" FontWeight="Medium"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                <TextBlock Text="Pacienții apar aici după asocierea cu medicul în Firebase."
+                                <TextBlock Text="Patients appear here after they are associated with the doctor in Firebase."
                                            FontSize="12"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
@@ -522,13 +522,13 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="#" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="1" Text="PACIENT" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="1" Text="PATIENT" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
                                 <TextBlock Grid.Column="2" Text="TESTE" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="3" Text="ACTIVITĂȚI" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="3" Text="ACTIVITIES" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="4" Text="PREDICȚIE" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="4" Text="PREDICTION" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
                                 <TextBlock Grid.Column="5" Text="" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
@@ -548,21 +548,21 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Testări pacient"
+                                <TextBlock Text="Patient tests"
                                            FontSize="22" FontWeight="Bold"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            Margin="0,0,0,6"/>
                                 <TextBlock x:Name="SelectedPatientTestsLabel"
-                                           Text="Selectează un pacient pentru a vedea istoricul testărilor"
+                                           Text="Select a patient to view test history"
                                            FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <Button Content="Test nou" Style="{StaticResource SecondaryButtonStyle}"
+                                <Button Content="New test" Style="{StaticResource SecondaryButtonStyle}"
                                         VerticalAlignment="Center" Margin="0,0,10,0"
                                         Click="NewTest_Click"/>
-                                <Button Content="⟳  Reîncarcă" Style="{StaticResource PrimaryButtonStyle}"
+                                <Button Content="⟳  Reload" Style="{StaticResource PrimaryButtonStyle}"
                                         VerticalAlignment="Center"
                                         Click="RefreshTests_Click"/>
                             </StackPanel>
@@ -578,7 +578,7 @@
                             <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatBlue}">
                                 <StackPanel>
-                                    <TextBlock Text="ULTIMA TESTARE" FontSize="10"
+                                    <TextBlock Text="LAST TEST" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatBlue}"
                                                Margin="0,0,0,8"/>
@@ -590,7 +590,7 @@
                             <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatGreen}">
                                 <StackPanel>
-                                    <TextBlock Text="CEL MAI BUN SCOR" FontSize="10"
+                                    <TextBlock Text="BEST SCORE" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatGreen}"
                                                Margin="0,0,0,8"/>
@@ -602,7 +602,7 @@
                             <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatPurple}">
                                 <StackPanel>
-                                    <TextBlock Text="SCOR MEDIU" FontSize="10"
+                                    <TextBlock Text="AVERAGE SCORE" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatPurple}"
                                                Margin="0,0,0,8"/>
@@ -618,7 +618,7 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
                                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                <TextBlock Text="Se încarcă testările..." FontSize="13"
+                                <TextBlock Text="Loading tests..." FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
                             </StackPanel>
@@ -629,11 +629,11 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="📋" FontSize="38"
                                            HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                                <TextBlock Text="Nicio testare înregistrată"
+                                <TextBlock Text="No tests recorded"
                                            FontSize="15" FontWeight="Medium"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                <TextBlock Text="Testările tale vor apărea aici."
+                                <TextBlock Text="Patient tests will appear here."
                                            FontSize="12"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
@@ -654,13 +654,13 @@
                                 <TextBlock Grid.Column="0" Text="#" FontSize="10"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="1" Text="DATĂ ȘI ORĂ" FontSize="10"
+                                <TextBlock Grid.Column="1" Text="DATE AND TIME" FontSize="10"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="2" Text="DURATĂ" FontSize="10"
+                                <TextBlock Grid.Column="2" Text="DURATION" FontSize="10"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="3" Text="SCOR" FontSize="10"
+                                <TextBlock Grid.Column="3" Text="SCORE" FontSize="10"
                                            FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"
                                            HorizontalAlignment="Right"/>
@@ -686,22 +686,22 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Activități pacient"
+                                <TextBlock Text="Patient activities"
                                            FontSize="22" FontWeight="Bold"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            Margin="0,0,0,6"/>
                                 <TextBlock x:Name="SelectedPatientActivitiesLabel"
-                                           Text="Selectează un pacient pentru a vedea istoricul activităților"
+                                           Text="Select a patient to view activity history"
                                            FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal"
                                         HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <Button Content="🎮  Joc nou"
+                                <Button Content="🎮  New game"
                                         Style="{StaticResource SecondaryButtonStyle}"
                                         VerticalAlignment="Center" Margin="0,0,10,0"
                                         Click="NewGame_Click"/>
-                                <Button Content="⟳  Reîncarcă"
+                                <Button Content="⟳  Reload"
                                         Style="{StaticResource PrimaryButtonStyle}"
                                         VerticalAlignment="Center"
                                         Click="RefreshActivities_Click"/>
@@ -721,7 +721,7 @@
                             <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatBlue}">
                                 <StackPanel>
-                                    <TextBlock Text="ULTIMA ACTIVITATE" FontSize="10"
+                                    <TextBlock Text="LAST ACTIVITY" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatBlue}"
                                                Margin="0,0,0,8"/>
@@ -734,7 +734,7 @@
                             <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatGreen}">
                                 <StackPanel>
-                                    <TextBlock Text="CEL MAI BUN SCOR" FontSize="10"
+                                    <TextBlock Text="BEST SCORE" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatGreen}"
                                                Margin="0,0,0,8"/>
@@ -746,7 +746,7 @@
                             <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatPurple}">
                                 <StackPanel>
-                                    <TextBlock Text="SCOR MEDIU" FontSize="10"
+                                    <TextBlock Text="AVERAGE SCORE" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatPurple}"
                                                Margin="0,0,0,8"/>
@@ -758,7 +758,7 @@
                             <Border Grid.Column="6" CornerRadius="14" Padding="20,16"
                                     Background="{DynamicResource BgStatOrange}">
                                 <StackPanel>
-                                    <TextBlock Text="TOTAL SESIUNI" FontSize="10"
+                                    <TextBlock Text="TOTAL SESSIONS" FontSize="10"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatOrange}"
                                                Margin="0,0,0,8"/>
@@ -774,7 +774,7 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
                                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                                <TextBlock Text="Se încarcă activitățile..." FontSize="13"
+                                <TextBlock Text="Loading activities..." FontSize="13"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
                             </StackPanel>
@@ -785,11 +785,11 @@
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="🎮" FontSize="38"
                                            HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                                <TextBlock Text="Nicio activitate înregistrată"
+                                <TextBlock Text="No activities recorded"
                                            FontSize="15" FontWeight="Medium"
                                            Foreground="{DynamicResource TxtPrimary}"
                                            HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                <TextBlock Text="Joacă un joc de antrenament cognitiv pentru a vedea istoricul."
+                                <TextBlock Text="Start a cognitive training game to view history."
                                            FontSize="12"
                                            Foreground="{DynamicResource TxtSecondary}"
                                            HorizontalAlignment="Center"/>
@@ -809,15 +809,15 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="#" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="1" Text="DATĂ ȘI ORĂ" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="1" Text="DATE AND TIME" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="2" Text="DURATĂ" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="2" Text="DURATION" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="3" Text="JOC" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="3" Text="GAME" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="4" Text="DIFICULTATE" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="4" Text="DIFFICULTY" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"/>
-                                <TextBlock Grid.Column="5" Text="SCOR" FontSize="10" FontWeight="SemiBold"
+                                <TextBlock Grid.Column="5" Text="SCORE" FontSize="10" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TxtMuted}"
                                            HorizontalAlignment="Right"/>
                             </Grid>

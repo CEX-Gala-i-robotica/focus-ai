@@ -29,7 +29,7 @@ namespace focus_ai
         private bool _isPlaying  = false;
         private bool _isDark;
         private bool _closedByButton = false;
-        private string _difficulty   = "Mediu";
+        private string _difficulty   = "Medium";
 
         private DispatcherTimer _timer = new();
         private DateTime _roundStart;
@@ -87,9 +87,9 @@ namespace focus_ai
 
         private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
-            _difficulty = RbEasy.IsChecked == true ? "Ușor"
-                        : RbHard.IsChecked == true ? "Dificil"
-                        : "Mediu";
+            _difficulty = RbEasy.IsChecked == true ? "Easy"
+                        : RbHard.IsChecked == true ? "Hard"
+                        : "Medium";
             _round  = 0;
             _score  = 0;
             _lives  = 3;
@@ -107,7 +107,7 @@ namespace focus_ai
 
         private void BtnRestart_Click(object sender, RoutedEventArgs e)
         {
-            // Buton "Joacă din nou" din overlay — duce la ecranul de instrucțiuni
+            // Replay button returns to the instruction screen.
             WinOverlay.Visibility = Visibility.Collapsed;
             PanelGame.Visibility  = Visibility.Collapsed;
             PanelInstruction.Visibility = Visibility.Visible;
@@ -120,7 +120,7 @@ namespace focus_ai
             _timer.Stop();
             _round++;
 
-            _timeLeft = _difficulty switch { "Ușor" => 25, "Dificil" => 15, _ => 20 };
+            _timeLeft = _difficulty switch { "Easy" => 25, "Hard" => 15, _ => 20 };
 
             int idx;
             do { idx = _rng.Next(_charSets.Length); } while (idx == _lastSetIndex);
@@ -138,7 +138,7 @@ namespace focus_ai
                              + string.Concat(Enumerable.Repeat("🖤", 3 - _lives));
             TxtTimer.Text    = _timeLeft.ToString();
             TxtTimer.Foreground = (SolidColorBrush)FindResource("TxtPrimary");
-            TxtRoundInfo.Text   = $"Runda {_round}/{TotalRounds}  •  {cols}×{rows}";
+            TxtRoundInfo.Text   = $"Round {_round}/{TotalRounds}  •  {cols}×{rows}";
 
             GameGrid.Columns = cols;
             GameGrid.Children.Clear();
@@ -210,7 +210,7 @@ namespace focus_ai
                 _score += pts;
 
                 btn.Background = new SolidColorBrush(Color.FromArgb(200, 34, 197, 94));
-                ShowFeedback("✅", $"+{pts} puncte!", $"Runda {_round} completată în {elapsed:F1}s");
+                ShowFeedback("✅", $"+{pts} points!", $"Round {_round} completed in {elapsed:F1}s");
 
                 var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
                 t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
@@ -234,7 +234,7 @@ namespace focus_ai
                 }
                 else
                 {
-                    ShowFeedback("❌", "Greșit!", $"Mai ai {_lives} {(_lives == 1 ? "viață" : "vieți")}");
+                    ShowFeedback("❌", "Wrong!", $"You have {_lives} {(_lives == 1 ? "life" : "lives")} left");
                     var ft = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
                     ft.Tick += (_, _) => { ft.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; };
                     ft.Start();
@@ -264,7 +264,7 @@ namespace focus_ai
 
                 if (_lives <= 0) { EndGame(false); return; }
 
-                ShowFeedback("⏰", "Timp expirat!", $"Mai ai {_lives} {(_lives == 1 ? "viață" : "vieți")}");
+                ShowFeedback("⏰", "Time is up!", $"You have {_lives} {(_lives == 1 ? "life" : "lives")} left");
                 var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
                 t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
                 t.Start();
@@ -284,7 +284,7 @@ namespace focus_ai
                 _timerBarMaxWidth = pb.ActualWidth;
             if (_timerBarMaxWidth <= 0) return;
 
-            int maxTime   = _difficulty switch { "Ușor" => 25, "Dificil" => 15, _ => 20 };
+            int maxTime   = _difficulty switch { "Easy" => 25, "Hard" => 15, _ => 20 };
             double ratio  = Math.Max(0, (double)_timeLeft / maxTime);
             TimerBar.Width = _timerBarMaxWidth * ratio;
             TimerBar.Background = ratio > 0.5
@@ -311,14 +311,14 @@ namespace focus_ai
             string emoji = won              ? "🏆"
                          : _round > TotalRounds / 2 ? "😤"
                          : "💀";
-            string title = won ? "Felicitări!" : "Game Over";
+            string title = won ? "Congratulations!" : "Game Over";
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
             WinSubtitle.Text = won
-                ? $"Ai completat toate {TotalRounds} rundele!"
-                : $"Ai ajuns la runda {_round}/{TotalRounds}  •  Dificultate: {_difficulty}";
-            WinScore.Text = $"Scor: {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
+                ? $"You completed all {TotalRounds} rounds!"
+                : $"You reached round {_round}/{TotalRounds}  •  Difficulty: {_difficulty}";
+            WinScore.Text = $"Score: {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
 
             // Arată overlay-ul pe PanelGame
             WinOverlay.Visibility = Visibility.Visible;

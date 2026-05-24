@@ -29,7 +29,7 @@ namespace focus_ai
                 TxtTimer.Text = _stopwatch.Elapsed.TotalSeconds.ToString("F3") + " s";
 
             BioCollector.Instance.TouchDetected += OnTouchDetected;
-            SetStatus("Apasă Start pentru a porni testul", StatusColor.Blue);
+            SetStatus("Press Start to begin the test", StatusColor.Blue);
         }
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
@@ -44,7 +44,7 @@ namespace focus_ai
             TxtTimer.Text = "0.000 s";
             _stopwatch.Reset();
 
-            SetStatus("Așteaptă semnalul sonor...", StatusColor.Orange);
+            SetStatus("Wait for the sound cue...", StatusColor.Orange);
 
             int waitTime = _random.Next(5000, 15001);
             await Task.Delay(waitTime);
@@ -58,11 +58,11 @@ namespace focus_ai
                 _stopwatch.Start();
                 _uiTimer.Start();
 
-                SetStatus("APASĂ PE SENZOR ACUM!", StatusColor.Green);
+                SetStatus("PRESS THE SENSOR NOW!", StatusColor.Green);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Eroare: " + ex.Message);
+                MessageBox.Show("Error: " + ex.Message);
                 BtnStart.IsEnabled = true;
                 _testStarted = false;
             }
@@ -87,7 +87,7 @@ namespace focus_ai
                 TxtTimer.Text = elapsed.ToString("F3") + " s";
                 SetStatus($"Bravo! Timp: {elapsed:F3} s", StatusColor.Blue);
 
-                MessageBox.Show($"Rezultat: {elapsed:F3} secunde", "Test finalizat");
+                MessageBox.Show($"Result: {elapsed:F3} seconds", "Test completed");
                 Close();
             });
         }

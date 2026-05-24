@@ -35,9 +35,9 @@ namespace focus_ai
         private int  _currentInputIndex = 0;
         private int  _level             = 1;
         private int  _lives             = 3;
-        private string _difficulty      = "Ușor";
+        private string _difficulty      = "Easy";
 
-        // ── Numărul maxim de runde (nivele) ──
+        // Maximum number of rounds.
         private const int MaxLevels = 20;
 
         // ── Timing (ms) ──
@@ -162,7 +162,7 @@ namespace focus_ai
         }
 
         // ═══════════════════════════════════════════════════
-        //  SCORUL CURENT (0..100)
+        //  CURRENT SCORE (0..100)
         // ═══════════════════════════════════════════════════
         private double GetCurrentScore()
         {
@@ -177,9 +177,9 @@ namespace focus_ai
         // ═══════════════════════════════════════════════════
         private void StartGame_Click(object sender, RoutedEventArgs e)
         {
-            _difficulty = DiffEasy.IsChecked == true   ? "Ușor"
-                        : DiffMedium.IsChecked == true ? "Mediu"
-                        : "Dificil";
+            _difficulty = DiffEasy.IsChecked == true   ? "Easy"
+                        : DiffMedium.IsChecked == true ? "Medium"
+                        : "Hard";
 
             ApplyDifficultySettings();
 
@@ -201,17 +201,17 @@ namespace focus_ai
         {
             switch (_difficulty)
             {
-                case "Ușor":
+                case "Easy":
                     _flashOnMs  = 700;
                     _flashOffMs = 300;
                     _delayMs    = 500;
                     break;
-                case "Mediu":
+                case "Medium":
                     _flashOnMs  = 500;
                     _flashOffMs = 200;
                     _delayMs    = 350;
                     break;
-                case "Dificil":
+                case "Hard":
                     _flashOnMs  = 350;
                     _flashOffMs = 150;
                     _delayMs    = 250;
@@ -240,7 +240,7 @@ namespace focus_ai
 
             UpdateHUD();
             UpdateProgress(0, _sequence.Count);
-            StatusMessage.Text = $"🔵  Urmărește secvența... (Nivel {_level}/{MaxLevels})";
+            StatusMessage.Text = $"🔵  Watch the sequence... (Level {_level}/{MaxLevels})";
 
             await Task.Delay(_delayMs + 200);
 
@@ -251,7 +251,7 @@ namespace focus_ai
             }
 
             _phase = GamePhase.Waiting;
-            StatusMessage.Text = "👆  Reproduce secvența!";
+            StatusMessage.Text = "👆  Repeat the sequence!";
             SetButtonsEnabled(true);
         }
 
@@ -280,7 +280,7 @@ namespace focus_ai
                     SetButtonsEnabled(false);
 
                     _level++;
-                    StatusMessage.Text = $"✅  Corect! Scor curent: {GetCurrentScore():F0}/100";
+                    StatusMessage.Text = $"✅  Correct! Current score: {GetCurrentScore():F0}/100";
                     UpdateHUD();
 
                     await Task.Delay(900);
@@ -304,7 +304,7 @@ namespace focus_ai
                 }
                 else
                 {
-                    StatusMessage.Text = $"❌  Greșit! Mai ai {_lives} {"viață".PluralRo(_lives)}. Reluăm secvența...";
+                    StatusMessage.Text = $"❌  Wrong! You have {_lives} {"life".PluralRo(_lives)} left. Replaying the sequence...";
                     await Task.Delay(1200);
 
                     _playerInput.Clear();
@@ -320,7 +320,7 @@ namespace focus_ai
                     }
 
                     _phase = GamePhase.Waiting;
-                    StatusMessage.Text = "👆  Reproduce secvența!";
+                    StatusMessage.Text = "👆  Repeat the sequence!";
                     SetButtonsEnabled(true);
                 }
             }
@@ -370,18 +370,18 @@ namespace focus_ai
             if (won || completedLevels == MaxLevels)
             {
                 emoji = "🏆";
-                title = "Felicitări! Ai terminat toate nivelele!";
+                title = "Congratulations! You completed all levels!";
             }
             else
             {
                 emoji = _lives == 0 ? "💀" : "🎯";
-                title = _lives == 0 ? "Game Over!" : "Bine jucat!";
+                title = _lives == 0 ? "Game Over!" : "Well played!";
             }
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
-            WinSubtitle.Text = $"Nivel atins: {completedLevels}/{MaxLevels}  •  Scor: {finalScore:F1}/100  •  Dificultate: {_difficulty}";
-            WinScore.Text    = $"Scor final: {finalScore:F1} / 100";
+            WinSubtitle.Text = $"Level reached: {completedLevels}/{MaxLevels}  •  Score: {finalScore:F1}/100  •  Difficulty: {_difficulty}";
+            WinScore.Text    = $"Final score: {finalScore:F1} / 100";
 
             WinOverlay.Visibility = Visibility.Visible;
 
@@ -409,7 +409,7 @@ namespace focus_ai
                 {
                     dateTime   = dateTimeFormatted,
                     duration   = durationFormatted,
-                    game       = "Secvențe",
+                    game       = "Sequences",
                     difficulty = _difficulty,
                     scor       = Math.Round(finalScore, 2),
                     rawScore   = (int)Math.Round(finalScore),
@@ -479,7 +479,7 @@ namespace focus_ai
         internal static string PluralRo(this string singular, int count)
             => count == 1 ? singular : singular switch
             {
-                "viață" => "vieți",
+                "life" => "lives",
                 _       => singular
             };
     }

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="focus_ai.SecventeGame"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Focus AI – Secvențe"
+        Title="Focus AI - Sequences"
         Height="700" Width="900"
         WindowState="Maximized"
         ResizeMode="CanMinimize">
@@ -23,7 +23,7 @@
 
                 <Button x:Name="BackButton"
                         Grid.Column="0"
-                        Content="← Înapoi"
+                        Content="← Back"
                         FontSize="13" FontWeight="SemiBold"
                         Background="{DynamicResource AccentSecBg}"
                         Foreground="{DynamicResource AccentSecFg}"
@@ -50,11 +50,11 @@
                 <StackPanel Grid.Column="1"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center">
-                    <TextBlock Text="🔢  Secvențe"
+                    <TextBlock Text="🔢  Sequences"
                                FontSize="20" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="Memorează și reproduce secvența de butoane"
+                    <TextBlock Text="Memorize and repeat the button sequence"
                                FontSize="12"
                                Foreground="{DynamicResource TxtSecondary}"
                                HorizontalAlignment="Center"/>
@@ -64,7 +64,7 @@
                     <Border Background="{DynamicResource BgStatBlue}"
                             CornerRadius="10" Padding="14,8" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="NIVEL" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="LEVEL" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatBlue}"
                                        HorizontalAlignment="Center"/>
                             <TextBlock x:Name="LevelText" Text="1"
@@ -76,7 +76,7 @@
                     <Border Background="{DynamicResource BgStatGreen}"
                             CornerRadius="10" Padding="14,8" Margin="0,0,10,0">
                         <StackPanel>
-                            <TextBlock Text="SCOR" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="SCORE" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatGreen}"
                                        HorizontalAlignment="Center"/>
                             <TextBlock x:Name="ScoreText" Text="0"
@@ -88,7 +88,7 @@
                     <Border Background="{DynamicResource BgStatOrange}"
                             CornerRadius="10" Padding="14,8">
                         <StackPanel>
-                            <TextBlock Text="VIEȚI" FontSize="9" FontWeight="SemiBold"
+                            <TextBlock Text="LIVES" FontSize="9" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtStatOrange}"
                                        HorizontalAlignment="Center"/>
                             <TextBlock x:Name="LivesText" Text="❤️ ❤️ ❤️"
@@ -107,22 +107,22 @@
                 <StackPanel HorizontalAlignment="Center" Width="420">
                     <TextBlock Text="🔢" FontSize="64"
                                HorizontalAlignment="Center" Margin="0,0,0,16"/>
-                    <TextBlock Text="Secvențe"
+                    <TextBlock Text="Sequences"
                                FontSize="30" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"
                                HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                    <TextBlock Text="Urmărește secvența de butoane iluminate și reproduce-o în aceeași ordine. Secvența devine mai lungă cu fiecare nivel! Jocul se termină după 20 de nivele sau când rămâi fără vieți."
+                    <TextBlock Text="Watch the highlighted button sequence and repeat it in the same order. The sequence gets longer with each level. The game ends after 20 levels or when you run out of lives."
                                FontSize="13" Foreground="{DynamicResource TxtSecondary}"
                                TextWrapping="Wrap" TextAlignment="Center"
                                Margin="0,0,0,32"/>
 
-                    <TextBlock Text="DIFICULTATE" FontSize="10" FontWeight="SemiBold"
+                    <TextBlock Text="DIFFICULTY" FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource TxtMuted}"
                                HorizontalAlignment="Center" Margin="0,0,0,14"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
                                 Margin="0,0,0,32">
                         <RadioButton x:Name="DiffEasy"
-                                     Content="Ușor"
+                                     Content="Easy"
                                      GroupName="Difficulty"
                                      IsChecked="True"
                                      FontSize="13" FontWeight="SemiBold"
@@ -147,7 +147,7 @@
                             </RadioButton.Template>
                         </RadioButton>
                         <RadioButton x:Name="DiffMedium"
-                                     Content="Mediu"
+                                     Content="Medium"
                                      GroupName="Difficulty"
                                      FontSize="13" FontWeight="SemiBold"
                                      Foreground="{DynamicResource TxtSecondary}"
@@ -171,7 +171,7 @@
                             </RadioButton.Template>
                         </RadioButton>
                         <RadioButton x:Name="DiffHard"
-                                     Content="Dificil"
+                                     Content="Hard"
                                      GroupName="Difficulty"
                                      FontSize="13" FontWeight="SemiBold"
                                      Foreground="{DynamicResource TxtSecondary}"
@@ -196,7 +196,7 @@
                         </RadioButton>
                     </StackPanel>
 
-                    <Button Content="▶  Începe jocul"
+                    <Button Content="▶  Start game"
                             FontSize="15" FontWeight="Bold"
                             Foreground="White"
                             Background="#3B82F6"
@@ -230,7 +230,7 @@
                             HorizontalAlignment="Center"
                             Margin="0,0,0,28">
                         <TextBlock x:Name="StatusMessage"
-                                   Text="Urmărește secvența..."
+                                   Text="Watch the sequence..."
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    HorizontalAlignment="Center"/>
@@ -283,19 +283,19 @@
                 <StackPanel HorizontalAlignment="Center">
                     <TextBlock x:Name="WinEmoji" Text="🏆" FontSize="52"
                                HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                    <TextBlock x:Name="WinTitle" Text="Excelent!" FontSize="26" FontWeight="Bold"
+                    <TextBlock x:Name="WinTitle" Text="Excellent!" FontSize="26" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"
                                HorizontalAlignment="Center" Margin="0,0,0,6"/>
                     <TextBlock x:Name="WinSubtitle" Text=""
                                FontSize="14" Foreground="{DynamicResource TxtSecondary}"
                                HorizontalAlignment="Center" Margin="0,0,0,6"
                                TextAlignment="Center" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="WinScore" Text="Scor final: 0"
+                    <TextBlock x:Name="WinScore" Text="Final score: 0"
                                FontSize="22" FontWeight="Bold"
                                Foreground="{DynamicResource AccentSecFg}"
                                HorizontalAlignment="Center" Margin="0,0,0,24" TextAlignment="Center"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="🔄  Joacă din nou"
+                        <Button Content="🔄  Play again"
                                 Click="WinPlayAgain_Click"
                                 Background="{DynamicResource AccentPrimary}"
                                 Foreground="White" FontSize="13" FontWeight="SemiBold"
@@ -314,7 +314,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
-                        <Button Content="🏠  Meniu principal"
+                        <Button Content="🏠  Main menu"
                                 Click="WinGoMenu_Click"
                                 Background="{DynamicResource AccentSecBg}"
                                 Foreground="{DynamicResource AccentSecFg}"

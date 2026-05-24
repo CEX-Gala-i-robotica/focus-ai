@@ -83,9 +83,7 @@ namespace focus_ai
             startTest.Closed += async (s, args) =>
             {
                 this.Show();
-                // Reîmprospătare automată după încheierea testului
                 await LoadTestsFromFirebaseAsync();
-                // Dacă utilizatorul se afla pe fila de activități, reîmprospătăm și acelea
                 if (PanelActivitati.Visibility == Visibility.Visible)
                 {
                     await LoadActivitiesFromFirebaseAsync();
@@ -130,7 +128,6 @@ namespace focus_ai
             else if (sender == TabTestari)
             {
                 PanelTestari.Visibility = Visibility.Visible;
-                // Reîmprospătare automată când utilizatorul revine la fila de teste
                 if (_testsCache.Count == 0 || TestLoadingState.Visibility == Visibility.Visible)
                 {
                     _ = LoadTestsFromFirebaseAsync();
@@ -139,7 +136,6 @@ namespace focus_ai
             else
             {
                 PanelActivitati.Visibility = Visibility.Visible;
-                // Reîmprospătare automată când utilizatorul revine la fila de activități
                 if (_activitiesCache.Count == 0 && ActLoadingState.Visibility != Visibility.Visible)
                 {
                     _ = LoadActivitiesFromFirebaseAsync();
@@ -200,7 +196,7 @@ namespace focus_ai
         {
             string displayName = $"{name} {surname}".Trim();
             if (string.IsNullOrEmpty(displayName))
-                displayName = email.Contains('@') ? email.Split('@')[0] : "Utilizator";
+                displayName = email.Contains('@') ? email.Split('@')[0] : "User";
 
             ProfileFullName.Text = displayName;
             ProfileEmail.Text = email;
@@ -232,7 +228,7 @@ namespace focus_ai
                 if (!string.IsNullOrEmpty(p.EffectiveBirthDate)) k.SetValue("BirthDate", p.EffectiveBirthDate);
                 if (!string.IsNullOrEmpty(p.EffectivePhone)) k.SetValue("Phone", p.EffectivePhone);
                 if (!string.IsNullOrEmpty(p.DoctorEmail)) k.SetValue("DoctorEmail", p.DoctorEmail);
-                if (!string.IsNullOrEmpty(p.DoctorPhone)) k.SetValue("DoctorPhone", p.DoctorPhone);
+                if (!string.IsNullOrEmpty(p.Adress)) k.SetValue("Adress", p.Adress);
             }
             catch { }
         }
@@ -648,19 +644,19 @@ namespace focus_ai
 
             var (diffBgHex, diffFgHex) = a.Difficulty switch
             {
-                "Ușor" => ("#3B82F620", "#3B82F6"),
-                "Mediu" => ("#F59E0B20", "#F59E0B"),
-                "Dificil" => ("#EF444420", "#EF4444"),
+                "Easy" or "Ușor" or "Usor" => ("#3B82F620", "#3B82F6"),
+                "Medium" or "Mediu" => ("#F59E0B20", "#F59E0B"),
+                "Hard" or "Dificil" => ("#EF444420", "#EF4444"),
                 _ => ("#64748B20", "#64748B")
             };
 
             string gameIcon = a.Game switch
             {
-                "Memorie" => "🧠",
+                "Memory" or "Memorie" => "🧠",
                 "Stroop Test" => "🎨",
                 "Visual Search" => "🔍",
-                "Secvențe" => "🔢",
-                "Matematică rapidă" => "➕",
+                "Sequences" or "Secvențe" => "🔢",
+                "Quick Math" or "Matematică rapidă" => "➕",
                 _ => "🎮"
             };
 
@@ -985,7 +981,7 @@ namespace focus_ai
         {
             var scores = tests.Select(t => t.Scor).Concat(activities.Select(a => a.Scor)).ToList();
             if (scores.Count < 3)
-                return new PredictionSummary("insuficient", 0.35, "Sunt necesare cel puțin 3 rezultate.");
+                return new PredictionSummary("insufficient", 0.35, "At least 3 results are required.");
 
             var recent = scores.Take(3).Average();
             var previous = scores.Skip(3).Take(3).DefaultIfEmpty(recent).Average();
@@ -994,10 +990,10 @@ namespace focus_ai
             double confidence = Math.Min(0.95, 0.45 + Math.Min(total, 10) * 0.04 + Math.Min(Math.Abs(delta), 20) / 100);
 
             if (delta >= 5)
-                return new PredictionSummary("pozitivă", confidence, $"Media recentă este cu {delta:F1} puncte mai mare.");
+                return new PredictionSummary("positive", confidence, $"The recent average is {delta:F1} points higher.");
             if (delta <= -5)
-                return new PredictionSummary("negativă", confidence, $"Media recentă este cu {Math.Abs(delta):F1} puncte mai mică.");
-            return new PredictionSummary("stabilă", confidence, "Scorurile recente sunt apropiate de media anterioară.");
+                return new PredictionSummary("negative", confidence, $"The recent average is {Math.Abs(delta):F1} points lower.");
+            return new PredictionSummary("stable", confidence, "Recent scores are close to the previous average.");
         }
 
         private void RenderPatients(List<PatientEntry> patients)
@@ -1006,8 +1002,8 @@ namespace focus_ai
             PatientsRowsPanel.Children.Clear();
 
             PatientsTotal.Text = patients.Count.ToString();
-            PatientsPositive.Text = patients.Count(p => p.Prediction.Direction == "pozitivă").ToString();
-            PatientsAttention.Text = patients.Count(p => p.Prediction.Direction == "negativă").ToString();
+            PatientsPositive.Text = patients.Count(p => p.Prediction.Direction == "positive").ToString();
+            PatientsAttention.Text = patients.Count(p => p.Prediction.Direction == "negative").ToString();
 
             StatNrTestari.Text = patients.Sum(p => p.TestCount).ToString();
             StatNrActivitati.Text = patients.Sum(p => p.ActivityCount).ToString();
@@ -1128,9 +1124,9 @@ namespace focus_ai
         {
             var (bg, fg) = prediction.Direction switch
             {
-                "pozitivă" => ("#22C55E20", "#22C55E"),
-                "negativă" => ("#EF444420", "#EF4444"),
-                "stabilă" => ("#3B82F620", "#3B82F6"),
+                "positive" => ("#22C55E20", "#22C55E"),
+                "negative" => ("#EF444420", "#EF4444"),
+                "stable" => ("#3B82F620", "#3B82F6"),
                 _ => ("#64748B20", "#64748B")
             };
 
@@ -1141,7 +1137,7 @@ namespace focus_ai
                 Padding = new Thickness(8, 4, 8, 4),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                ToolTip = $"{prediction.Reason} Încredere: {prediction.Confidence:P0}"
+                ToolTip = $"{prediction.Reason} Confidence: {prediction.Confidence:P0}"
             };
             badge.Child = new TextBlock
             {
@@ -1159,8 +1155,8 @@ namespace focus_ai
             _selectedPatientName = patient.Name;
             FocusSession.ActivePatientId = patient.Id;
 
-            SelectedPatientTestsLabel.Text = $"Pacient selectat: {patient.Name}";
-            SelectedPatientActivitiesLabel.Text = $"Pacient selectat: {patient.Name}";
+            SelectedPatientTestsLabel.Text = $"Selected patient: {patient.Name}";
+            SelectedPatientActivitiesLabel.Text = $"Selected patient: {patient.Name}";
 
             _ = LoadTestsFromFirebaseAsync();
             _ = LoadActivitiesFromFirebaseAsync();
@@ -1172,7 +1168,7 @@ namespace focus_ai
         {
             if (!string.IsNullOrWhiteSpace(GetActivePatientId())) return true;
 
-            MessageBox.Show("Selectează mai întâi un pacient din lista de pacienți.",
+            MessageBox.Show("Select a patient from the patient list first.",
                 "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
             TabPacienti.IsChecked = true;
             return false;
@@ -1243,7 +1239,7 @@ namespace focus_ai
         private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _isRunning = false;
-            _cts.Cancel(); // Anulează cererile HTTP în curs
+            _cts.Cancel();
             _readThread?.Join(500);
             if (_serialPort?.IsOpen == true) { _serialPort.Close(); _serialPort.Dispose(); }
         }
@@ -1292,11 +1288,8 @@ namespace focus_ai
         [JsonPropertyName("doctor-email")]
         public string? DoctorEmail { get; set; }
 
-        [JsonPropertyName("doctor-phone")]
-        public string? DoctorPhone { get; set; }
-
-        [JsonPropertyName("cabinetAddress")]
-        public string? CabinetAddress { get; set; }
+        [JsonPropertyName("adress")]
+        public string? Adress { get; set; }
 
         public string EffectiveBirthDate => BirthDate ?? LegacyBirthDate ?? "";
         public string EffectivePhone => Phone ?? LegacyPhone ?? "";

@@ -134,7 +134,7 @@ namespace focus_ai
 
             if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Email și parola sunt obligatorii.", "Atenție",
+                MessageBox.Show("Email and password are required.", "Warning",
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -169,19 +169,19 @@ namespace focus_ai
                     var message = error["error"]?["message"]?.ToString();
 
                     if (message == "EMAIL_NOT_FOUND" || message == "INVALID_PASSWORD" || message == "INVALID_LOGIN_CREDENTIALS")
-                        MessageBox.Show("Email sau parolă incorectă.", "Eroare autentificare",
+                        MessageBox.Show("Incorrect email or password.", "Sign-in error",
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                     else if (message == "USER_DISABLED")
-                        MessageBox.Show("Contul a fost dezactivat.", "Eroare autentificare",
+                        MessageBox.Show("The account has been disabled.", "Sign-in error",
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                     else
-                        MessageBox.Show(message, "Eroare autentificare",
+                        MessageBox.Show(message, "Sign-in error",
                                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -222,13 +222,13 @@ namespace focus_ai
                 else
                 {
                     var error = JObject.Parse(responseJson);
-                    MessageBox.Show(error["error"]?["message"]?.ToString() ?? "Autentificare Google eșuată.",
-                        "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(error["error"]?["message"]?.ToString() ?? "Google sign-in failed.",
+                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -260,7 +260,7 @@ namespace focus_ai
 
             if (string.IsNullOrEmpty(email))
             {
-                MessageBox.Show("Introdu adresa de email pentru a reseta parola.", "Resetare parolă",
+                MessageBox.Show("Enter your email address to reset your password.", "Password reset",
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -275,15 +275,15 @@ namespace focus_ai
                     new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json"));
 
                 if (response.IsSuccessStatusCode)
-                    MessageBox.Show("Email de resetare trimis! Verifică căsuța de email.", "Resetare parolă",
+                    MessageBox.Show("Password reset email sent. Check your inbox.", "Password reset",
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                 else
-                    MessageBox.Show("Nu am putut trimite emailul de resetare. Verifică adresa introdusă.", "Eroare",
+                    MessageBox.Show("Could not send the reset email. Check the address you entered.", "Error",
                                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Eroare", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -291,7 +291,7 @@ namespace focus_ai
         {
             LoginButton.IsEnabled = !busy;
             GoogleSignUpButton.IsEnabled = !busy;
-            LoginButton.Content = busy ? "Se procesează…" : "Autentificare";
+            LoginButton.Content = busy ? "Processing..." : "Sign in";
         }
 
         private void SignUpLink_Click(object sender, RoutedEventArgs e)
@@ -333,7 +333,7 @@ namespace focus_ai
             }
             catch
             {
-                return false; // la eroare, mergi la Dashboard
+                return false;
             }
         }
     }

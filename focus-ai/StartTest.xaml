@@ -1,7 +1,7 @@
 ﻿<Window x:Class="focus_ai.StartTest"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Focus AI – Test cognitiv"
+        Title="Focus AI - Cognitive Test"
         Height="620" Width="900"
         WindowState="Maximized"
         ResizeMode="CanMinimize">
@@ -82,18 +82,18 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Border Background="{DynamicResource AccentSecBg}"
                                 CornerRadius="20" Padding="10,3">
-                            <TextBlock Text="EVALUARE COGNITIVĂ" FontSize="10"
+                            <TextBlock Text="COGNITIVE ASSESSMENT" FontSize="10"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource AccentSecFg}"/>
                         </Border>
                     </StackPanel>
                     <TextBlock x:Name="TitleText"
-                               Text="Test cognitiv"
+                               Text="Cognitive test"
                                FontSize="26" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}"
                                Margin="0,0,0,5"/>
                     <TextBlock x:Name="SubtitleText"
-                               Text="Parcurge toate cele 3 etape în ordinea preferată. Cronometrul pornește la prima etapă lansată."
+                               Text="Complete all 3 stages in any order. The timer starts when the first stage begins."
                                FontSize="13"
                                Foreground="{DynamicResource TxtSecondary}"/>
                 </StackPanel>
@@ -103,7 +103,7 @@
                         CornerRadius="14" Padding="26,14"
                         VerticalAlignment="Center">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="TIMP TOTAL" FontSize="9" FontWeight="SemiBold"
+                        <TextBlock Text="TOTAL TIME" FontSize="9" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center" Margin="0,0,0,4"/>
                         <TextBlock x:Name="TimerText"
@@ -113,7 +113,7 @@
                                    FontFamily="Consolas"
                                    HorizontalAlignment="Center"/>
                         <TextBlock x:Name="TimerStatusText"
-                                   Text="În așteptare"
+                                   Text="Waiting"
                                    FontSize="10"
                                    Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center" Margin="0,5,0,0"/>
@@ -161,18 +161,18 @@
                         <Border x:Name="Status1Badge" Grid.Column="1"
                                 CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
-                            <TextBlock x:Name="Status1Text" Text="Neparcursă"
+                            <TextBlock x:Name="Status1Text" Text="Not completed"
                                        FontSize="10" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtSecondary}"/>
                         </Border>
                     </Grid>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Urmărirea privirii"
+                        <TextBlock Text="Eye tracking"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
-                        <TextBlock Text="Urmărește o țintă în mișcare cu privirea. Sistemul înregistrează traiectoria și precizia mișcărilor oculare."
+                        <TextBlock Text="Follow a moving target with your eyes. The system records gaze trajectory and eye movement accuracy."
                                    FontSize="12" Foreground="{DynamicResource TxtSecondary}"
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
@@ -201,7 +201,7 @@
                     <Button x:Name="StartBtn1" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep1_Click">
-                        <TextBlock x:Name="StartBtn1Text" Text="▶  Start etapă"/>
+                        <TextBlock x:Name="StartBtn1Text" Text="▶  Start stage"/>
                     </Button>
                 </Grid>
             </Border>
@@ -231,18 +231,18 @@
                         <Border x:Name="Status2Badge" Grid.Column="1"
                                 CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
-                            <TextBlock x:Name="Status2Text" Text="Neparcursă"
+                            <TextBlock x:Name="Status2Text" Text="Not completed"
                                        FontSize="10" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtSecondary}"/>
                         </Border>
                     </Grid>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Reacție la sunet"
+                        <TextBlock Text="Sound reaction"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
-                        <TextBlock Text="Răspunde cât mai rapid la impulsul sonor. Măsoară timpul de reacție la stimuli auditivi pentru evaluarea reflexelor."
+                        <TextBlock Text="Respond as quickly as possible to the sound cue. Measures reaction time to auditory stimuli."
                                    FontSize="12" Foreground="{DynamicResource TxtSecondary}"
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
@@ -258,7 +258,7 @@
                     <Button x:Name="StartBtn2" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep2_Click">
-                        <TextBlock x:Name="StartBtn2Text" Text="▶  Start etapă"/>
+                        <TextBlock x:Name="StartBtn2Text" Text="▶  Start stage"/>
                     </Button>
                 </Grid>
             </Border>
@@ -288,18 +288,18 @@
                         <Border x:Name="Status3Badge" Grid.Column="1"
                                 CornerRadius="20" Padding="10,4"
                                 Background="{DynamicResource BgCardHover}">
-                            <TextBlock x:Name="Status3Text" Text="Neparcursă"
+                            <TextBlock x:Name="Status3Text" Text="Not completed"
                                        FontSize="10" FontWeight="SemiBold"
                                        Foreground="{DynamicResource TxtSecondary}"/>
                         </Border>
                     </Grid>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Reacție vizuală GO/NO-GO"
+                        <TextBlock Text="GO/NO-GO visual reaction"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,8" TextWrapping="Wrap"/>
-                        <TextBlock Text="Răspunde la stimulii GO și inhibă reacția la stimulii NO-GO. Evaluează controlul inhibitor și viteza de procesare vizuală."
+                        <TextBlock Text="Respond to GO stimuli and inhibit reactions to NO-GO stimuli. Evaluates inhibitory control and visual processing speed."
                                    FontSize="12" Foreground="{DynamicResource TxtSecondary}"
                                    TextWrapping="Wrap" LineHeight="19"/>
                     </StackPanel>
@@ -315,7 +315,7 @@
                     <Button x:Name="StartBtn3" Grid.Row="3" Margin="0,20,0,0"
                             Style="{StaticResource StartStepBtnStyle}"
                             HorizontalAlignment="Stretch" Click="StartStep3_Click">
-                        <TextBlock x:Name="StartBtn3Text" Text="▶  Start etapă"/>
+                        <TextBlock x:Name="StartBtn3Text" Text="▶  Start stage"/>
                     </Button>
                 </Grid>
             </Border>
@@ -333,7 +333,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock x:Name="ProgressText"
-                               Text="0 / 3 etape finalizate"
+                               Text="0 / 3 stages completed"
                                FontSize="13" Foreground="{DynamicResource TxtSecondary}"
                                VerticalAlignment="Center" Margin="0,0,24,0"/>
                     <Ellipse x:Name="ProgDot1" Width="10" Height="10"
@@ -345,7 +345,7 @@
                 </StackPanel>
 
                 <Button Grid.Column="1"
-                        Content="✕  Anulează testul"
+                        Content="✕  Cancel test"
                         Style="{StaticResource GhostBtnStyle}"
                         Click="Cancel_Click"/>
             </Grid>
