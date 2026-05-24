@@ -27,6 +27,21 @@ object AppAppearance {
     )
 
     fun palette(context: android.content.Context): Palette {
+        if (AppSettings.customThemeEnabled(context)) {
+            val custom = AppSettings.customTheme(context)
+            return Palette(
+                root = custom.root,
+                surface = custom.surface,
+                surfaceAlt = custom.surfaceAlt,
+                text = custom.text,
+                muted = custom.muted,
+                accent = custom.accent,
+                accentEnd = custom.accentEnd,
+                positive = custom.positive,
+                negative = custom.negative,
+                divider = custom.divider
+            )
+        }
         return if (AppSettings.isDark(context)) {
             Palette(
                 root = Color.parseColor("#12141D"),
@@ -126,7 +141,7 @@ object AppAppearance {
                 }
                 if (name == "accentCircle") {
                     view.background = oval(view.context, p.accent)
-                    view.alpha = if (AppSettings.isDark(view.context)) 0.15f else 0.08f
+                    view.alpha = if (AppSettings.isDark(view.context) || AppSettings.customThemeEnabled(view.context)) 0.15f else 0.08f
                 }
             }
         }
@@ -163,7 +178,7 @@ object AppAppearance {
                     }
                 )
                 if (view.textSize >= 20f * view.resources.displayMetrics.scaledDensity) {
-                    if (AppSettings.isDark(view.context)) {
+                    if (AppSettings.isDark(view.context) || AppSettings.customThemeEnabled(view.context)) {
                         view.setShadowLayer(10f, 0f, 0f, Color.argb(120, Color.red(p.accent), Color.green(p.accent), Color.blue(p.accent)))
                     } else {
                         view.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
