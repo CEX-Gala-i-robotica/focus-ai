@@ -20,7 +20,7 @@ class PatientRepository(
     ) {
         val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
         val patientRef = database.reference.child("patients").child(uid)
-        val profileKeys = listOf("name", "surname", "email", "phone", "birthDate", "setup")
+        val profileKeys = listOf("name", "surname", "email", "phone", "birthDate", "nfc", "setup")
         val tasks = profileKeys.map { key -> patientRef.child(key).get() } + patientRef.child("testResults").get()
 
         Tasks.whenAllSuccess<DataSnapshot>(tasks)
@@ -91,6 +91,18 @@ class PatientRepository(
                 }
                 onSuccess()
             }
+            .addOnFailureListener(onError)
+    }
+
+    fun updateNfcTag(
+        tag: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val uid = currentUserId() ?: return onError(IllegalStateException("No authenticated user"))
+        database.reference.child("patients").child(uid).child("nfc")
+            .setValue(tag)
+            .addOnSuccessListener { onSuccess() }
             .addOnFailureListener(onError)
     }
 
@@ -172,6 +184,7 @@ class PatientRepository(
             email = snapshot.stringValue("email"),
             phone = snapshot.stringValue("phone"),
             birthDate = snapshot.stringValue("birthDate"),
+            nfc = snapshot.stringValue("nfc"),
             setup = snapshot.child("setup").getValue(Boolean::class.java) ?: false
         )
     }
@@ -183,6 +196,7 @@ class PatientRepository(
             email = fields.stringValue("email"),
             phone = fields.stringValue("phone"),
             birthDate = fields.stringValue("birthDate"),
+            nfc = fields.stringValue("nfc"),
             setup = fields["setup"]?.getValue(Boolean::class.java) ?: false
         )
     }
@@ -194,6 +208,7 @@ class PatientRepository(
             email = snapshot.stringValue("email"),
             phone = snapshot.stringValue("phone-number"),
             birthDate = snapshot.stringValue("birth-date"),
+            nfc = snapshot.stringValue("nfc"),
             setup = snapshot.child("setup").getValue(Boolean::class.java) ?: false
         )
     }

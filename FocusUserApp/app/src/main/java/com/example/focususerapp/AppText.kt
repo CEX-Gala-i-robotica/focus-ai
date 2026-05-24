@@ -137,6 +137,18 @@ object AppText {
         "Best streak" to "Cea mai buna serie",
         "Time" to "Timp",
         "Level reached" to "Nivel atins"
+        ,"NFC tag" to "Tag NFC"
+        ,"Setup NFC" to "Configureaza NFC"
+        ,"Replace NFC" to "Schimba NFC"
+        ,"Ready to scan NFC" to "Apropie tagul NFC de telefon"
+        ,"NFC saved" to "NFC salvat"
+        ,"Could not save NFC" to "Nu s-a putut salva NFC-ul"
+        ,"NFC is not available on this phone" to "NFC nu este disponibil pe acest telefon"
+        ,"Please enable NFC and try again" to "Activeaza NFC si incearca din nou"
+        ,"Change NFC tag?" to "Schimbi tagul NFC?"
+        ,"This patient already has an NFC tag. Do you want to replace it?" to "Pacientul are deja un tag NFC. Vrei sa il inlocuiesti?"
+        ,"Yes, replace" to "Da, inlocuieste"
+        ,"Cancel" to "Anuleaza"
     )
 
     private val tr = mapOf(
@@ -273,6 +285,18 @@ object AppText {
         "Best streak" to "En iyi seri",
         "Time" to "Sure",
         "Level reached" to "Ulasilan seviye"
+        ,"NFC tag" to "NFC etiketi"
+        ,"Setup NFC" to "NFC ayarla"
+        ,"Replace NFC" to "NFC degistir"
+        ,"Ready to scan NFC" to "NFC etiketini telefona yaklastirin"
+        ,"NFC saved" to "NFC kaydedildi"
+        ,"Could not save NFC" to "NFC kaydedilemedi"
+        ,"NFC is not available on this phone" to "Bu telefonda NFC yok"
+        ,"Please enable NFC and try again" to "NFC'yi acip tekrar deneyin"
+        ,"Change NFC tag?" to "NFC etiketi degissin mi?"
+        ,"This patient already has an NFC tag. Do you want to replace it?" to "Bu hastanin zaten NFC etiketi var. Degistirmek istiyor musunuz?"
+        ,"Yes, replace" to "Evet, degistir"
+        ,"Cancel" to "Iptal"
     )
 
     private val canonical = buildMap {

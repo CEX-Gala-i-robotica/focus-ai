@@ -1,9 +1,12 @@
 package com.example.focususerapp
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.nfc.NfcAdapter
+import android.nfc.Tag
 import android.os.Bundle
 import android.view.View
 import android.view.animation.DecelerateInterpolator
@@ -35,6 +38,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSignOut: TextView
     private lateinit var cardProfile: CardView
 
+    private var nfcAdapter: NfcAdapter? = null
+    private var pendingNfcScan = false
+    private var currentNfcTag = ""
+    private var nfcStatusText: TextView? = null
+
     private val auth = FirebaseAuth.getInstance()
     private val repository = PatientRepository()
 
@@ -53,6 +61,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         initViews()
+        nfcAdapter = NfcAdapter.getDefaultAdapter(this)
         AppAppearance.apply(this)
         setupListeners()
         showPage(Page.Account)
@@ -65,7 +74,13 @@ class MainActivity : AppCompatActivity() {
         if (::brandContainer.isInitialized) {
             AppAppearance.apply(this)
             showPage(if (accountPage.visibility == View.VISIBLE) Page.Account else Page.Tests, animate = false)
+            if (pendingNfcScan) enableNfcReader()
         }
+    }
+
+    override fun onPause() {
+        disableNfcReader()
+        super.onPause()
     }
 
     private fun initViews() {
@@ -124,6 +139,112 @@ class MainActivity : AppCompatActivity() {
         profileFields.addView(infoRow("Email", profile.email))
         profileFields.addView(infoRow("Phone", profile.phone))
         profileFields.addView(infoRow("Birth date", profile.birthDate))
+        profileFields.addView(infoRow("NFC tag", profile.nfc))
+        currentNfcTag = profile.nfc
+        profileFields.addView(nfcSetupButton(profile.nfc))
+        nfcStatusText = TextView(this).apply {
+            setTextColor(AppAppearance.palette(this@MainActivity).muted)
+            textSize = 12f
+            gravity = android.view.Gravity.CENTER
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
+        }
+        profileFields.addView(nfcStatusText)
+    }
+
+    private fun nfcSetupButton(existingTag: String): View {
+        return TextView(this).apply {
+            text = AppText.get(context, if (existingTag.isBlank()) "Setup NFC" else "Replace NFC")
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            gravity = android.view.Gravity.CENTER
+            background = AppAppearance.gradientButton(context)
+            isClickable = true
+            isFocusable = true
+            elevation = dp(6).toFloat()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(52)
+            ).apply { topMargin = dp(18) }
+            setOnClickListener {
+                if (currentNfcTag.isBlank()) {
+                    beginNfcSetup()
+                } else {
+                    confirmNfcReplacement()
+                }
+            }
+        }
+    }
+
+    private fun confirmNfcReplacement() {
+        AlertDialog.Builder(this)
+            .setTitle(AppText.get(this, "Change NFC tag?"))
+            .setMessage(AppText.get(this, "This patient already has an NFC tag. Do you want to replace it?"))
+            .setPositiveButton(AppText.get(this, "Yes, replace")) { _, _ -> beginNfcSetup() }
+            .setNegativeButton(AppText.get(this, "Cancel"), null)
+            .show()
+    }
+
+    private fun beginNfcSetup() {
+        val adapter = nfcAdapter
+        when {
+            adapter == null -> {
+                Toast.makeText(this, AppText.get(this, "NFC is not available on this phone"), Toast.LENGTH_SHORT).show()
+                return
+            }
+            !adapter.isEnabled -> {
+                Toast.makeText(this, AppText.get(this, "Please enable NFC and try again"), Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+
+        pendingNfcScan = true
+        nfcStatusText?.apply {
+            text = AppText.get(context, "Ready to scan NFC")
+            visibility = View.VISIBLE
+        }
+        enableNfcReader()
+    }
+
+    private fun enableNfcReader() {
+        val flags = NfcAdapter.FLAG_READER_NFC_A or
+            NfcAdapter.FLAG_READER_NFC_B or
+            NfcAdapter.FLAG_READER_NFC_F or
+            NfcAdapter.FLAG_READER_NFC_V or
+            NfcAdapter.FLAG_READER_NFC_BARCODE or
+            NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+        nfcAdapter?.enableReaderMode(this, { tag -> handleNfcTag(tag) }, flags, null)
+    }
+
+    private fun disableNfcReader() {
+        nfcAdapter?.disableReaderMode(this)
+    }
+
+    private fun handleNfcTag(tag: Tag) {
+        val tagId = tag.id.toHexString()
+        if (!pendingNfcScan || tagId.isBlank()) return
+        pendingNfcScan = false
+
+        runOnUiThread {
+            disableNfcReader()
+            nfcStatusText?.text = tagId
+            repository.updateNfcTag(
+                tag = tagId,
+                onSuccess = {
+                    currentNfcTag = tagId
+                    Toast.makeText(this, AppText.get(this, "NFC saved"), Toast.LENGTH_SHORT).show()
+                    loadPatient()
+                },
+                onError = {
+                    pendingNfcScan = false
+                    Toast.makeText(this, AppText.get(this, "Could not save NFC"), Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
     }
 
     private fun renderTests(tests: List<TestResult>) {
@@ -380,6 +501,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun ByteArray.toHexString(): String {
+        return joinToString(separator = "") { byte -> "%02X".format(byte.toInt() and 0xFF) }
     }
 
     private enum class Page {
