@@ -28,3 +28,13 @@ data class TestResult(
     val averageDistance: Float?
         get() = dist.takeIf { it.isNotEmpty() }?.average()?.toFloat()
 }
+
+data class GameResult(
+    val id: String,
+    val game: String = "",
+    val dateTime: String = "",
+    val duration: String = "",
+    val difficulty: String = "",
+    val scor: Float? = null,
+    val details: Map<String, String> = emptyMap()
+)
