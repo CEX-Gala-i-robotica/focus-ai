@@ -20,6 +20,7 @@ namespace focus_ai
         public BuzzerTest(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -85,9 +86,9 @@ namespace focus_ai
             Dispatcher.Invoke(() =>
             {
                 TxtTimer.Text = elapsed.ToString("F3") + " s";
-                SetStatus($"Bravo! Timp: {elapsed:F3} s", StatusColor.Blue);
+                SetStatus($"{LanguageManager.T("Nice! Time:")} {elapsed:F3} s", StatusColor.Blue);
 
-                MessageBox.Show($"Result: {elapsed:F3} seconds", "Test completed");
+                MessageBox.Show($"{LanguageManager.T("Result:")} {elapsed:F3} {LanguageManager.T("seconds")}", LanguageManager.T("Test completed"));
                 Close();
             });
         }

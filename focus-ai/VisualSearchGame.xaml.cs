@@ -69,6 +69,7 @@ namespace focus_ai
         public VisualSearchGame(bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
@@ -311,14 +312,14 @@ namespace focus_ai
             string emoji = won              ? "🏆"
                          : _round > TotalRounds / 2 ? "😤"
                          : "💀";
-            string title = won ? "Congratulations!" : "Game Over";
+            string title = won ? LanguageManager.T("Congratulations!") : LanguageManager.T("Game Over");
 
             WinEmoji.Text    = emoji;
             WinTitle.Text    = title;
             WinSubtitle.Text = won
-                ? $"You completed all {TotalRounds} rounds!"
-                : $"You reached round {_round}/{TotalRounds}  •  Difficulty: {_difficulty}";
-            WinScore.Text = $"Score: {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
+                ? $"{LanguageManager.T("You completed all")} {TotalRounds} {LanguageManager.T("rounds!")}"
+                : $"{LanguageManager.T("You reached round")} {_round}/{TotalRounds}  •  {LanguageManager.T("Difficulty:")} {LanguageManager.T(_difficulty)}";
+            WinScore.Text = $"{LanguageManager.T("Score:")} {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
 
             // Arată overlay-ul pe PanelGame
             WinOverlay.Visibility = Visibility.Visible;

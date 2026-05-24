@@ -28,6 +28,7 @@ namespace focus_ai
             InitializeComponent();
             WindowHelper.MoveToSecondMonitor(this);
             ApplySystemTheme();
+            LanguageManager.Register(this, LanguageToggleBtn);
         }
 
         private bool IsSystemDarkTheme()
@@ -93,28 +94,28 @@ namespace focus_ai
                 string.IsNullOrEmpty(adress) || string.IsNullOrEmpty(email) ||
                 string.IsNullOrEmpty(password))
             {
-                MessageBox.Show("Fill in all fields for the doctor account.", "Warning",
+                MessageBox.Show(LanguageManager.T("Fill in all fields for the doctor account."), LanguageManager.T("Warning"),
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!IsValidEmail(email))
             {
-                MessageBox.Show("The email address is not valid.", "Warning",
+                MessageBox.Show(LanguageManager.T("The email address is not valid."), LanguageManager.T("Warning"),
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (!IsValidPhone(phone))
             {
-                MessageBox.Show("The phone number is not valid.", "Warning",
+                MessageBox.Show(LanguageManager.T("The phone number is not valid."), LanguageManager.T("Warning"),
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             if (password.Length < 6)
             {
-                MessageBox.Show("The password must be at least 6 characters long.", "Warning",
+                MessageBox.Show(LanguageManager.T("The password must be at least 6 characters long."), LanguageManager.T("Warning"),
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -140,7 +141,7 @@ namespace focus_ai
                     await CreateDoctorShellAsync(uid, authEmail, token, name, surname,
                         BirthDatePicker.SelectedDate!.Value, phone, adress, setup: true);
 
-                    MessageBox.Show("Account created successfully. You can sign in now.", "Success",
+                    MessageBox.Show(LanguageManager.T("Account created successfully. You can sign in now."), LanguageManager.T("Success"),
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                     new Login().Show();
                     Close();
@@ -148,13 +149,13 @@ namespace focus_ai
                 else
                 {
                     var error = JObject.Parse(responseJson);
-                    MessageBox.Show(error["error"]?["message"]?.ToString(), "Sign-up error",
+                    MessageBox.Show(error["error"]?["message"]?.ToString(), LanguageManager.T("Sign-up error"),
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -194,13 +195,13 @@ namespace focus_ai
                 }
                 else
                 {
-                    MessageBox.Show("Google sign-in failed.", "Error",
+                    MessageBox.Show(LanguageManager.T("Google sign-in failed."), LanguageManager.T("Error"),
                                     MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(ex.Message, LanguageManager.T("Error"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally { SetUiBusy(false); }
         }
@@ -241,7 +242,7 @@ namespace focus_ai
         {
             SignUpButton.IsEnabled       = !busy;
             GoogleSignUpButton.IsEnabled = !busy;
-            SignUpButton.Content         = busy ? "Processing..." : "Sign up";
+            SignUpButton.Content         = busy ? LanguageManager.T("Processing...") : LanguageManager.T("Sign up");
         }
 
         private void LoginLink_Click(object sender, RoutedEventArgs e)

@@ -10,6 +10,7 @@ namespace focus_ai
         public GameSelectionWindow(Dashboard dashboard, bool isDark)
         {
             InitializeComponent();
+            LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
             _dashboard = dashboard;
             _isDark = isDark;
