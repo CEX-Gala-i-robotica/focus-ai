@@ -106,10 +106,10 @@ namespace focus_ai
             {
                 using var key = Registry.CurrentUser.CreateSubKey(RegPath);
                 key.SetValue("RememberMe", remember ? "1" : "0");
-                key.SetValue("Email", remember ? email : "");
+                key.SetValue("Email", email);
                 key.SetValue("LoggedIn", "1");
-                key.SetValue("IdToken", remember ? idToken : "");
-                key.SetValue("Uid", remember ? uid : "");
+                key.SetValue("IdToken", idToken);
+                key.SetValue("Uid", uid);
             }
             catch { }
         }

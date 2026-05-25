@@ -107,6 +107,7 @@ namespace focus_ai
             ["Expected:"] = "Asteptat:",
             ["Scanned:"] = "Scanat:",
             ["Select a patient from the patient list first."] = "Selecteaza mai intai un pacient din lista.",
+            ["Select a patient to view trend analysis"] = "Selecteaza un pacient pentru analiza trendului",
 
             ["Tests"] = "Teste",
             ["Activities"] = "Activitati",
@@ -232,6 +233,42 @@ namespace focus_ai
             ["Hard (4x6)"] = "Dificil (4x6)",
             ["S S S S S S S S S S\nS S S S 5 S S S S S\nS S S S S S S S S S"] = "S S S S S S S S S S\nS S S S 5 S S S S S\nS S S S S S S S S S",
             ["Test Details"] = "Detalii test",
+            ["Cognitive trend analysis"] = "Analiza trend cognitiv",
+            ["Patient:"] = "Pacient:",
+            ["Patient: loading..."] = "Pacient: se incarca...",
+            ["ML-based cognitive trend analysis"] = "Analiza trend cognitiv bazata pe ML",
+            ["⟳ Refresh"] = "⟳ Reimprospateaza",
+            ["Test score evolution"] = "Evolutie scoruri test",
+            ["PREDICTED SCORE"] = "SCOR PREVIZIONAT",
+            ["TREND"] = "TENDINTA",
+            ["MODEL CONFIDENCE"] = "INCREDERE MODEL",
+            ["SESSIONS ANALYZED"] = "SESIUNI ANALIZATE",
+            ["Prediction details (ensemble)"] = "Detalii predictie (ansamblu)",
+            ["Linear regression"] = "Regresie liniara",
+            ["Holt smoothing"] = "Holt (netezire)",
+            ["Physiological alerts"] = "Avertizari fiziologice",
+            ["⚠️ Physiological alerts"] = "⚠️ Avertizari fiziologice",
+            ["Close"] = "Inchide",
+            ["At least 2 test sessions are needed for analysis."] = "Este nevoie de cel putin 2 sesiuni de testare pentru analiza.",
+            ["Not enough data could be extracted for prediction."] = "Nu s-au putut extrage suficiente date pentru predictie.",
+            ["Error loading data:"] = "Eroare la incarcarea datelor:",
+            ["Date & time"] = "Data si ora",
+            ["Test score"] = "Scor test",
+            ["Actual score"] = "Scor real",
+            ["Prediction (next session)"] = "Predictie (urmatoarea sesiune)",
+            ["Confidence interval (low)"] = "Interval incredere (scazut)",
+            ["Confidence interval (high)"] = "Interval incredere (ridicat)",
+            ["Prediction based on {0} sessions. The shaded area represents the confidence interval (80%). Last score: {1:F1} -> expected score: {2:F1}."] = "Predictie bazata pe {0} sesiuni. Zona hasurata reprezinta intervalul de incredere (80%). Ultimul scor: {1:F1} -> scor anticipat: {2:F1}.",
+            ["points/session"] = "puncte/sesiune",
+            ["The ensemble model combines linear regression (weight {0}), Holt exponential smoothing, and k-NN based on physiological similarity. Final prediction: {1:F1}."] = "Modelul ansamblu combina regresie liniara (pondere {0}), Holt (netezire exponentiala) si k-NN bazat pe similaritate fiziologica. Predictia finala: {1:F1}.",
+            ["Improving"] = "In crestere",
+            ["Declining"] = "In scadere",
+            ["Stable"] = "Stabil",
+            ["High"] = "Ridicata",
+            ["Low"] = "Scazuta",
+            ["Low SpO2"] = "SpO2 scazut",
+            ["Abnormal heart rate"] = "Ritm cardiac anormal",
+            ["High heart-rate variability"] = "Variabilitate mare a ritmului cardiac",
             ["TEST DETAILS · EVOLUTION CHARTS"] = "DETALII TEST · GRAFICE EVOLUTIE",
             ["ECG  (x1 - left · x2 - right)"] = "ECG  (x1 - stanga · x2 - dreapta)",
             ["DIST  (active moments)"] = "DIST  (momente active)",
@@ -673,8 +710,18 @@ namespace focus_ai
 
         private static AppLanguage Load()
         {
-            // Always return English as default language
-            return AppLanguage.English;
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RegPath);
+                string value = key?.GetValue(RegKey)?.ToString() ?? "";
+                return string.Equals(value, "ro", StringComparison.OrdinalIgnoreCase)
+                    ? AppLanguage.Romanian
+                    : AppLanguage.English;
+            }
+            catch
+            {
+                return AppLanguage.English;
+            }
         }
 
         private static void Save()

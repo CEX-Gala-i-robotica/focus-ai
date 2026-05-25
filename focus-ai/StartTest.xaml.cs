@@ -35,7 +35,7 @@ namespace focus_ai
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                          @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
         private const string PythonScript = "MonitorTracking.py";
-        private const string ArduinoPort = "COM12";
+        private const string ArduinoPort = "COM4";
 
         private readonly string _dbUrl =
             ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";

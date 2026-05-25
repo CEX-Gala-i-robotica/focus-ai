@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using focus_ai.Prediction;
+using focus_ai.Prediction.Models;
 using Microsoft.Win32;
 
 namespace focus_ai
@@ -34,6 +36,7 @@ namespace focus_ai
         private bool _isLoadingActivities = false;
         private bool _isLoadingPatients = false;
         private bool _isPatientVerified = false;
+        private TaskCompletionSource<string?>? _pendingNfcRead;
 
         private List<TestEntry> _testsCache = new();
         private List<ActivityEntry> _activitiesCache = new();
@@ -42,7 +45,8 @@ namespace focus_ai
         private string _selectedPatientName = "";
         private string _verifiedPatientId = "";
 
-        private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw);
+        private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw,
+                                 SessionFeatures? Features);
         private record ActivityEntry(string Id, string DateTime, string Duration,
                                      string Game, string Difficulty, double Scor);
         private record PatientEntry(string Id, string Name, string Email, string Phone, string Nfc,
@@ -65,6 +69,7 @@ namespace focus_ai
 
             InitializeSerialPort();
             this.Closing += Dashboard_Closing;
+            BioCollector.Instance.NfcUidReceived += OnBioCollectorNfcUidReceived;
 
             _ = LoadPatientsFromFirebaseAsync();
         }
@@ -325,10 +330,23 @@ namespace focus_ai
                 string dt = v.TryGetProperty("dateTime", out var dtv) ? dtv.GetString() ?? "" : "";
                 string dur = v.TryGetProperty("duration", out var dv) ? dv.GetString() ?? "" : "";
                 double scor = v.TryGetProperty("scor", out var sv) ? sv.GetDouble() : 0;
-                list.Add(new TestEntry(entry.Name, dt, dur, scor, mapRaw));
+                SessionFeatures? features = TryExtractFeatures(v);
+                list.Add(new TestEntry(entry.Name, dt, dur, scor, mapRaw, features));
             }
 
             return list.OrderByDescending(t => t.DateTime).ToList();
+        }
+
+        private static SessionFeatures? TryExtractFeatures(JsonElement element)
+        {
+            try
+            {
+                return FeatureExtractor.FromJsonElement(element);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void RenderTests(List<TestEntry> tests)
@@ -520,10 +538,10 @@ namespace focus_ai
                 var root = doc.RootElement;
 
                 var win = new TestDetailsWindow(
-                    root.TryGetProperty("map",  out var m) ? m.GetString() ?? "" : "",
-                    root.TryGetProperty("ecg",  out var e) ? e.GetString() ?? "" : "",
+                    root.TryGetProperty("map", out var m) ? m.GetString() ?? "" : "",
+                    root.TryGetProperty("ecg", out var e) ? e.GetString() ?? "" : "",
                     root.TryGetProperty("spo2", out var s) ? s.GetString() ?? "" : "",
-                    root.TryGetProperty("hr",   out var h) ? h.GetString() ?? "" : "",
+                    root.TryGetProperty("hr", out var h) ? h.GetString() ?? "" : "",
                     root.TryGetProperty("dist", out var d) ? d.GetString() ?? "" : "",
                     root.TryGetProperty("cpt", out var cpt) ? cpt.GetRawText() : ""
                 );
@@ -1031,6 +1049,53 @@ namespace focus_ai
 
         private PredictionSummary BuildPrediction(List<TestEntry> tests, List<ActivityEntry> activities)
         {
+            var history = tests
+                .Select(t => t.Features)
+                .Where(f => f != null && f.DateTime != DateTime.MinValue)
+                .Cast<SessionFeatures>()
+                .OrderBy(f => f.DateTime)
+                .ToList();
+
+            if (history.Count < 2)
+                return new PredictionSummary("insufficient", 0.25, "At least 2 valid test sessions are required for ML prediction.");
+
+            try
+            {
+                var result = new PredictionEngine().Predict(history);
+                string direction = result.Trend switch
+                {
+                    TrendDirection.Improving => "positive",
+                    TrendDirection.Declining => "negative",
+                    _ => "stable"
+                };
+
+                double confidence = result.ConfidenceLabel switch
+                {
+                    "High" => 0.90,
+                    "Medium" => 0.70,
+                    _ => 0.50
+                };
+
+                string reason =
+                    $"Predicted next score: {result.PredictedScore:F1} " +
+                    $"[{result.ConfidenceLow:F1}-{result.ConfidenceHigh:F1}]. " +
+                    $"Trend: {result.TrendLabel} ({result.TrendPerSession:+0.##;-0.##;0} pts/session). " +
+                    $"Models: LR {result.LinearRegrScore:F1}, Holt {result.HoltScore:F1}, k-NN {result.KnnScore:F1}. " +
+                    $"MAE: {result.ModelMAE:F1}.";
+
+                if (!string.IsNullOrWhiteSpace(result.AlertMessage))
+                    reason += $" Alerts: {result.AlertMessage}";
+
+                return new PredictionSummary(direction, confidence, reason);
+            }
+            catch
+            {
+                return BuildFallbackPrediction(tests, activities);
+            }
+        }
+
+        private static PredictionSummary BuildFallbackPrediction(List<TestEntry> tests, List<ActivityEntry> activities)
+        {
             var scores = tests.Select(t => t.Scor).Concat(activities.Select(a => a.Scor)).ToList();
             if (scores.Count < 3)
                 return new PredictionSummary("insufficient", 0.35, "At least 3 results are required.");
@@ -1115,14 +1180,16 @@ namespace focus_ai
             };
 
             var g = new Grid();
-            int[] widths = { 46, -1, 120, 120, 150, 100 };
+            // 6 coloane: #, pacient, teste, activități, predicție, buton select
+            int[] widths = { 46, 1, 100, 100, 140, 110 }; // 1 = star, rest fixe
             foreach (var w in widths)
-                g.ColumnDefinitions.Add(w == -1
+                g.ColumnDefinitions.Add(w == 1
                     ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
                     : new ColumnDefinition { Width = new GridLength(w) });
 
             void Add(int col, UIElement el) { Grid.SetColumn(el, col); g.Children.Add(el); }
 
+            // Număr rând
             var numBd = new Border
             {
                 Width = 28,
@@ -1142,6 +1209,7 @@ namespace focus_ai
             };
             Add(0, numBd);
 
+            // Nume + telefon
             var namePanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             namePanel.Children.Add(new TextBlock
             {
@@ -1158,13 +1226,18 @@ namespace focus_ai
             });
             Add(1, namePanel);
 
+            // Număr teste (centrat)
             Add(2, BuildCenteredText(patient.TestCount.ToString(), textPri));
+            // Număr activități (centrat)
             Add(3, BuildCenteredText(patient.ActivityCount.ToString(), textPri));
+
+            // Badge predicție
             Add(4, BuildPredictionBadge(patient.Prediction));
 
-            var btn = new Button
+            // Buton select (stil identic cu Details din teste)
+            var selectBtn = new Button
             {
-                Content = patient.Id == _verifiedPatientId ? LanguageManager.T("Selected") : LanguageManager.T("Scan NFC"),
+                Content = patient.Id == _selectedPatientId && _isPatientVerified ? LanguageManager.T("Selected") : LanguageManager.T("Details"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Background = btnBg,
@@ -1172,16 +1245,33 @@ namespace focus_ai
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 Padding = new Thickness(10, 4, 10, 4)
             };
-            btn.Click += async (_, _) => await TrySelectPatientWithNfcAsync(patient);
-            Add(5, btn);
+            // Template identic cu butonul Details
+            var tpl = new ControlTemplate(typeof(Button));
+            var fef = new FrameworkElementFactory(typeof(Border));
+            fef.SetBinding(Border.BackgroundProperty,
+                new System.Windows.Data.Binding("Background")
+                {
+                    RelativeSource = new System.Windows.Data.RelativeSource(
+                        System.Windows.Data.RelativeSourceMode.TemplatedParent)
+                });
+            fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
+            var cp = new FrameworkElementFactory(typeof(ContentPresenter));
+            cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            cp.SetValue(ContentPresenter.MarginProperty, new Thickness(10, 4, 10, 4));
+            fef.AppendChild(cp);
+            tpl.VisualTree = fef;
+            selectBtn.Template = tpl;
+
+            selectBtn.Click += async (_, _) => await TrySelectPatientWithNfcAsync(patient);
+            Add(5, selectBtn);
 
             row.Child = g;
             return row;
         }
-
         private static TextBlock BuildCenteredText(string text, Brush foreground) => new()
         {
             Text = text,
@@ -1221,32 +1311,15 @@ namespace focus_ai
             return badge;
         }
 
-        private void SelectPatient(PatientEntry patient)
-        {
-            _selectedPatientId = patient.Id;
-            _selectedPatientName = patient.Name;
-            _verifiedPatientId = "";
-            _isPatientVerified = false;
-
-            SelectedPatientTestsLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
-            SelectedPatientActivitiesLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
-
-            _testsCache.Clear();
-            _activitiesCache.Clear();
-            ShowTestEmpty();
-            ShowActivitiesEmpty();
-            RenderPatients(_patientsCache);
-        }
-
+        // ----- NFC verification methods -----
         private async Task TrySelectPatientWithNfcAsync(PatientEntry patient)
         {
-            if (patient.Id == _verifiedPatientId)
+            if (_verifiedPatientId == patient.Id && _isPatientVerified)
             {
+                // Already verified, just switch to tests
                 TabTestari.IsChecked = true;
                 return;
             }
-
-            SelectPatient(patient);
 
             if (string.IsNullOrWhiteSpace(patient.Nfc))
             {
@@ -1284,13 +1357,28 @@ namespace focus_ai
                 return;
             }
 
-            FocusSession.ActivePatientId = patient.Id;
-            _verifiedPatientId = patient.Id;
-            _isPatientVerified = true;
-            RenderPatients(_patientsCache);
+            // Verification successful
+            SelectPatient(patient);
             TabTestari.IsChecked = true;
             await LoadTestsFromFirebaseAsync();
             await LoadActivitiesFromFirebaseAsync();
+        }
+
+        private void SelectPatient(PatientEntry patient)
+        {
+            _selectedPatientId = patient.Id;
+            _selectedPatientName = patient.Name;
+            _verifiedPatientId = patient.Id;
+            _isPatientVerified = true;
+
+            SelectedPatientTestsLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
+            SelectedPatientActivitiesLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
+
+            _testsCache.Clear();
+            _activitiesCache.Clear();
+            ShowTestEmpty();
+            ShowActivitiesEmpty();
+            RenderPatients(_patientsCache);
         }
 
         private static string NormalizeNfcUid(string uid)
@@ -1298,16 +1386,31 @@ namespace focus_ai
             return new string(uid.Where(Uri.IsHexDigit).Select(char.ToUpperInvariant).ToArray());
         }
 
-        private static string ExtractNfcUid(string line)
+        private Task<string?> ReadNfcUidAsync(TimeSpan timeout)
         {
-            const string marker = "UID:";
-            int markerIndex = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0) return "";
+            if (BioCollector.Instance.TryOpen(NfcSerialPortName))
+                return ReadNfcUidFromSharedCollectorAsync(timeout);
 
-            return line[(markerIndex + marker.Length)..].Trim();
+            return ReadNfcUidFromDedicatedPortAsync(timeout);
         }
 
-        private static Task<string?> ReadNfcUidAsync(TimeSpan timeout)
+        private Task<string?> ReadNfcUidFromSharedCollectorAsync(TimeSpan timeout)
+        {
+            BioCollector.Instance.ClearLastNfcUid();
+            _pendingNfcRead = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _ = Task.Delay(timeout).ContinueWith(_ => _pendingNfcRead?.TrySetResult(null),
+                TaskScheduler.Default);
+
+            return _pendingNfcRead.Task;
+        }
+
+        private void OnBioCollectorNfcUidReceived(string uid)
+        {
+            _pendingNfcRead?.TrySetResult(uid);
+        }
+
+        private static Task<string?> ReadNfcUidFromDedicatedPortAsync(TimeSpan timeout)
         {
             return Task.Run(() =>
             {
@@ -1326,7 +1429,7 @@ namespace focus_ai
                     try
                     {
                         string line = port.ReadLine().Trim();
-                        string uid = ExtractNfcUid(line);
+                        string uid = BioCollector.ExtractNfcUid(line);
                         if (!string.IsNullOrWhiteSpace(uid))
                             return uid;
                     }
@@ -1337,6 +1440,21 @@ namespace focus_ai
 
                 return null;
             });
+        }
+
+        private void OpenTrendAnalysisForCurrentPatient_Click(object sender, RoutedEventArgs e)
+        {
+            if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view trend analysis"))) return;
+            var patient = _patientsCache.FirstOrDefault(p => p.Id == GetActivePatientId());
+            if (patient != null)
+                OpenTrendAnalysis(patient);
+        }
+
+        private void OpenTrendAnalysis(PatientEntry patient)
+        {
+            var trendWindow = new TrendAnalysisWindow(patient.Id, patient.Name, _isDark);
+            trendWindow.Owner = this;
+            trendWindow.ShowDialog();
         }
 
         private bool EnsurePatientSelected()
@@ -1361,9 +1479,7 @@ namespace focus_ai
         private bool CanAccessSelectedPatientHistory()
         {
             string selectedPatientId = GetActivePatientId();
-            return !string.IsNullOrWhiteSpace(selectedPatientId)
-                && _isPatientVerified
-                && string.Equals(_verifiedPatientId, selectedPatientId, StringComparison.Ordinal);
+            return !string.IsNullOrWhiteSpace(selectedPatientId) && _isPatientVerified && _verifiedPatientId == selectedPatientId;
         }
 
         private void ShowPatientsLoading()
@@ -1432,6 +1548,7 @@ namespace focus_ai
         {
             _isRunning = false;
             _cts.Cancel();
+            BioCollector.Instance.NfcUidReceived -= OnBioCollectorNfcUidReceived;
             _readThread?.Join(500);
             if (_serialPort?.IsOpen == true) { _serialPort.Close(); _serialPort.Dispose(); }
         }
