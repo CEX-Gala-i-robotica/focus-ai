@@ -26,7 +26,7 @@ namespace focus_ai
         public ProfileEditWindow(bool isDark, bool isSetupMode = false)
         {
             InitializeComponent();
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             IsSetupMode = isSetupMode;
 
             ThemeManager.Apply(isDark);

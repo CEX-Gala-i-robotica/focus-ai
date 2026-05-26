@@ -25,6 +25,7 @@ namespace focus_ai
             ["Focus AI - Dashboard"] = "Focus AI - Panou",
             ["Focus AI - Login"] = "Focus AI - Autentificare",
             ["Focus AI - Sign Up"] = "Focus AI - Inregistrare",
+            ["Wait for the doctor's instructions"] = "Asteapta indicatiile medicului",
             ["Set up profile"] = "Configureaza profilul",
 
             ["Toggle theme"] = "Schimba tema",

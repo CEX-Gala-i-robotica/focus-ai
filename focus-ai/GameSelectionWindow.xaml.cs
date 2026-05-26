@@ -11,7 +11,7 @@ namespace focus_ai
         {
             InitializeComponent();
             LanguageManager.Register(this);
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             _dashboard = dashboard;
             _isDark = isDark;
             ThemeManager.Apply(_isDark);
