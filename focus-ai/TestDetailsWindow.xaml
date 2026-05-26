@@ -4,7 +4,7 @@
         Title="Test Details"
         Height="860" Width="1100"           
         Background="{DynamicResource BgRoot}"
-        FontFamily="Segoe UI"
+        FontFamily="{StaticResource AppFontFamily}"
         WindowState="Maximized"
         ResizeMode="CanMinimize">
 
@@ -18,8 +18,7 @@
         <!-- Header -->
         <TextBlock Grid.Row="0"
                    Text="TEST DETAILS · EVOLUTION CHARTS"
-                   Foreground="{DynamicResource AccentSecFg}"
-                   FontSize="11" FontWeight="Bold"
+                   Style="{StaticResource KickerTextStyle}"
                    Margin="0,0,0,12" Opacity="0.7"/>
 
         <!-- Rândul principal: două coloane -->
@@ -33,7 +32,7 @@
             <Border Grid.Column="0"
                     Background="{DynamicResource BgCard}"
                     BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                    CornerRadius="3" Margin="0,0,10,0" Padding="50,8,12,30">
+                    CornerRadius="12" Margin="0,0,10,0" Padding="50,12,16,30">
                 <Grid>
                     <Canvas x:Name="MapYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
                     <Canvas x:Name="MapXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
@@ -64,7 +63,7 @@
                                Margin="0,0,0,4" FontFamily="Consolas"/>
                     <Border Grid.Row="1" Background="{DynamicResource BgCard}"
                             BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="3" Padding="50,8,12,30">
+                            CornerRadius="12" Padding="50,12,16,30">
                         <Grid>
                             <Canvas x:Name="EcgYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
                             <Canvas x:Name="EcgXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
@@ -84,7 +83,7 @@
                                Margin="0,0,0,4" FontFamily="Consolas"/>
                     <Border Grid.Row="1" Background="{DynamicResource BgCard}"
                             BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="3" Padding="50,8,12,30">
+                            CornerRadius="12" Padding="50,12,16,30">
                         <Grid>
                             <Canvas x:Name="Spo2YLabels" Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
                             <Canvas x:Name="Spo2XLabels" Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
@@ -104,7 +103,7 @@
                                Margin="0,0,0,4" FontFamily="Consolas"/>
                     <Border Grid.Row="1" Background="{DynamicResource BgCard}"
                             BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="3" Padding="50,8,12,30">
+                            CornerRadius="12" Padding="50,12,16,30">
                         <Grid>
                             <Canvas x:Name="HrYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
                             <Canvas x:Name="HrXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
@@ -124,7 +123,7 @@
                                Margin="0,0,0,4" FontFamily="Consolas"/>
                     <Border Grid.Row="1" Background="{DynamicResource BgCard}"
                             BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="3" Padding="50,4,12,4">
+                            CornerRadius="12" Padding="50,6,16,6">
                         <Canvas x:Name="DistCanvas" Background="Transparent" ClipToBounds="True"/>
                     </Border>
                 </Grid>

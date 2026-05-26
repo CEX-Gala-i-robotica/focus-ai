@@ -18,17 +18,27 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="TabBorder" Background="Transparent"
-                                CornerRadius="10" Padding="14,10">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                CornerRadius="8" Padding="0">
+                            <Grid>
+                                <Border x:Name="SelectionIndicator"
+                                        Width="3" CornerRadius="2"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,7"
+                                        Background="{DynamicResource AccentPrimary}"
+                                        Opacity="0"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left"
+                                            Margin="14,10,12,10">
                                 <ContentPresenter Content="{TemplateBinding Tag}"
                                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
                                 <ContentPresenter VerticalAlignment="Center"/>
-                            </StackPanel>
+                                </StackPanel>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="TabBorder" Property="Background"
                                         Value="{DynamicResource BgNavActive}"/>
+                                <Setter TargetName="SelectionIndicator" Property="Opacity" Value="1"/>
                                 <Setter Property="Foreground"
                                         Value="{DynamicResource TxtNavActive}"/>
                             </Trigger>
@@ -99,7 +109,7 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="CardBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="16" Padding="20">
+                                CornerRadius="12" Padding="20">
                             <ContentPresenter/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -303,8 +313,8 @@
                                    Foreground="{DynamicResource TxtSecondary}"
                                    Margin="0,0,0,26"/>
 
-                        <Border x:Name="ProfileCard" CornerRadius="18"
-                                Padding="26,22" Margin="0,0,0,22"
+                        <Border x:Name="ProfileCard" CornerRadius="12"
+                                Padding="24" Margin="0,0,0,22"
                                 Background="{DynamicResource BgCard}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -335,14 +345,16 @@
                                                Margin="0,0,0,10"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Border Background="{DynamicResource AccentSecBg}"
-                                                CornerRadius="20" Padding="10,4" Margin="0,0,8,0">
+                                                BorderBrush="{DynamicResource AccentSecFg}" BorderThickness="1"
+                                                CornerRadius="8" Padding="10,4" Margin="0,0,8,0">
                                             <TextBlock Text="Active account" FontSize="11"
                                                        Foreground="{DynamicResource AccentSecFg}"
                                                        FontWeight="SemiBold"/>
                                         </Border>
                                         <Border x:Name="DoctorBadge"
                                                 Background="{DynamicResource BgStatGreen}"
-                                                CornerRadius="20" Padding="10,4"
+                                                BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1"
+                                                CornerRadius="8" Padding="10,4"
                                                 Visibility="Collapsed">
                                             <TextBlock Text="Doctor account" FontSize="11"
                                                        Foreground="{DynamicResource TxtStatGreen}"
@@ -357,8 +369,7 @@
                             </Grid>
                         </Border>
 
-                        <TextBlock Text="STATISTICI" FontSize="10" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TxtMuted}"
+                        <TextBlock Text="STATISTICI" Style="{StaticResource KickerTextStyle}"
                                    Margin="0,0,0,14"/>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -376,13 +387,14 @@
 
                             <Border Grid.Column="0" Grid.Row="0"
                                     Background="{DynamicResource BgStatBlue}"
-                                    CornerRadius="16" Padding="22,20">
+                                    BorderBrush="{DynamicResource TxtStatBlue}" BorderThickness="1"
+                                    CornerRadius="12" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="👥" FontSize="22" Margin="0,0,0,10"/>
                                     <TextBlock x:Name="StatNrPacienti" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Doctor patients" FontSize="12"
+                                    <TextBlock Text="Doctor patients" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatBlue}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -390,13 +402,14 @@
 
                             <Border Grid.Column="2" Grid.Row="0"
                                     Background="{DynamicResource BgStatGreen}"
-                                    CornerRadius="16" Padding="22,20">
+                                    BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1"
+                                    CornerRadius="12" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="📋" FontSize="22" Margin="0,0,0,10"/>
                                     <TextBlock x:Name="StatNrTestari" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Average tests" FontSize="12"
+                                    <TextBlock Text="Average tests" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatGreen}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -404,13 +417,14 @@
 
                             <Border Grid.Column="4" Grid.Row="0"
                                     Background="{DynamicResource BgStatPurple}"
-                                    CornerRadius="16" Padding="22,20">
+                                    BorderBrush="{DynamicResource TxtStatPurple}" BorderThickness="1"
+                                    CornerRadius="12" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="🎮" FontSize="22" Margin="0,0,0,10"/>
                                     <TextBlock x:Name="StatNrActivitati" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Average activities" FontSize="12"
+                                    <TextBlock Text="Average activities" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatPurple}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -418,13 +432,14 @@
 
                             <Border Grid.Column="0" Grid.Row="2"
                                     Background="{DynamicResource BgStatGreen}"
-                                    CornerRadius="16" Padding="22,20">
+                                    BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1"
+                                    CornerRadius="12" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="📊" FontSize="22" Margin="0,0,0,10"/>
                                     <TextBlock x:Name="StatScorMediu" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Average test score" FontSize="12"
+                                    <TextBlock Text="Average test score" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatGreen}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -432,13 +447,14 @@
 
                             <Border Grid.Column="2" Grid.Row="2"
                                     Background="{DynamicResource BgStatOrange}"
-                                    CornerRadius="16" Padding="22,20">
+                                    BorderBrush="{DynamicResource TxtStatOrange}" BorderThickness="1"
+                                    CornerRadius="12" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="🏆" FontSize="22" Margin="0,0,0,10"/>
                                     <TextBlock x:Name="StatScorMediuActivitati" Text="—"
                                                FontSize="30" FontWeight="Bold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
-                                    <TextBlock Text="Average activity score" FontSize="12"
+                                    <TextBlock Text="Average activity score" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtStatOrange}"
                                                Margin="0,5,0,0"/>
                                 </StackPanel>
@@ -478,31 +494,31 @@
                                 <ColumnDefinition Width="14"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatBlue}">
+                            <Border Grid.Column="0" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatBlue}"
+                                    BorderBrush="{DynamicResource TxtStatBlue}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="PATIENTS" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatBlue}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="PATIENTS" Style="{StaticResource KickerTextStyle}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsTotal" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatGreen}">
+                            <Border Grid.Column="2" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatGreen}"
+                                    BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="POSITIVE TREND" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatGreen}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="POSITIVE TREND" Style="{StaticResource KickerTextStyle}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsPositive" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatOrange}">
+                            <Border Grid.Column="4" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatOrange}"
+                                    BorderBrush="{DynamicResource TxtStatOrange}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="ATTENTION" FontSize="10" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatOrange}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="ATTENTION" Style="{StaticResource KickerTextStyle}" Margin="0,0,0,8"/>
                                     <TextBlock x:Name="PatientsAttention" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
@@ -510,7 +526,7 @@
                             </Border>
                         </Grid>
 
-                        <Border x:Name="PatientsLoadingState" CornerRadius="14" Padding="32"
+                        <Border x:Name="PatientsLoadingState" CornerRadius="12" Padding="32"
                                 Background="{DynamicResource BgCard}" Visibility="Visible">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
@@ -521,7 +537,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="PatientsEmptyState" CornerRadius="14" Padding="42"
+                        <Border x:Name="PatientsEmptyState" CornerRadius="12" Padding="42"
                                 Background="{DynamicResource BgCard}" Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="🧑‍⚕️" FontSize="38"
@@ -607,36 +623,33 @@
                                 <ColumnDefinition Width="14"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatBlue}">
+                            <Border Grid.Column="0" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatBlue}"
+                                    BorderBrush="{DynamicResource TxtStatBlue}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="LAST TEST" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatBlue}"
+                                    <TextBlock Text="LAST TEST" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="LastTestDate" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatGreen}">
+                            <Border Grid.Column="2" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatGreen}"
+                                    BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="BEST SCORE" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatGreen}"
+                                    <TextBlock Text="BEST SCORE" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="BestScore" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatPurple}">
+                            <Border Grid.Column="4" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatPurple}"
+                                    BorderBrush="{DynamicResource TxtStatPurple}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="AVERAGE SCORE" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatPurple}"
+                                    <TextBlock Text="AVERAGE SCORE" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="AvgScore" Text="—"
                                                FontSize="14" FontWeight="SemiBold"
@@ -645,7 +658,7 @@
                             </Border>
                         </Grid>
 
-                        <Border x:Name="TestLoadingState" CornerRadius="14" Padding="32"
+                        <Border x:Name="TestLoadingState" CornerRadius="12" Padding="32"
                                 Background="{DynamicResource BgCard}" Visibility="Visible">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
@@ -656,7 +669,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="TestEmptyState" CornerRadius="14" Padding="42"
+                        <Border x:Name="TestEmptyState" CornerRadius="12" Padding="42"
                                 Background="{DynamicResource BgCard}" Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="📋" FontSize="38"
@@ -750,12 +763,11 @@
                                 <ColumnDefinition Width="14"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatBlue}">
+                            <Border Grid.Column="0" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatBlue}"
+                                    BorderBrush="{DynamicResource TxtStatBlue}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="LAST ACTIVITY" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatBlue}"
+                                    <TextBlock Text="LAST ACTIVITY" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="ActLastDate" Text="—"
                                                FontSize="13" FontWeight="SemiBold"
@@ -763,36 +775,33 @@
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="2" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatGreen}">
+                            <Border Grid.Column="2" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatGreen}"
+                                    BorderBrush="{DynamicResource TxtStatGreen}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="BEST SCORE" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatGreen}"
+                                    <TextBlock Text="BEST SCORE" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="ActBestScore" Text="—"
                                                FontSize="13" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="4" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatPurple}">
+                            <Border Grid.Column="4" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatPurple}"
+                                    BorderBrush="{DynamicResource TxtStatPurple}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="AVERAGE SCORE" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatPurple}"
+                                    <TextBlock Text="AVERAGE SCORE" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="ActAvgScore" Text="—"
                                                FontSize="13" FontWeight="SemiBold"
                                                Foreground="{DynamicResource TxtPrimary}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="6" CornerRadius="14" Padding="20,16"
-                                    Background="{DynamicResource BgStatOrange}">
+                            <Border Grid.Column="6" CornerRadius="12" Padding="20"
+                                    Background="{DynamicResource BgStatOrange}"
+                                    BorderBrush="{DynamicResource TxtStatOrange}" BorderThickness="1">
                                 <StackPanel>
-                                    <TextBlock Text="TOTAL SESSIONS" FontSize="10"
-                                               FontWeight="SemiBold"
-                                               Foreground="{DynamicResource TxtStatOrange}"
+                                    <TextBlock Text="TOTAL SESSIONS" Style="{StaticResource KickerTextStyle}"
                                                Margin="0,0,0,8"/>
                                     <TextBlock x:Name="ActTotalSessions" Text="—"
                                                FontSize="13" FontWeight="SemiBold"
@@ -801,7 +810,7 @@
                             </Border>
                         </Grid>
 
-                        <Border x:Name="ActLoadingState" CornerRadius="14" Padding="32"
+                        <Border x:Name="ActLoadingState" CornerRadius="12" Padding="32"
                                 Background="{DynamicResource BgCard}" Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="⏳" FontSize="30"
@@ -812,7 +821,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border x:Name="ActEmptyState" CornerRadius="14" Padding="42"
+                        <Border x:Name="ActEmptyState" CornerRadius="12" Padding="42"
                                 Background="{DynamicResource BgCard}" Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center">
                                 <TextBlock Text="🎮" FontSize="38"

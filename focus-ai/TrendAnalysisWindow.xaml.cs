@@ -161,8 +161,8 @@ namespace focus_ai
                 Title = LanguageManager.T("Actual score"),
                 Color = OxyColor.FromRgb(59, 130, 246),
                 MarkerType = MarkerType.Circle,
-                MarkerSize = 4,
-                StrokeThickness = 2
+                MarkerSize = 3,
+                StrokeThickness = 1.5
             };
             foreach (var point in history)
                 series.Points.Add(new DataPoint(DateTimeAxis.ToDouble(point.DateTime), point.Score));
@@ -174,10 +174,10 @@ namespace focus_ai
             {
                 Title = LanguageManager.T("Prediction (next session)"),
                 MarkerType = MarkerType.Diamond,
-                MarkerSize = 8,
+                MarkerSize = 6,
                 MarkerFill = OxyColor.FromRgb(34, 197, 94),
                 MarkerStroke = OxyColors.White,
-                MarkerStrokeThickness = 1.5
+                MarkerStrokeThickness = 1
             };
             predictionPoint.Points.Add(new ScatterPoint(DateTimeAxis.ToDouble(predictedDate), prediction.PredictedScore));
             plotModel.Series.Add(predictionPoint);

@@ -19,12 +19,7 @@ namespace focus_ai
 {
     public partial class Dashboard : Window
     {
-        private SerialPort? _serialPort;
-        private Thread? _readThread;
-        private bool _isRunning = true;
         private readonly CancellationTokenSource _cts = new();
-        private const string NfcSerialPortName = "COM4";
-        private const int NfcSerialBaudRate = 9600;
 
         private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
         private static readonly HttpClient _http = new();
@@ -67,7 +62,6 @@ namespace focus_ai
             LoadUserInfoFromRegistry();
             _ = LoadProfileFromFirebaseAsync();
 
-            InitializeSerialPort();
             this.Closing += Dashboard_Closing;
             BioCollector.Instance.NfcUidReceived += OnBioCollectorNfcUidReceived;
 
@@ -91,9 +85,9 @@ namespace focus_ai
             if (!EnsurePatientHistoryUnlocked(LanguageManager.T("Select a patient to view test history"))) return;
 
             var startTest = new StartTest(this, _isDark);
+            startTest.Owner = this;
             startTest.Closed += async (s, args) =>
             {
-                this.Show();
                 await LoadTestsFromFirebaseAsync();
                 if (PanelActivitati.Visibility == Visibility.Visible)
                 {
@@ -101,7 +95,6 @@ namespace focus_ai
                 }
             };
             startTest.Show();
-            this.Hide();
         }
 
         private void ThemeToggle_Click(object sender, RoutedEventArgs e)
@@ -380,6 +373,8 @@ namespace focus_ai
         {
             var bgRow = (SolidColorBrush)FindResource("RowBg");
             var bgNum = (SolidColorBrush)FindResource("RowNumBg");
+            var rowHover = (SolidColorBrush)FindResource("RowHover");
+            var rowBorder = (SolidColorBrush)FindResource("RowBorder");
             var textPri = (SolidColorBrush)FindResource("TxtPrimary");
             var textSec = (SolidColorBrush)FindResource("TxtSecondary");
             var btnBg = _isDark
@@ -396,10 +391,14 @@ namespace focus_ai
             var row = new Border
             {
                 Background = bgRow,
-                CornerRadius = new CornerRadius(10),
+                BorderBrush = rowBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(18, 12, 18, 12),
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0)
             };
+            row.MouseEnter += (_, _) => row.Background = rowHover;
+            row.MouseLeave += (_, _) => row.Background = bgRow;
 
             if (!_isDark)
                 row.Effect = new System.Windows.Media.Effects.DropShadowEffect
@@ -456,9 +455,9 @@ namespace focus_ai
 
             var scoreBd = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(
-                    _isDark ? (byte)30 : (byte)20,
-                    scoreColor.R, scoreColor.G, scoreColor.B)),
+                Background = Brushes.Transparent,
+                BorderBrush = new SolidColorBrush(scoreColor),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(8, 4, 8, 4),
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -694,6 +693,8 @@ namespace focus_ai
         {
             var bgRow = (SolidColorBrush)FindResource("RowBg");
             var bgNum = (SolidColorBrush)FindResource("RowNumBg");
+            var rowHover = (SolidColorBrush)FindResource("RowHover");
+            var rowBorder = (SolidColorBrush)FindResource("RowBorder");
             var textPri = (SolidColorBrush)FindResource("TxtPrimary");
             var textSec = (SolidColorBrush)FindResource("TxtSecondary");
 
@@ -724,10 +725,14 @@ namespace focus_ai
             var row = new Border
             {
                 Background = bgRow,
-                CornerRadius = new CornerRadius(10),
+                BorderBrush = rowBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                CornerRadius = new CornerRadius(0),
                 Padding = new Thickness(18, 12, 18, 12),
-                Margin = new Thickness(0, 0, 0, 8)
+                Margin = new Thickness(0)
             };
+            row.MouseEnter += (_, _) => row.Background = rowHover;
+            row.MouseLeave += (_, _) => row.Background = bgRow;
 
             if (!_isDark)
                 row.Effect = new System.Windows.Media.Effects.DropShadowEffect
@@ -811,8 +816,10 @@ namespace focus_ai
             {
                 var diffBd = new Border
                 {
-                    Background = new SolidColorBrush(
-                        (Color)ColorConverter.ConvertFromString(diffBgHex)),
+                    Background = Brushes.Transparent,
+                    BorderBrush = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(diffFgHex)),
+                    BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(8, 3, 8, 3),
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -831,9 +838,9 @@ namespace focus_ai
 
             var scoreBd = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(
-                    _isDark ? (byte)30 : (byte)20,
-                    scoreColor.R, scoreColor.G, scoreColor.B)),
+                Background = Brushes.Transparent,
+                BorderBrush = new SolidColorBrush(scoreColor),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(8, 4, 8, 4),
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -870,11 +877,9 @@ namespace focus_ai
 
         public void StartGameAndRefresh(Window gameWindow)
         {
-            this.Hide();
             gameWindow.Owner = this;
             gameWindow.Closed += (s, args) =>
             {
-                this.Show();
                 RefreshActivitiesAfterGame();
             };
             gameWindow.Show();
@@ -1165,6 +1170,8 @@ namespace focus_ai
         private Border BuildPatientRow(int idx, PatientEntry patient)
         {
             var bgRow = (SolidColorBrush)FindResource("RowBg");
+            var rowHover = (SolidColorBrush)FindResource("RowHover");
+            var rowBorder = (SolidColorBrush)FindResource("RowBorder");
             var bgNum = (SolidColorBrush)FindResource("RowNumBg");
             var textPri = (SolidColorBrush)FindResource("TxtPrimary");
             var textSec = (SolidColorBrush)FindResource("TxtSecondary");
@@ -1174,10 +1181,14 @@ namespace focus_ai
             var row = new Border
             {
                 Background = bgRow,
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(18, 12, 18, 12),
-                Margin = new Thickness(0, 0, 0, 8)
+                BorderBrush = rowBorder,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                CornerRadius = new CornerRadius(0),
+                Padding = new Thickness(18, 13, 18, 13),
+                Margin = new Thickness(0)
             };
+            row.MouseEnter += (_, _) => row.Background = rowHover;
+            row.MouseLeave += (_, _) => row.Background = bgRow;
 
             var g = new Grid();
             // 6 coloane: #, pacient, teste, activități, predicție, buton select
@@ -1294,7 +1305,9 @@ namespace focus_ai
 
             var badge = new Border
             {
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(bg)),
+                Background = Brushes.Transparent,
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fg)),
+                BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(8, 4, 8, 4),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -1328,7 +1341,7 @@ namespace focus_ai
                 return;
             }
 
-            MessageBox.Show(string.Format(LanguageManager.T("Scan the NFC card for {0} on {1}."), patient.Name, NfcSerialPortName),
+            MessageBox.Show($"Scan the NFC card for {patient.Name}.",
                 "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
 
             string? scannedUid;
@@ -1338,7 +1351,7 @@ namespace focus_ai
             }
             catch (Exception ex)
             {
-                MessageBox.Show(string.Format(LanguageManager.T("Could not read NFC on {0}."), NfcSerialPortName) + $"\n{ex.Message}",
+                MessageBox.Show($"Could not read NFC automatically.\n{ex.Message}",
                     "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
@@ -1388,10 +1401,9 @@ namespace focus_ai
 
         private Task<string?> ReadNfcUidAsync(TimeSpan timeout)
         {
-            if (BioCollector.Instance.TryOpen(NfcSerialPortName))
-                return ReadNfcUidFromSharedCollectorAsync(timeout);
-
-            return ReadNfcUidFromDedicatedPortAsync(timeout);
+            return !string.IsNullOrWhiteSpace(BioCollector.Instance.ConnectedPortName)
+                ? ReadNfcUidFromSharedCollectorAsync(timeout)
+                : ReadNfcUidFromAnyPortAsync(timeout);
         }
 
         private Task<string?> ReadNfcUidFromSharedCollectorAsync(TimeSpan timeout)
@@ -1410,32 +1422,74 @@ namespace focus_ai
             _pendingNfcRead?.TrySetResult(uid);
         }
 
-        private static Task<string?> ReadNfcUidFromDedicatedPortAsync(TimeSpan timeout)
+        private static async Task<string?> ReadNfcUidFromAnyPortAsync(TimeSpan timeout)
+        {
+            string[] ports = SerialPort.GetPortNames()
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (ports.Length == 0)
+                return null;
+
+            using var timeoutCts = new CancellationTokenSource(timeout);
+            var tasks = ports
+                .Select(portName => ReadNfcUidFromPortAsync(portName, timeoutCts.Token))
+                .ToList();
+
+            while (tasks.Count > 0)
+            {
+                Task<string?> completed = await Task.WhenAny(tasks);
+                tasks.Remove(completed);
+
+                string? uid = await completed;
+                if (!string.IsNullOrWhiteSpace(uid))
+                {
+                    timeoutCts.Cancel();
+                    return uid;
+                }
+            }
+
+            return null;
+        }
+
+        private static Task<string?> ReadNfcUidFromPortAsync(string portName, CancellationToken token)
         {
             return Task.Run(() =>
             {
-                using var port = new SerialPort(NfcSerialPortName, NfcSerialBaudRate)
+                try
                 {
-                    NewLine = "\n",
-                    ReadTimeout = 500,
-                    DtrEnable = true
-                };
+                    using var port = new SerialPort(portName, 115200)
+                    {
+                        NewLine = "\n",
+                        ReadTimeout = 250,
+                        WriteTimeout = 500,
+                        DtrEnable = true,
+                        RtsEnable = true
+                    };
 
-                port.Open();
-                DateTime deadline = DateTime.UtcNow.Add(timeout);
+                    port.Open();
+                    Thread.Sleep(2500);
 
-                while (DateTime.UtcNow < deadline)
+                    while (!token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            string line = port.ReadLine().Trim();
+                            string uid = BioCollector.ExtractNfcUid(line);
+                            if (!string.IsNullOrWhiteSpace(uid))
+                            {
+                                BioCollector.Instance.RememberDetectedPort(portName);
+                                return uid;
+                            }
+                        }
+                        catch (TimeoutException)
+                        {
+                        }
+                    }
+                }
+                catch
                 {
-                    try
-                    {
-                        string line = port.ReadLine().Trim();
-                        string uid = BioCollector.ExtractNfcUid(line);
-                        if (!string.IsNullOrWhiteSpace(uid))
-                            return uid;
-                    }
-                    catch (TimeoutException)
-                    {
-                    }
                 }
 
                 return null;
@@ -1523,34 +1577,10 @@ namespace focus_ai
             catch { return ""; }
         }
 
-        private void InitializeSerialPort()
-        {
-            try
-            {
-                _serialPort = new SerialPort("COM7", 115200) { NewLine = "\r\n", DtrEnable = true };
-                _serialPort.Open();
-                _readThread = new Thread(ReadSerial) { IsBackground = true };
-                _readThread.Start();
-            }
-            catch { }
-        }
-
-        private void ReadSerial()
-        {
-            while (_isRunning)
-            {
-                try { _serialPort?.ReadExisting(); Thread.Sleep(100); }
-                catch { }
-            }
-        }
-
         private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            _isRunning = false;
             _cts.Cancel();
             BioCollector.Instance.NfcUidReceived -= OnBioCollectorNfcUidReceived;
-            _readThread?.Join(500);
-            if (_serialPort?.IsOpen == true) { _serialPort.Close(); _serialPort.Dispose(); }
         }
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)

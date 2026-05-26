@@ -18,39 +18,39 @@ namespace focus_ai
         private static void ApplyDark(ResourceDictionary r)
         {
             // Fonduri
-            S(r, "BgRoot",          "#0D0F18");
-            S(r, "BgSidebar",       "#0A0C10");
-            S(r, "BgMain",          "#0D0F18");
-            S(r, "BgCard",          "#141824");
-            S(r, "BgCardHover",     "#1A2236");
-            S(r, "BgNavActive",     "#1A2236");
-            S(r, "BgNavHover",      "#141824");
-            S(r, "BgUserBar",       "#0F1220");
-            S(r, "BgSep",           "#1E2840");
-            S(r, "BgToggle",        "#1E3A5F");
-            S(r, "BgSection",       "#141824");
-            S(r, "BgInput",         "#0D0F14");
-            S(r, "BgInputBorder",   "#2D3748");
+            S(r, "BgRoot",          "#0B0F19");
+            S(r, "BgSidebar",       "#0D1220");
+            S(r, "BgMain",          "#0B0F19");
+            S(r, "BgCard",          "#1A2035");
+            S(r, "BgCardHover",     "#222C46");
+            S(r, "BgNavActive",     "#182036");
+            S(r, "BgNavHover",      "#151C2E");
+            S(r, "BgUserBar",       "#111827");
+            S(r, "BgSep",           "#252D41");
+            S(r, "BgToggle",        "#171F33");
+            S(r, "BgSection",       "#111827");
+            S(r, "BgInput",         "#111827");
+            S(r, "BgInputBorder",   "#252D41");
 
             // Stat cards
-            S(r, "BgStatBlue",      "#1E3A5F");
-            S(r, "BgStatGreen",     "#14532D");
-            S(r, "BgStatPurple",    "#3B1F5E");
-            S(r, "BgStatOrange",    "#7C2D12");
+            S(r, "BgStatBlue",      "#1A2035");
+            S(r, "BgStatGreen",     "#1A2035");
+            S(r, "BgStatPurple",    "#1A2035");
+            S(r, "BgStatOrange",    "#1A2035");
 
             // Game cards
-            S(r, "GameCard1Bg",     "#1E3A5F");
-            S(r, "GameCard2Bg",     "#14532D");
-            S(r, "GameCard3Bg",     "#3B1F5E");
-            S(r, "GameCard4Bg",     "#7C2D12");
-            S(r, "GameCard5Bg",     "#1F2937");
-            S(r, "GameCardLockBg",  "#0D1017");
+            S(r, "GameCard1Bg",     "#1A2035");
+            S(r, "GameCard2Bg",     "#1A2035");
+            S(r, "GameCard3Bg",     "#1A2035");
+            S(r, "GameCard4Bg",     "#1A2035");
+            S(r, "GameCard5Bg",     "#1A2035");
+            S(r, "GameCardLockBg",  "#111827");
 
             // Texte
-            S(r, "TxtPrimary",      "#F1F5F9");
-            S(r, "TxtSecondary",    "#8892A4");
-            S(r, "TxtMuted",        "#4B5563");
-            S(r, "TxtVersion",      "#374151");
+            S(r, "TxtPrimary",      "#F8FAFC");
+            S(r, "TxtSecondary",    "#A0AEC0");
+            S(r, "TxtMuted",        "#718096");
+            S(r, "TxtVersion",      "#718096");
             S(r, "TxtNavActive",    "#FFFFFF");
             S(r, "TxtOnline",       "#22C55E");
 
@@ -63,13 +63,15 @@ namespace focus_ai
             // Accent
             S(r, "AccentPrimary",   "#3B82F6");
             S(r, "AccentHover",     "#2563EB");
-            S(r, "AccentSecBg",     "#1E3A5F");
+            S(r, "AccentSecBg",     "#172036");
             S(r, "AccentSecFg",     "#60A5FA");
-            S(r, "AccentSecHov",    "#1E4080");
+            S(r, "AccentSecHov",    "#222C46");
 
             // Tabel
-            S(r, "RowBg",           "#141824");
-            S(r, "RowNumBg",        "#1A2236");
+            S(r, "RowBg",           "#00000000");
+            S(r, "RowHover",        "#222C46");
+            S(r, "RowBorder",       "#252D41");
+            S(r, "RowNumBg",        "#161B2C");
         }
 
         private static void ApplyLight(ResourceDictionary r)
@@ -126,6 +128,8 @@ namespace focus_ai
 
             // Tabel
             S(r, "RowBg",           "#FFFFFF");
+            S(r, "RowHover",        "#F5F7FF");
+            S(r, "RowBorder",       "#E2E8F0");
             S(r, "RowNumBg",        "#F1F5F9");
         }
 

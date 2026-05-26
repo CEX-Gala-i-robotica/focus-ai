@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -35,7 +37,6 @@ namespace focus_ai
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                          @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
         private const string PythonScript = "MonitorTracking.py";
-        private const string ArduinoPort = "COM4";
 
         private readonly string _dbUrl =
             ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
@@ -71,7 +72,8 @@ namespace focus_ai
 
         private void StartTest_Loaded(object sender, RoutedEventArgs e)
         {
-            BioCollector.Instance.TryOpen(ArduinoPort);
+            var bio = BioCollector.Instance;
+            bio.TryOpen(bio.LastDetectedPortName);
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
@@ -107,7 +109,7 @@ namespace focus_ai
         private async void RunStep(int stepIndex)
         {
             EnsureTimerStarted();
-            Hide();
+            SetInteractionLocked(true);
 
             try
             {
@@ -119,7 +121,6 @@ namespace focus_ai
                     {
                         StopTimer();
                         BioCollector.Instance.StopStreaming();
-                        Show();
                         await ShowCompletionMessageAsync();
                         return;
                     }
@@ -128,7 +129,7 @@ namespace focus_ai
             finally
             {
                 if (!AllStepsDone())
-                    Show();
+                    SetInteractionLocked(false);
             }
         }
 
@@ -140,20 +141,23 @@ namespace focus_ai
                     return await RunEyeTrackerAsync();
 
                 case 2:
-                    var buzzerWin = new BuzzerTest(_isDark);
+                    var buzzerWin = new BuzzerTest(_isDark) { Owner = this };
+                    WindowHelper.MoveToSecondMonitor(buzzerWin);
                     buzzerWin.ShowDialog();
                     if (buzzerWin.ReactionTime.HasValue)
                         _reactionTimeSec = buzzerWin.ReactionTime.Value;
                     return true;
 
                 case 3:
-                    var goNoGoWin = new GoNoGoTest(_isDark);
+                    var goNoGoWin = new GoNoGoTest(_isDark) { Owner = this };
+                    WindowHelper.MoveToSecondMonitor(goNoGoWin);
                     goNoGoWin.ShowDialog();
                     _goNoGoAccuracy = goNoGoWin.Accuracy;
                     return true;
 
                 case 4:
-                    var cptWin = new CptHybridTest(_isDark);
+                    var cptWin = new CptHybridTest(_isDark) { Owner = this };
+                    WindowHelper.MoveToSecondMonitor(cptWin);
                     bool? cptCompleted = cptWin.ShowDialog();
                     if (cptCompleted == true && cptWin.Result != null)
                     {
@@ -185,9 +189,7 @@ namespace focus_ai
                 return false;
             }
 
-            // Use the virtual environment's Python interpreter if it exists
-            string venvPython = Path.Combine(EyeTrackerDir, "eyetracker_env", "Scripts", "python.exe");
-            string pythonExe = File.Exists(venvPython) ? venvPython : "python";
+            string pythonExe = ResolveEyeTrackerPythonExecutable();
 
             var psi = new ProcessStartInfo
             {
@@ -199,26 +201,35 @@ namespace focus_ai
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.Environment["FOCUS_AI_LANG"] = LanguageManager.Current == AppLanguage.Romanian ? "ro" : "en";
+            psi.Environment["FOCUS_AI_MONITOR"] = "secondary";
 
             try
             {
+                DateTime scriptStartTime = DateTime.Now;
                 using var process = new Process { StartInfo = psi };
-                process.ErrorDataReceived += (_, _) => { };
                 process.Start();
-                process.BeginErrorReadLine();
                 var moveWindowTask = WindowHelper.MoveProcessWindowsToSecondMonitorAsync(process);
 
-                string stdoutData = await process.StandardOutput.ReadToEndAsync();
-                await Task.Run(() => process.WaitForExit());
+                Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> stderrTask = process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                string stdoutData = await stdoutTask;
+                string stderrData = await stderrTask;
                 await moveWindowTask;
 
-                if (!string.IsNullOrWhiteSpace(stdoutData))
+                string coordsPayload = ExtractCoordinatePayload(stdoutData);
+                if (string.IsNullOrWhiteSpace(coordsPayload))
+                    coordsPayload = TryReadCoordinatePayloadFromFile(Path.Combine(EyeTrackerDir, "gaze_coords.txt"), scriptStartTime);
+
+                if (!string.IsNullOrWhiteSpace(coordsPayload))
                 {
-                    _mapData = stdoutData.Trim();
+                    _mapData = coordsPayload;
                     return true;
                 }
 
-                MessageBox.Show("The script did not return coordinates.\nCheck the eye tracker.",
+                string details = BuildEyeTrackerErrorDetails(process.ExitCode, stdoutData, stderrData);
+                MessageBox.Show("The script did not return coordinates.\nCheck the eye tracker." + details,
                     "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
@@ -246,6 +257,17 @@ namespace focus_ai
                 case 4: _done4 = true; break;
             }
             RefreshUI();
+        }
+
+        private void SetInteractionLocked(bool locked)
+        {
+            StartBtn1.IsEnabled = !locked && !_done1;
+            StartBtn2.IsEnabled = !locked && !_done2;
+            StartBtn3.IsEnabled = !locked && !_done3;
+            StartBtn4.IsEnabled = !locked && !_done4;
+            TimerStatusText.Text = locked
+                ? LanguageManager.T("Running")
+                : (_timerStarted ? LanguageManager.T("Running") : LanguageManager.T("Waiting"));
         }
 
         private bool AllStepsDone() => _done1 && _done2 && _done3 && _done4;
@@ -569,6 +591,156 @@ namespace focus_ai
              .Replace("\"", "\\\"")
              .Replace("\r", "")
              .Replace("\n", "");
+
+        private static string ExtractCoordinatePayload(string stdout)
+        {
+            if (string.IsNullOrWhiteSpace(stdout))
+                return "";
+
+            var lines = stdout.Split(
+                new[] { "\r\n", "\n", "\r" },
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            for (int i = lines.Length - 1; i >= 0; i--)
+            {
+                if (LooksLikeCoordinatePayload(lines[i]))
+                    return lines[i];
+            }
+
+            return "";
+        }
+
+        private static bool LooksLikeCoordinatePayload(string value)
+        {
+            var pairs = value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (pairs.Length == 0)
+                return false;
+
+            foreach (var pair in pairs)
+            {
+                var parts = pair.Split(',', StringSplitOptions.TrimEntries);
+                if (parts.Length != 2)
+                    return false;
+
+                if (!double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                    return false;
+
+                if (!double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string ResolveEyeTrackerPythonExecutable()
+        {
+            string venv312Python = Path.Combine(EyeTrackerDir, "eyetracker_env312", "Scripts", "python.exe");
+            if (IsPythonUsable(venv312Python))
+                return venv312Python;
+
+            string venvPython = Path.Combine(EyeTrackerDir, "eyetracker_env", "Scripts", "python.exe");
+            if (IsPythonUsable(venvPython))
+                return venvPython;
+
+            return "python";
+        }
+
+        private static bool IsPythonUsable(string pythonExe)
+        {
+            if (string.IsNullOrWhiteSpace(pythonExe) || !File.Exists(pythonExe))
+                return false;
+
+            try
+            {
+                using var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = pythonExe,
+                    Arguments = "-c \"import sys\"",
+                    WorkingDirectory = EyeTrackerDir,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+
+                if (process == null)
+                    return false;
+
+                process.WaitForExit(3000);
+                if (!process.HasExited)
+                {
+                    try { process.Kill(); } catch { }
+                    return false;
+                }
+
+                return process.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string TryReadCoordinatePayloadFromFile(string path, DateTime scriptStartTime)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    return "";
+
+                if (File.GetLastWriteTime(path) < scriptStartTime)
+                    return "";
+
+                var matches = Regex.Matches(
+                    File.ReadAllText(path),
+                    @"\(\s*\d+\s*,\s*([-+]?\d+(?:\.\d+)?)\s*,\s*([-+]?\d+(?:\.\d+)?)\s*\)");
+
+                var points = matches
+                    .Cast<Match>()
+                    .Select(match =>
+                    {
+                        double x = double.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) * 100.0;
+                        double y = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture) * 100.0;
+                        return $"{x:F3},{y:F3}";
+                    })
+                    .ToArray();
+
+                return points.Length > 0 ? string.Join(";", points) : "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static string BuildEyeTrackerErrorDetails(int exitCode, string stdout, string stderr)
+        {
+            var details = new List<string>();
+
+            if (exitCode != 0)
+                details.Add($"Exit code: {exitCode}");
+
+            string lastError = LastNonEmptyLine(stderr);
+            if (!string.IsNullOrWhiteSpace(lastError))
+                details.Add($"Python: {lastError}");
+
+            string lastOutput = LastNonEmptyLine(stdout);
+            if (!string.IsNullOrWhiteSpace(lastOutput))
+                details.Add($"Output: {lastOutput}");
+
+            return details.Count == 0 ? "" : "\n\n" + string.Join("\n", details);
+        }
+
+        private static string LastNonEmptyLine(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return "";
+
+            return text.Split(
+                    new[] { "\r\n", "\n", "\r" },
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .LastOrDefault() ?? "";
+        }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {

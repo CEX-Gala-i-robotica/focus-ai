@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO.Ports;
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -46,6 +47,8 @@ namespace focus_ai
         public int LiveEcgSt { get; private set; }
         public bool LiveDist { get; private set; }
         public string LastNfcUid { get; private set; } = "";
+        public string ConnectedPortName => _serial?.PortName ?? "";
+        public string LastDetectedPortName { get; private set; } = "";
 
         public event Action<int, int, int, int, bool>? SampleReceived;
         public event Action? TouchDetected;
@@ -54,41 +57,86 @@ namespace focus_ai
         private SerialPort? _serial;
         private bool _streaming;
         private readonly Dispatcher _ui = Application.Current.Dispatcher;
-        private const int ArduinoBaudRate = 9600;
+        private const int ArduinoBaudRate = 115200;
 
         private BioCollector() { }
 
-        public bool TryOpen(string portName)
+        public bool TryOpen(string? preferredPortName = null)
         {
             if (_serial?.IsOpen == true) return true;
-            if (string.IsNullOrWhiteSpace(portName)) return false;
+
+            string[] availablePorts = SerialPort.GetPortNames();
+            string[] candidatePorts = availablePorts
+                .Prepend(preferredPortName ?? "")
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            Exception? lastError = null;
+
+            if (!string.IsNullOrWhiteSpace(preferredPortName)
+                && availablePorts.Contains(preferredPortName, StringComparer.OrdinalIgnoreCase)
+                && TryOpenPort(preferredPortName, requireSupportedLine: false, out lastError))
+            {
+                return true;
+            }
+
+            foreach (string candidatePort in candidatePorts)
+            {
+                if (TryOpenPort(candidatePort, requireSupportedLine: true, out lastError))
+                    return true;
+            }
+
+            MessageBox.Show(
+                $"Cannot find the Arduino automatically.\n{lastError?.Message ?? "No serial ports were available."}\n\nTests will run without hardware collection.",
+                "Focus AI – Serial",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
+            _serial = null;
+            return false;
+        }
+
+        public void RememberDetectedPort(string portName)
+        {
+            if (!string.IsNullOrWhiteSpace(portName))
+                LastDetectedPortName = portName;
+        }
+
+        private bool TryOpenPort(string portName, bool requireSupportedLine, out Exception? error)
+        {
+            error = null;
 
             try
             {
-                _serial = new SerialPort(portName, ArduinoBaudRate)
+                var serial = new SerialPort(portName, ArduinoBaudRate)
                 {
-                    ReadTimeout = 500,
+                    ReadTimeout = 250,
                     WriteTimeout = 500,
                     NewLine = "\n",
                     DtrEnable = true,
                     RtsEnable = true
                 };
 
-                _serial.DataReceived += OnDataReceived;
-                _serial.Open();
-                _serial.DiscardInBuffer();
+                serial.Open();
+                Thread.Sleep(2500);
 
-                System.Threading.Thread.Sleep(1800);
+                if (requireSupportedLine && !WaitForArduinoReady(serial, TimeSpan.FromSeconds(5)))
+                {
+                    serial.Close();
+                    serial.Dispose();
+                    error = new TimeoutException($"{portName} did not answer with READY, DATA, NFC, or TOUCH.");
+                    return false;
+                }
+
+                serial.DiscardInBuffer();
+                serial.DataReceived += OnDataReceived;
+                _serial = serial;
                 return true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    $"Cannot open serial port {portName}.\n{ex.Message}\n\nTests will run without hardware collection.",
-                    "Focus AI – Serial",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-
+                error = ex;
                 _serial = null;
                 return false;
             }
@@ -185,7 +233,7 @@ namespace focus_ai
                 return;
             }
 
-            if (line.StartsWith("DATA,"))
+            if (line.StartsWith("DATA,", StringComparison.OrdinalIgnoreCase))
             {
                 if (!TryParseDataFrame(line, out var frame))
                     return;
@@ -229,11 +277,18 @@ namespace focus_ai
 
         public static string ExtractNfcUid(string line)
         {
-            const string marker = "UID:";
-            int markerIndex = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(line))
+                return "";
+
+            const string nfcMarker = "NFC_DETECTED,";
+            if (line.StartsWith(nfcMarker, StringComparison.OrdinalIgnoreCase))
+                return line[nfcMarker.Length..].Trim();
+
+            const string uidMarker = "UID:";
+            int markerIndex = line.IndexOf(uidMarker, StringComparison.OrdinalIgnoreCase);
             if (markerIndex < 0) return "";
 
-            return line[(markerIndex + marker.Length)..].Trim();
+            return line[(markerIndex + uidMarker.Length)..].Trim();
         }
 
         private static bool TryParseOptionalInt(string value, out int result)
@@ -245,6 +300,36 @@ namespace focus_ai
             }
 
             return int.TryParse(value.Trim(), out result);
+        }
+
+        private static bool WaitForArduinoReady(SerialPort serial, TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow.Add(timeout);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                try
+                {
+                    string line = serial.ReadLine().Trim();
+                    if (IsSupportedArduinoLine(line))
+                        return true;
+                }
+                catch (TimeoutException)
+                {
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsSupportedArduinoLine(string line)
+        {
+            return line.Equals("READY", StringComparison.OrdinalIgnoreCase)
+                || line.Equals("TEST_STARTED", StringComparison.OrdinalIgnoreCase)
+                || line.Equals("TOUCH_DETECTED", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("DATA,", StringComparison.OrdinalIgnoreCase)
+                || !string.IsNullOrWhiteSpace(ExtractNfcUid(line))
+                || IsButtonPressLine(line);
         }
 
         private static bool IsButtonPressLine(string line)

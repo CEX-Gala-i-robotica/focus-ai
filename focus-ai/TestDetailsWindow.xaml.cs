@@ -211,7 +211,7 @@ namespace focus_ai
             areaFig.Segments.Add(new LineSegment(new Point(Tx(points[^1].X), h), false));
 
             var startColor = lineBrush.GradientStops[0].Color;
-            var areaFill   = new SolidColorBrush(Color.FromArgb(18, startColor.R, startColor.G, startColor.B));
+            var areaFill   = new SolidColorBrush(Color.FromArgb(14, startColor.R, startColor.G, startColor.B));
             graph.Children.Add(new System.Windows.Shapes.Path
             {
                 Data = new PathGeometry(new[] { areaFig }),
@@ -229,7 +229,7 @@ namespace focus_ai
             {
                 Data            = new PathGeometry(new[] { lineFig }),
                 Stroke          = lineBrush,
-                StrokeThickness = 1.6,
+                StrokeThickness = 1.5,
                 StrokeLineJoin  = PenLineJoin.Round,
                 Opacity         = 0.92
             });
@@ -269,15 +269,15 @@ namespace focus_ai
             c.Children.Add(lblN);
 
             var dotFill  = new SolidColorBrush(Color.FromArgb(210, 160, 160, 255));
-            var haloFill = new SolidColorBrush(Color.FromArgb(40,  160, 160, 255));
+            var haloFill = new SolidColorBrush(Color.FromArgb(22,  160, 160, 255));
 
             for (int i = 0; i < n; i++)
             {
                 if (vals[i] < 0.5) continue;
                 double cx = n > 1 ? (double)i / (n - 1) * w : w / 2;
 
-                var halo = new Ellipse { Width=10, Height=10, Fill=haloFill };
-                Canvas.SetLeft(halo, cx-5); Canvas.SetTop(halo, mid-5);
+                var halo = new Ellipse { Width=8, Height=8, Fill=haloFill };
+                Canvas.SetLeft(halo, cx-4); Canvas.SetTop(halo, mid-4);
                 c.Children.Add(halo);
 
                 var dot = new Ellipse { Width=5, Height=5, Fill=dotFill };

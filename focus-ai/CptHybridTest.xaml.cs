@@ -60,6 +60,7 @@ namespace focus_ai
         private double _stimulusOnsetMs;
         private double _responseDeadlineMs;
         private bool _lateSpaceAttempt;
+        private bool _completedByFinishButton;
 
         public CptHybridResult? Result { get; private set; }
 
@@ -73,27 +74,39 @@ namespace focus_ai
             AddHandler(Keyboard.PreviewKeyDownEvent, new KeyEventHandler(GlobalPreviewKeyDown), true);
             Loaded += (_, _) => Focus();
             Activated += (_, _) => Focus();
-            Closing += (_, _) => _cts.Cancel();
+            Closing += (_, _) =>
+            {
+                _cts.Cancel();
+                if (!_completedByFinishButton)
+                    Result = null;
+            };
         }
 
         private async void StartButton_Click(object sender, RoutedEventArgs e)
         {
             if (_phase != CptPhase.Instructions) return;
 
-            _practicePlan = BuildTrialPlan(PracticeTrials);
-            _testPlan = BuildTrialPlan(TotalTrials);
-            _testResults.Clear();
+            try
+            {
+                _practicePlan = BuildTrialPlan(PracticeTrials);
+                _testPlan = BuildTrialPlan(TotalTrials);
+                _testResults.Clear();
 
-            InstructionsPanel.Visibility = Visibility.Collapsed;
-            TrialPanel.Visibility = Visibility.Visible;
-            ResultsPanel.Visibility = Visibility.Collapsed;
+                InstructionsPanel.Visibility = Visibility.Collapsed;
+                TrialPanel.Visibility = Visibility.Visible;
+                ResultsPanel.Visibility = Visibility.Collapsed;
 
-            _clock.Restart();
-            await RunCountdownAsync(_cts.Token);
-            await RunPhaseAsync(CptPhase.Practice, _practicePlan, _cts.Token);
-            await RunCountdownAsync(_cts.Token);
-            await RunPhaseAsync(CptPhase.MainTest, _testPlan, _cts.Token);
-            ShowResults();
+                _clock.Restart();
+                await RunCountdownAsync(_cts.Token);
+                await RunPhaseAsync(CptPhase.Practice, _practicePlan, _cts.Token);
+                await RunCountdownAsync(_cts.Token);
+                await RunPhaseAsync(CptPhase.MainTest, _testPlan, _cts.Token);
+                ShowResults();
+            }
+            catch (OperationCanceledException)
+            {
+                Result = null;
+            }
         }
 
         private async Task RunCountdownAsync(CancellationToken token)
@@ -379,6 +392,7 @@ namespace focus_ai
 
         private void Finish_Click(object sender, RoutedEventArgs e)
         {
+            _completedByFinishButton = Result != null;
             DialogResult = Result != null;
             Close();
         }

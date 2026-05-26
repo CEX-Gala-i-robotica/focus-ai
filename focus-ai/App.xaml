@@ -12,28 +12,45 @@
             App.xaml.cs apelează ThemeManager.Apply(isDark) în OnStartup.
         -->
 
+        <!-- Tipografie -->
+        <FontFamily x:Key="AppFontFamily">Segoe UI Variable Display, Segoe UI</FontFamily>
+        <Style TargetType="{x:Type Window}">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+        </Style>
+        <Style TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
+        </Style>
+        <Style x:Key="KickerTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#718096"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
         <!-- Fonduri -->
-        <SolidColorBrush x:Key="BgRoot"        Color="#0D0F18"/>
-        <SolidColorBrush x:Key="BgSidebar"     Color="#0A0C10"/>
-        <SolidColorBrush x:Key="BgMain"        Color="#0D0F18"/>
-        <SolidColorBrush x:Key="BgCard"        Color="#141824"/>
-        <SolidColorBrush x:Key="BgCardHover"   Color="#1A2236"/>
-        <SolidColorBrush x:Key="BgNavActive"   Color="#1A2236"/>
-        <SolidColorBrush x:Key="BgNavHover"    Color="#141824"/>
-        <SolidColorBrush x:Key="BgUserBar"     Color="#0F1220"/>
-        <SolidColorBrush x:Key="BgSep"         Color="#1E2840"/>
-        <SolidColorBrush x:Key="BgToggle"      Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="BgRoot"        Color="#0B0F19"/>
+        <SolidColorBrush x:Key="BgSidebar"     Color="#0D1220"/>
+        <SolidColorBrush x:Key="BgMain"        Color="#0B0F19"/>
+        <SolidColorBrush x:Key="BgCard"        Color="#1A2035"/>
+        <SolidColorBrush x:Key="BgCardHover"   Color="#222C46"/>
+        <SolidColorBrush x:Key="BgNavActive"   Color="#182036"/>
+        <SolidColorBrush x:Key="BgNavHover"    Color="#151C2E"/>
+        <SolidColorBrush x:Key="BgUserBar"     Color="#111827"/>
+        <SolidColorBrush x:Key="BgSep"         Color="#252D41"/>
+        <SolidColorBrush x:Key="BgToggle"      Color="#171F33"/>
+        <SolidColorBrush x:Key="BgSection"     Color="#111827"/>
+        <SolidColorBrush x:Key="BgInput"       Color="#111827"/>
+        <SolidColorBrush x:Key="BgInputBorder" Color="#252D41"/>
 
         <!-- Stat cards -->
-        <SolidColorBrush x:Key="BgStatBlue"    Color="#1E3A5F"/>
-        <SolidColorBrush x:Key="BgStatGreen"   Color="#14532D"/>
-        <SolidColorBrush x:Key="BgStatPurple"  Color="#3B1F5E"/>
-        <SolidColorBrush x:Key="BgStatOrange"  Color="#7C2D12"/>
+        <SolidColorBrush x:Key="BgStatBlue"    Color="#1A2035"/>
+        <SolidColorBrush x:Key="BgStatGreen"   Color="#1A2035"/>
+        <SolidColorBrush x:Key="BgStatPurple"  Color="#1A2035"/>
+        <SolidColorBrush x:Key="BgStatOrange"  Color="#1A2035"/>
 
         <!-- Texte -->
-        <SolidColorBrush x:Key="TxtPrimary"    Color="#F1F5F9"/>
-        <SolidColorBrush x:Key="TxtSecondary"  Color="#8892A4"/>
-        <SolidColorBrush x:Key="TxtMuted"      Color="#4B5563"/>
+        <SolidColorBrush x:Key="TxtPrimary"    Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="TxtSecondary"  Color="#A0AEC0"/>
+        <SolidColorBrush x:Key="TxtMuted"      Color="#718096"/>
         <SolidColorBrush x:Key="TxtNavActive"  Color="#FFFFFF"/>
         <SolidColorBrush x:Key="TxtOnline"     Color="#22C55E"/>
 
@@ -46,13 +63,23 @@
         <!-- Accent -->
         <SolidColorBrush x:Key="AccentPrimary" Color="#3B82F6"/>
         <SolidColorBrush x:Key="AccentHover"   Color="#2563EB"/>
-        <SolidColorBrush x:Key="AccentSecBg"   Color="#1E3A5F"/>
+        <SolidColorBrush x:Key="AccentSecBg"   Color="#172036"/>
         <SolidColorBrush x:Key="AccentSecFg"   Color="#60A5FA"/>
-        <SolidColorBrush x:Key="AccentSecHov"  Color="#1E4080"/>
+        <SolidColorBrush x:Key="AccentSecHov"  Color="#222C46"/>
 
         <!-- Rânduri tabel -->
-        <SolidColorBrush x:Key="RowBg"         Color="#141824"/>
-        <SolidColorBrush x:Key="RowNumBg"      Color="#1A2236"/>
+        <SolidColorBrush x:Key="RowBg"         Color="Transparent"/>
+        <SolidColorBrush x:Key="RowHover"      Color="#222C46"/>
+        <SolidColorBrush x:Key="RowBorder"     Color="#252D41"/>
+        <SolidColorBrush x:Key="RowNumBg"      Color="#161B2C"/>
+
+        <!-- Game cards -->
+        <SolidColorBrush x:Key="GameCard1Bg"     Color="#1A2035"/>
+        <SolidColorBrush x:Key="GameCard2Bg"     Color="#1A2035"/>
+        <SolidColorBrush x:Key="GameCard3Bg"     Color="#1A2035"/>
+        <SolidColorBrush x:Key="GameCard4Bg"     Color="#1A2035"/>
+        <SolidColorBrush x:Key="GameCard5Bg"     Color="#1A2035"/>
+        <SolidColorBrush x:Key="GameCardLockBg"  Color="#111827"/>
 
     </Application.Resources>
 </Application>

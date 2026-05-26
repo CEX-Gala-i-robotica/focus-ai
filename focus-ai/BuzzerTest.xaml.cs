@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Media;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -54,7 +55,7 @@ namespace focus_ai
             {
                 BioCollector.Instance.Send("START_TEST");
 
-                BioCollector.Instance.Send("BEEP"); // 🔥 DOAR AICI SUNĂ
+                SystemSounds.Beep.Play();
 
                 _stopwatch.Start();
                 _uiTimer.Start();

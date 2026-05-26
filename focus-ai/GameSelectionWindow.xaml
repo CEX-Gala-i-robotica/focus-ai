@@ -29,7 +29,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="{DynamicResource BgRoot}">
+    <Grid x:Name="RootGrid" Background="{DynamicResource BgRoot}">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
             <StackPanel>
                 <TextBlock Text="Select a cognitive training game"

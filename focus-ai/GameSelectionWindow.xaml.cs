@@ -6,6 +6,7 @@ namespace focus_ai
     {
         private readonly Dashboard _dashboard;
         private readonly bool _isDark;
+        private bool _activityRunning;
 
         public GameSelectionWindow(Dashboard dashboard, bool isDark)
         {
@@ -35,8 +36,20 @@ namespace focus_ai
 
         private void CloseAndStartGame(Window gameWindow)
         {
-            Close(); // închide fereastra de selecție
-            _dashboard.StartGameAndRefresh(gameWindow);
+            if (_activityRunning) return;
+
+            _activityRunning = true;
+            RootGrid.IsEnabled = false;
+            gameWindow.Owner = this;
+            WindowHelper.MoveToSecondMonitor(gameWindow);
+            gameWindow.Closed += (_, _) =>
+            {
+                _activityRunning = false;
+                RootGrid.IsEnabled = true;
+                _dashboard.RefreshActivitiesAfterGame();
+                Close();
+            };
+            gameWindow.Show();
         }
     }
 }
