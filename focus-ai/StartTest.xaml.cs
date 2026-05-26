@@ -55,7 +55,7 @@ namespace focus_ai
         {
             InitializeComponent();
             LanguageManager.Register(this);
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             _dashboard = dashboard;
             _isDark = isDark;
 
@@ -185,9 +185,13 @@ namespace focus_ai
                 return false;
             }
 
+            // Use the virtual environment's Python interpreter if it exists
+            string venvPython = Path.Combine(EyeTrackerDir, "eyetracker_env", "Scripts", "python.exe");
+            string pythonExe = File.Exists(venvPython) ? venvPython : "python";
+
             var psi = new ProcessStartInfo
             {
-                FileName = "python",
+                FileName = pythonExe,
                 Arguments = $"\"{PythonScript}\"",
                 WorkingDirectory = EyeTrackerDir,
                 RedirectStandardOutput = true,
@@ -202,9 +206,11 @@ namespace focus_ai
                 process.ErrorDataReceived += (_, _) => { };
                 process.Start();
                 process.BeginErrorReadLine();
+                var moveWindowTask = WindowHelper.MoveProcessWindowsToSecondMonitorAsync(process);
 
                 string stdoutData = await process.StandardOutput.ReadToEndAsync();
                 await Task.Run(() => process.WaitForExit());
+                await moveWindowTask;
 
                 if (!string.IsNullOrWhiteSpace(stdoutData))
                 {
@@ -218,7 +224,7 @@ namespace focus_ai
             }
             catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 2)
             {
-                MessageBox.Show("Python was not found in PATH.\n\n" + ex.Message,
+                MessageBox.Show($"Python was not found in PATH.\n\n{ex.Message}",
                     "Python Missing", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
             }

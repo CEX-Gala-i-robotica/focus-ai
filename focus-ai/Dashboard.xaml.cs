@@ -58,7 +58,7 @@ namespace focus_ai
         public Dashboard()
         {
             InitializeComponent();
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             _isDark = IsSystemDarkTheme();
             ThemeManager.Apply(_isDark);
             ThemeIcon.Text = _isDark ? "☀️" : "🌙";

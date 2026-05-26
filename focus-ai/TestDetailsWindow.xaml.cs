@@ -18,7 +18,7 @@ namespace focus_ai
         {
             InitializeComponent();
             LanguageManager.Register(this);
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             Loaded += (_, _) => DrawAll(mapRaw, ecgRaw, spo2Raw, hrRaw, distRaw, cptRaw);
         }
 

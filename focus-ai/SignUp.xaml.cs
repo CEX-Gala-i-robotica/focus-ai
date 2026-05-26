@@ -26,7 +26,7 @@ namespace focus_ai
         public SignUp()
         {
             InitializeComponent();
-            WindowHelper.MoveToSecondMonitor(this);
+            WindowHelper.MoveToPrimaryMonitor(this);
             ApplySystemTheme();
             LanguageManager.Register(this, LanguageToggleBtn);
         }
