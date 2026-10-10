@@ -3,3 +3,16 @@
 /focus-ai/bin
 /focus-ai/obj
 /focus-ai/App.config
+# Python virtual environments
+**/eyetracker_env/
+**/eyetracker_env312/
+**/venv/
+**/.venv/
+
+# Python cache
+**/__pycache__/
+*.py[cod]
+
+# IDE
+.vscode/
+
