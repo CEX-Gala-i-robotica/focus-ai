@@ -19,6 +19,8 @@
       <PackageReference Include="Facebook" Version="7.0.10-beta" />
       <PackageReference Include="Firebase.Auth" Version="1.0.0" />
       <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
+      <PackageReference Include="Microsoft.ML" Version="5.0.0" />
+      <PackageReference Include="Microsoft.ML.LightGbm" Version="5.0.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
       <PackageReference Include="OxyPlot.Core" Version="2.2.0" />
       <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />

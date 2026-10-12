@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.IO.Ports;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -30,21 +29,18 @@ namespace focus_ai
         private bool _isLoadingTests = false;
         private bool _isLoadingActivities = false;
         private bool _isLoadingPatients = false;
-        private bool _isPatientVerified = false;
-        private TaskCompletionSource<string?>? _pendingNfcRead;
 
         private List<TestEntry> _testsCache = new();
         private List<ActivityEntry> _activitiesCache = new();
         private List<PatientEntry> _patientsCache = new();
         private string _selectedPatientId = "";
         private string _selectedPatientName = "";
-        private string _verifiedPatientId = "";
 
         private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw,
                                  SessionFeatures? Features);
         private record ActivityEntry(string Id, string DateTime, string Duration,
                                      string Game, string Difficulty, double Scor);
-        private record PatientEntry(string Id, string Name, string Email, string Phone, string Nfc,
+        private record PatientEntry(string Id, string Name, string Email, string Phone,
                                     int TestCount, double TotalTestScore,
                                     int ActivityCount, double TotalActivityScore,
                                     PredictionSummary Prediction);
@@ -63,7 +59,6 @@ namespace focus_ai
             _ = LoadProfileFromFirebaseAsync();
 
             this.Closing += Dashboard_Closing;
-            BioCollector.Instance.NfcUidReceived += OnBioCollectorNfcUidReceived;
 
             _ = LoadPatientsFromFirebaseAsync();
         }
@@ -923,11 +918,10 @@ namespace focus_ai
                     string patientEmail = profile.TryGetValue("email", out var em) ? em : "";
                     string phone = profile.TryGetValue("phone-number", out var ph) ? ph :
                                    profile.TryGetValue("phone", out var ph2) ? ph2 : "";
-                    string nfc = profile.TryGetValue("nfc", out var nf) ? nf : "";
 
                     double totalTestScore = tests.Sum(t => t.Scor);
                     double totalActivityScore = activities.Sum(a => a.Scor);
-                    patients.Add(new PatientEntry(patientId, name, patientEmail, phone, nfc,
+                    patients.Add(new PatientEntry(patientId, name, patientEmail, phone,
                         tests.Count, totalTestScore,
                         activities.Count, totalActivityScore,
                         prediction));
@@ -1191,8 +1185,8 @@ namespace focus_ai
             row.MouseLeave += (_, _) => row.Background = bgRow;
 
             var g = new Grid();
-            // 6 coloane: #, pacient, teste, activități, predicție, buton select
-            int[] widths = { 46, 1, 100, 100, 140, 110 }; // 1 = star, rest fixe
+            
+            int[] widths = { 46, 1, 100, 100, 140, 110 }; 
             foreach (var w in widths)
                 g.ColumnDefinitions.Add(w == 1
                     ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
@@ -1200,7 +1194,6 @@ namespace focus_ai
 
             void Add(int col, UIElement el) { Grid.SetColumn(el, col); g.Children.Add(el); }
 
-            // Număr rând
             var numBd = new Border
             {
                 Width = 28,
@@ -1220,7 +1213,6 @@ namespace focus_ai
             };
             Add(0, numBd);
 
-            // Nume + telefon
             var namePanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             namePanel.Children.Add(new TextBlock
             {
@@ -1237,18 +1229,15 @@ namespace focus_ai
             });
             Add(1, namePanel);
 
-            // Număr teste (centrat)
             Add(2, BuildCenteredText(patient.TestCount.ToString(), textPri));
-            // Număr activități (centrat)
+            
             Add(3, BuildCenteredText(patient.ActivityCount.ToString(), textPri));
 
-            // Badge predicție
             Add(4, BuildPredictionBadge(patient.Prediction));
 
-            // Buton select (stil identic cu Details din teste)
             var selectBtn = new Button
             {
-                Content = patient.Id == _selectedPatientId && _isPatientVerified ? LanguageManager.T("Selected") : LanguageManager.T("Details"),
+                Content = patient.Id == _selectedPatientId ? LanguageManager.T("Selected") : LanguageManager.T("Details"),
                 FontSize = 11,
                 FontWeight = FontWeights.SemiBold,
                 Background = btnBg,
@@ -1259,7 +1248,7 @@ namespace focus_ai
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Padding = new Thickness(10, 4, 10, 4)
             };
-            // Template identic cu butonul Details
+            
             var tpl = new ControlTemplate(typeof(Button));
             var fef = new FrameworkElementFactory(typeof(Border));
             fef.SetBinding(Border.BackgroundProperty,
@@ -1277,7 +1266,13 @@ namespace focus_ai
             tpl.VisualTree = fef;
             selectBtn.Template = tpl;
 
-            selectBtn.Click += async (_, _) => await TrySelectPatientWithNfcAsync(patient);
+            selectBtn.Click += async (_, _) =>
+            {
+                SelectPatient(patient);
+                await LoadTestsFromFirebaseAsync();
+                await LoadActivitiesFromFirebaseAsync();
+                TabTestari.IsChecked = true;
+            };
             Add(5, selectBtn);
 
             row.Child = g;
@@ -1324,176 +1319,17 @@ namespace focus_ai
             return badge;
         }
 
-        // ----- NFC verification methods -----
-        private async Task TrySelectPatientWithNfcAsync(PatientEntry patient)
-        {
-            if (_verifiedPatientId == patient.Id && _isPatientVerified)
-            {
-                // Already verified, just switch to tests
-                TabTestari.IsChecked = true;
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(patient.Nfc))
-            {
-                MessageBox.Show(LanguageManager.T("This patient does not have an NFC UID configured."),
-                    "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            MessageBox.Show($"Scan the NFC card for {patient.Name}.",
-                "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            string? scannedUid;
-            try
-            {
-                scannedUid = await ReadNfcUidAsync(TimeSpan.FromSeconds(15));
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Could not read NFC automatically.\n{ex.Message}",
-                    "Focus AI", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(scannedUid))
-            {
-                MessageBox.Show(LanguageManager.T("No NFC tag was detected. Try again and keep the tag close to the reader."),
-                    "Focus AI", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            if (!string.Equals(NormalizeNfcUid(patient.Nfc), NormalizeNfcUid(scannedUid), StringComparison.OrdinalIgnoreCase))
-            {
-                MessageBox.Show($"{LanguageManager.T("NFC card does not match this patient.")}\n{LanguageManager.T("Expected:")} {patient.Nfc}\n{LanguageManager.T("Scanned:")} {scannedUid}",
-                    "Focus AI", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            // Verification successful
-            SelectPatient(patient);
-            TabTestari.IsChecked = true;
-            await LoadTestsFromFirebaseAsync();
-            await LoadActivitiesFromFirebaseAsync();
-        }
-
         private void SelectPatient(PatientEntry patient)
         {
             _selectedPatientId = patient.Id;
             _selectedPatientName = patient.Name;
-            _verifiedPatientId = patient.Id;
-            _isPatientVerified = true;
-
             SelectedPatientTestsLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
             SelectedPatientActivitiesLabel.Text = $"{LanguageManager.T("Selected patient:")} {patient.Name}";
-
             _testsCache.Clear();
             _activitiesCache.Clear();
             ShowTestEmpty();
             ShowActivitiesEmpty();
             RenderPatients(_patientsCache);
-        }
-
-        private static string NormalizeNfcUid(string uid)
-        {
-            return new string(uid.Where(Uri.IsHexDigit).Select(char.ToUpperInvariant).ToArray());
-        }
-
-        private Task<string?> ReadNfcUidAsync(TimeSpan timeout)
-        {
-            return !string.IsNullOrWhiteSpace(BioCollector.Instance.ConnectedPortName)
-                ? ReadNfcUidFromSharedCollectorAsync(timeout)
-                : ReadNfcUidFromAnyPortAsync(timeout);
-        }
-
-        private Task<string?> ReadNfcUidFromSharedCollectorAsync(TimeSpan timeout)
-        {
-            BioCollector.Instance.ClearLastNfcUid();
-            _pendingNfcRead = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            _ = Task.Delay(timeout).ContinueWith(_ => _pendingNfcRead?.TrySetResult(null),
-                TaskScheduler.Default);
-
-            return _pendingNfcRead.Task;
-        }
-
-        private void OnBioCollectorNfcUidReceived(string uid)
-        {
-            _pendingNfcRead?.TrySetResult(uid);
-        }
-
-        private static async Task<string?> ReadNfcUidFromAnyPortAsync(TimeSpan timeout)
-        {
-            string[] ports = SerialPort.GetPortNames()
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            if (ports.Length == 0)
-                return null;
-
-            using var timeoutCts = new CancellationTokenSource(timeout);
-            var tasks = ports
-                .Select(portName => ReadNfcUidFromPortAsync(portName, timeoutCts.Token))
-                .ToList();
-
-            while (tasks.Count > 0)
-            {
-                Task<string?> completed = await Task.WhenAny(tasks);
-                tasks.Remove(completed);
-
-                string? uid = await completed;
-                if (!string.IsNullOrWhiteSpace(uid))
-                {
-                    timeoutCts.Cancel();
-                    return uid;
-                }
-            }
-
-            return null;
-        }
-
-        private static Task<string?> ReadNfcUidFromPortAsync(string portName, CancellationToken token)
-        {
-            return Task.Run(() =>
-            {
-                try
-                {
-                    using var port = new SerialPort(portName, 115200)
-                    {
-                        NewLine = "\n",
-                        ReadTimeout = 250,
-                        WriteTimeout = 500,
-                        DtrEnable = true,
-                        RtsEnable = true
-                    };
-
-                    port.Open();
-                    Thread.Sleep(2500);
-
-                    while (!token.IsCancellationRequested)
-                    {
-                        try
-                        {
-                            string line = port.ReadLine().Trim();
-                            string uid = BioCollector.ExtractNfcUid(line);
-                            if (!string.IsNullOrWhiteSpace(uid))
-                            {
-                                BioCollector.Instance.RememberDetectedPort(portName);
-                                return uid;
-                            }
-                        }
-                        catch (TimeoutException)
-                        {
-                        }
-                    }
-                }
-                catch
-                {
-                }
-
-                return null;
-            });
         }
 
         private void OpenTrendAnalysisForCurrentPatient_Click(object sender, RoutedEventArgs e)
@@ -1513,7 +1349,7 @@ namespace focus_ai
 
         private bool EnsurePatientSelected()
         {
-            if (!string.IsNullOrWhiteSpace(GetActivePatientId())) return true;
+            if (!string.IsNullOrWhiteSpace(_selectedPatientId)) return true;
 
             MessageBox.Show(LanguageManager.T("Select a patient from the patient list first."),
                 "Focus AI", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -1532,8 +1368,7 @@ namespace focus_ai
 
         private bool CanAccessSelectedPatientHistory()
         {
-            string selectedPatientId = GetActivePatientId();
-            return !string.IsNullOrWhiteSpace(selectedPatientId) && _isPatientVerified && _verifiedPatientId == selectedPatientId;
+            return !string.IsNullOrWhiteSpace(_selectedPatientId);
         }
 
         private void ShowPatientsLoading()
@@ -1580,7 +1415,6 @@ namespace focus_ai
         private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _cts.Cancel();
-            BioCollector.Instance.NfcUidReceived -= OnBioCollectorNfcUidReceived;
         }
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)

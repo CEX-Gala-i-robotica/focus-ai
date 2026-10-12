@@ -1,205 +1,291 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
+using System.Text.Json;
+using Microsoft.ML;
 using focus_ai.Prediction.Models;
 
-namespace focus_ai.Prediction
+namespace focus_ai.Prediction;
+
+/// <summary>
+/// Predicts the next score using a loaded ML.NET artifact when available. Without an artifact,
+/// it selects a simple baseline by chronological backtesting. Horizons greater than one use Holt,
+/// because future sensor values are not available for recursive ML inference.
+/// </summary>
+public sealed class PredictionEngine
 {
-    public class PredictionEngine
+    private readonly double _holtAlpha;
+    private readonly double _holtBeta;
+    private readonly int _knnK;
+    private readonly int _windowSize;
+    private readonly MLContext _ml;
+    private ITransformer? _trainedModel;
+    private PredictionModelMetadata? _metadata;
+
+    public PredictionEngine(
+        double holtAlpha = 0.45,
+        double holtBeta = 0.30,
+        int knnK = 3,
+        int windowSize = 12)
     {
-        private readonly double _holtAlpha;
-        private readonly double _holtBeta;
-        private readonly int _knnK;
-        private readonly int _windowSize;
+        _holtAlpha = Math.Clamp(holtAlpha, 0.01, 0.99);
+        _holtBeta = Math.Clamp(holtBeta, 0.01, 0.99);
+        _knnK = Math.Max(1, knnK);
+        _windowSize = Math.Max(2, windowSize);
+        _ml = new MLContext(seed: 42);
+    }
 
-        public PredictionEngine(double holtAlpha = 0.45, double holtBeta = 0.30, int knnK = 3, int windowSize = 12)
+    /// <summary>Loads a model artifact produced by NextSessionModelTrainer.TrainAndSave.</summary>
+    public PredictionEngine(
+        string modelPath,
+        double holtAlpha = 0.45,
+        double holtBeta = 0.30,
+        int knnK = 3,
+        int windowSize = 12)
+        : this(holtAlpha, holtBeta, knnK, windowSize)
+    {
+        if (string.IsNullOrWhiteSpace(modelPath))
+            throw new ArgumentException("Calea modelului nu poate fi goală.", nameof(modelPath));
+
+        string fullPath = Path.GetFullPath(modelPath);
+        string metadataPath = fullPath + ".meta.json";
+        if (!File.Exists(metadataPath))
+            throw new FileNotFoundException(
+                $"Fișierul de metadate nu există: {metadataPath}. Rulează mai întâi TrainAndSave sau construiește PredictionEngine fără cale.",
+                metadataPath);
+
+        _metadata = JsonSerializer.Deserialize<PredictionModelMetadata>(File.ReadAllText(metadataPath))
+                    ?? throw new InvalidDataException("Fișierul de metadate al modelului este invalid.");
+
+        if (_metadata.FeatureSchemaVersion != "next-session-v1")
+            throw new InvalidDataException(
+                $"Schema modelului ({_metadata.FeatureSchemaVersion}) nu este compatibilă cu această versiune de FeatureBuilder.");
+
+        if (NextSessionModelTrainer.IsMlModel(_metadata.SelectedModel))
         {
-            _holtAlpha = holtAlpha;
-            _holtBeta = holtBeta;
-            _knnK = knnK;
-            _windowSize = windowSize;
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException($"Modelul ML.NET nu există: {fullPath}", fullPath);
+            _trainedModel = _ml.Model.Load(fullPath, out _);
         }
+    }
 
-        public PredictionResult Predict(IReadOnlyList<SessionFeatures> history, int horizon = 1)
+    public PredictionResult Predict(IReadOnlyList<SessionFeatures> history, int horizon = 1)
+    {
+        if (history is null)
+            throw new ArgumentNullException(nameof(history));
+        if (horizon < 1)
+            throw new ArgumentOutOfRangeException(nameof(horizon), "Orizontul trebuie să fie cel puțin 1.");
+
+        List<SessionFeatures> ordered = NextSessionFeatureBuilder.OrderAndValidate(history);
+        if (ordered.Count < 2)
+            throw new ArgumentException("Sunt necesare cel puțin două sesiuni valide pentru predicție.", nameof(history));
+
+        double[] scores = ordered.Select(s => s.Score).ToArray();
+        double linearScore = BaselineForecasts.LinearRegressionForecast(scores, horizon, _windowSize);
+        double holtScore = BaselineForecasts.HoltForecast(scores, horizon, _windowSize, _holtAlpha, _holtBeta);
+        double naiveScore = BaselineForecasts.Predict("NaiveLastScore", ordered, horizon, _windowSize, _knnK, _holtAlpha, _holtBeta);
+        double movingAverageScore = BaselineForecasts.Predict("MovingAverage3", ordered, horizon, _windowSize, _knnK, _holtAlpha, _holtBeta);
+        double knnScore = BaselineForecasts.Predict("KNN", ordered, 1, _windowSize, _knnK, _holtAlpha, _holtBeta);
+
+        string modelName;
+        double predictedScore;
+        bool usedMl = false;
+
+        if (horizon > 1)
         {
-            if (history == null || history.Count < 2)
-                throw new ArgumentException("At least 2 sessions are required.", nameof(history));
-
-            var ordered = history.OrderBy(h => h.DateTime).ToList();
-            var window = ordered.Count > _windowSize ? ordered.Skip(ordered.Count - _windowSize).ToList() : ordered;
-            double[] scores = window.Select(s => s.Score).ToArray();
-            int n = scores.Length;
-
-            var (lrA, lrB) = LinearRegressionFit(scores);
-            double linRegScore = Math.Clamp(lrA + lrB * (n - 1 + horizon), 0, 100);
-
-            var (holtLevel, holtTrend) = HoltFit(scores);
-            double holtScore = Math.Clamp(holtLevel + holtTrend * horizon, 0, 100);
-
-            double knnScore = KnnPredict(ordered[^1], ordered.SkipLast(1).ToList());
-
-            double wL, wH, wK;
-            if (n <= 3) { wL = 0.15; wH = 0.65; wK = 0.20; }
-            else if (n <= 6) { wL = 0.25; wH = 0.50; wK = 0.25; }
-            else if (n <= 12) { wL = 0.35; wH = 0.40; wK = 0.25; }
-            else { wL = 0.40; wH = 0.35; wK = 0.25; }
-
-            double ensembleScore = Math.Clamp(wL * linRegScore + wH * holtScore + wK * knnScore, 0, 100);
-
-            double[] residuals = LeaveOneOutResiduals(scores);
-            double mae = residuals.Select(Math.Abs).DefaultIfEmpty(0).Average();
-            double std = residuals.Length > 1 ? Math.Sqrt(residuals.Select(r => r * r).Average()) : mae;
-
-            double trendPerSession = lrB;
-            TrendDirection trend;
-            string trendLabel;
-            if (trendPerSession > 3) { trend = TrendDirection.Improving; trendLabel = "Improving"; }
-            else if (trendPerSession < -3) { trend = TrendDirection.Declining; trendLabel = "Declining"; }
-            else { trend = TrendDirection.Stable; trendLabel = "Stable"; }
-
-            SessionFeatures last = ordered[^1];
-            bool alertSpo2 = last.Spo2Mean > 0 && (last.Spo2Mean < 95 || last.Spo2DropCount > 3);
-            bool alertHrAb = last.HrMean > 0 && (last.HrMean < 45 || last.HrMean > 110);
-            bool alertHrVar = last.HrStd > 25;
-
-            return new PredictionResult
-            {
-                PredictedScore = Math.Round(ensembleScore, 1),
-                ConfidenceLow = Math.Max(0, Math.Round(ensembleScore - 1.28 * std, 1)),
-                ConfidenceHigh = Math.Min(100, Math.Round(ensembleScore + 1.28 * std, 1)),
-                LinearRegrScore = Math.Round(linRegScore, 1),
-                HoltScore = Math.Round(holtScore, 1),
-                KnnScore = Math.Round(knnScore, 1),
-                Trend = trend,
-                TrendLabel = trendLabel,
-                TrendPerSession = Math.Round(trendPerSession, 2),
-                AlertSpO2Low = alertSpo2,
-                AlertHrAnormal = alertHrAb,
-                AlertHrVariabil = alertHrVar,
-                AlertMessage = BuildAlertMessage(alertSpo2, alertHrAb, alertHrVar, last),
-                SessionsUsed = n,
-                ModelMAE = Math.Round(mae, 2),
-                ConfidenceLabel = mae < 5 ? "High" : mae < 12 ? "Medium" : "Low"
-            };
+            // The ML training target is one session ahead. There are no future sensor values to feed
+            // the tabular model recursively, so use an explicit statistical multi-step fallback.
+            modelName = "Holt (multi-step fallback)";
+            predictedScore = holtScore;
         }
-
-        private static (double a, double b) LinearRegressionFit(double[] y)
+        else if (_metadata is not null)
         {
-            int n = y.Length;
-            double[] t = Enumerable.Range(0, n).Select(i => (double)i).ToArray();
-            double tMean = t.Average();
-            double yMean = y.Average();
-            double ssXY = 0;
-            double ssXX = 0;
-            for (int i = 0; i < n; i++)
+            modelName = _metadata.SelectedModel;
+            if (NextSessionModelTrainer.IsMlModel(modelName) && _trainedModel is not null)
             {
-                ssXY += (t[i] - tMean) * (y[i] - yMean);
-                ssXX += (t[i] - tMean) * (t[i] - tMean);
+                NextSessionRow row = NextSessionFeatureBuilder.BuildForNextSession(ordered);
+                predictedScore = NextSessionModelTrainer.PredictWithModel(_ml, _trainedModel, row);
+                usedMl = true;
             }
-
-            double b = ssXX > 1e-10 ? ssXY / ssXX : 0;
-            return (yMean - b * tMean, b);
-        }
-
-        private (double level, double trend) HoltFit(double[] y)
-        {
-            if (y.Length == 1) return (y[0], 0);
-            double level = y[0];
-            double trend = y[1] - y[0];
-
-            for (int i = 1; i < y.Length; i++)
+            else
             {
-                double previousLevel = level;
-                level = _holtAlpha * y[i] + (1 - _holtAlpha) * (level + trend);
-                trend = _holtBeta * (level - previousLevel) + (1 - _holtBeta) * trend;
+                predictedScore = BaselineForecasts.Predict(
+                    modelName, ordered, horizon, _windowSize, _knnK, _holtAlpha, _holtBeta);
             }
-
-            return (level, trend);
+        }
+        else
+        {
+            modelName = SelectBestBaseline(ordered);
+            predictedScore = BaselineForecasts.Predict(
+                modelName, ordered, horizon, _windowSize, _knnK, _holtAlpha, _holtBeta);
         }
 
-        private double KnnPredict(SessionFeatures query, IReadOnlyList<SessionFeatures> candidates)
+        predictedScore = Math.Clamp(double.IsFinite(predictedScore) ? predictedScore : holtScore, 0, 100);
+        double trendPerSession = BaselineForecasts.LinearRegressionFit(
+            scores.TakeLast(Math.Min(scores.Length, _windowSize)).ToArray()).slope;
+
+        TrendDirection trend;
+        string trendLabel;
+        if (trendPerSession > 3)
         {
-            if (candidates.Count == 0) return query.Score;
-            var all = candidates.Append(query).ToList();
-            var norms = ComputeNormalizationBounds(all);
-            int k = Math.Min(_knnK, candidates.Count);
-            const double eps = 1e-9;
-
-            var nearest = candidates
-                .Select(c => new { Distance = EuclideanDistance(query, c, norms), c.Score })
-                .OrderBy(x => x.Distance)
-                .Take(k)
-                .ToList();
-
-            double totalWeight = nearest.Sum(x => 1.0 / (x.Distance + eps));
-            return totalWeight < eps
-                ? nearest.Average(x => x.Score)
-                : nearest.Sum(x => x.Score * (1.0 / (x.Distance + eps))) / totalWeight;
+            trend = TrendDirection.Improving;
+            trendLabel = "Improving";
+        }
+        else if (trendPerSession < -3)
+        {
+            trend = TrendDirection.Declining;
+            trendLabel = "Declining";
+        }
+        else
+        {
+            trend = TrendDirection.Stable;
+            trendLabel = "Stable";
         }
 
-        private static double EuclideanDistance(SessionFeatures a, SessionFeatures b, FeatureNorms n)
+        SessionFeatures last = ordered[^1];
+        bool alertSpo2 = last.HasSpo2Data && (last.Spo2Mean < 95 || last.Spo2DropCount > 3);
+        bool alertHrAbnormal = last.HasHrData && last.HrMean > 0 && (last.HrMean < 45 || last.HrMean > 110);
+        bool alertHrVar = last.HasHrData && last.HrStd > 25;
+
+        double modelMae = GetModelMae(modelName, ordered);
+        (double low, double high, string intervalLabel) = GetPredictionInterval(
+            modelName, predictedScore, horizon, ordered);
+
+        string confidenceLabel = !double.IsFinite(modelMae)
+            ? "Unknown"
+            : modelMae < 5 ? "High" : modelMae < 12 ? "Medium" : "Low";
+
+        return new PredictionResult
         {
-            static double Norm(double v, double lo, double hi) => hi - lo < 1e-9 ? 0 : (v - lo) / (hi - lo);
-            double[] diff =
+            PredictedScore = Math.Round(predictedScore, 1),
+            ConfidenceLow = Math.Round(low, 1),
+            ConfidenceHigh = Math.Round(high, 1),
+            LinearRegrScore = Math.Round(linearScore, 1),
+            HoltScore = Math.Round(holtScore, 1),
+            KnnScore = Math.Round(knnScore, 1),
+            BaselineNaiveScore = Math.Round(naiveScore, 1),
+            MovingAverageScore = Math.Round(movingAverageScore, 1),
+            Trend = trend,
+            TrendLabel = trendLabel,
+            TrendPerSession = Math.Round(trendPerSession, 2),
+            AlertSpO2Low = alertSpo2,
+            AlertHrAnormal = alertHrAbnormal,
+            AlertHrVariabil = alertHrVar,
+            AlertMessage = BuildAlertMessage(alertSpo2, alertHrAbnormal, alertHrVar, last),
+            SessionsUsed = ordered.Count,
+            ModelMAE = double.IsFinite(modelMae) ? Math.Round(modelMae, 2) : 0,
+            ConfidenceLabel = confidenceLabel,
+            IntervalLabel = intervalLabel,
+            ModelName = modelName,
+            PredictionHorizon = horizon,
+            UsedMachineLearningModel = usedMl,
+            DataQualityLabel = BuildDataQualityLabel(last)
+        };
+    }
+
+    private string SelectBestBaseline(IReadOnlyList<SessionFeatures> history)
+    {
+        List<NextSessionTrainingSample> backtestSamples = NextSessionFeatureBuilder.BuildTrainingSamples(history);
+        if (backtestSamples.Count < 2)
+            return "Holt";
+
+        List<NextSessionTrainingSample> evaluation = backtestSamples.TakeLast(Math.Min(_windowSize, backtestSamples.Count)).ToList();
+        return BaselineForecasts.CandidateNames
+            .Select(name => new
             {
-                Norm(a.HrMean, n.HrMeanLo, n.HrMeanHi) - Norm(b.HrMean, n.HrMeanLo, n.HrMeanHi),
-                Norm(a.HrStd, n.HrStdLo, n.HrStdHi) - Norm(b.HrStd, n.HrStdLo, n.HrStdHi),
-                Norm(a.Spo2Mean, n.Spo2Lo, n.Spo2Hi) - Norm(b.Spo2Mean, n.Spo2Lo, n.Spo2Hi),
-                Norm(a.Spo2DropCount, n.Spo2DLo, n.Spo2DHi) - Norm(b.Spo2DropCount, n.Spo2DLo, n.Spo2DHi),
-                Norm(a.DistRatio, 0, 1) - Norm(b.DistRatio, 0, 1),
-                Norm(a.HrRange, n.HrRangeLo, n.HrRangeHi) - Norm(b.HrRange, n.HrRangeLo, n.HrRangeHi),
-                Norm(a.EcgRange, n.EcgRangeLo, n.EcgRangeHi) - Norm(b.EcgRange, n.EcgRangeLo, n.EcgRangeHi),
-                Norm(a.DurationMinutes, n.DurLo, n.DurHi) - Norm(b.DurationMinutes, n.DurLo, n.DurHi)
-            };
+                Name = name,
+                Mae = evaluation.Average(sample => Math.Abs(
+                    sample.TargetScore - BaselineForecasts.Predict(
+                        name, sample.HistoryBeforeTarget, 1, _windowSize, _knnK, _holtAlpha, _holtBeta)))
+            })
+            .OrderBy(x => x.Mae)
+            .First().Name;
+    }
 
-            return Math.Sqrt(diff.Sum(d => d * d));
-        }
+    private double GetModelMae(string modelName, IReadOnlyList<SessionFeatures> history)
+    {
+        if (_metadata is not null && string.Equals(_metadata.SelectedModel, modelName, StringComparison.Ordinal))
+            return _metadata.TestMae;
 
-        private static FeatureNorms ComputeNormalizationBounds(IEnumerable<SessionFeatures> all)
+        if (modelName.StartsWith("Holt (multi-step", StringComparison.Ordinal))
+            modelName = "Holt";
+
+        List<NextSessionTrainingSample> samples = NextSessionFeatureBuilder.BuildTrainingSamples(history);
+        if (samples.Count == 0)
+            return double.NaN;
+
+        List<NextSessionTrainingSample> recent = samples.TakeLast(Math.Min(samples.Count, _windowSize)).ToList();
+        return recent.Average(s => Math.Abs(
+            s.TargetScore - BaselineForecasts.Predict(modelName, s.HistoryBeforeTarget, 1, _windowSize, _knnK, _holtAlpha, _holtBeta)));
+    }
+
+    private (double low, double high, string label) GetPredictionInterval(
+        string modelName,
+        double prediction,
+        int horizon,
+        IReadOnlyList<SessionFeatures> history)
+    {
+        if (horizon != 1)
+            return (0, 100, "Ne-calibrat pentru orizont multiplu");
+
+        double? quantile = null;
+        string label = "";
+
+        if (_metadata is not null &&
+            string.Equals(_metadata.SelectedModel, modelName, StringComparison.Ordinal) &&
+            _metadata.CalibrationQuantile90.HasValue)
         {
-            var list = all.ToList();
-            return new FeatureNorms(
-                list.Min(s => s.HrMean), list.Max(s => s.HrMean),
-                list.Min(s => s.HrStd), list.Max(s => s.HrStd),
-                list.Min(s => s.HrRange), list.Max(s => s.HrRange),
-                list.Min(s => s.Spo2Mean), list.Max(s => s.Spo2Mean),
-                list.Min(s => s.Spo2DropCount), list.Max(s => s.Spo2DropCount),
-                list.Min(s => s.EcgRange), list.Max(s => s.EcgRange),
-                list.Min(s => s.DurationMinutes), list.Max(s => s.DurationMinutes));
+            quantile = _metadata.CalibrationQuantile90.Value;
+            label = $"Interval empiric nominal 90% ({_metadata.CalibrationExamples} exemple de calibrare)";
         }
-
-        private double[] LeaveOneOutResiduals(double[] scores)
+        else if (_metadata is null || !NextSessionModelTrainer.IsMlModel(modelName))
         {
-            if (scores.Length < 3) return new[] { 0.0 };
-            var residuals = new List<double>();
-            for (int leaveOut = 1; leaveOut < scores.Length; leaveOut++)
+            // For baselines, walk-forward historical errors can serve as an empirical interval estimate.
+            List<NextSessionTrainingSample> samples = NextSessionFeatureBuilder.BuildTrainingSamples(history);
+            double[] errors = samples
+                .TakeLast(Math.Min(samples.Count, Math.Max(_windowSize, 5)))
+                .Select(s => Math.Abs(s.TargetScore - BaselineForecasts.Predict(
+                    modelName, s.HistoryBeforeTarget, 1, _windowSize, _knnK, _holtAlpha, _holtBeta)))
+                .Where(double.IsFinite)
+                .OrderBy(v => v)
+                .ToArray();
+
+            if (errors.Length >= 5)
             {
-                double[] train = scores.Take(leaveOut).ToArray();
-                var (level, trend) = HoltFit(train);
-                double pred = Math.Clamp(level + trend, 0, 100);
-                residuals.Add(scores[leaveOut] - pred);
+                int index = Math.Clamp((int)Math.Ceiling((errors.Length + 1) * 0.90) - 1, 0, errors.Length - 1);
+                quantile = errors[index];
+                label = $"Interval empiric rolling-origin ({errors.Length} erori istorice)";
             }
-
-            return residuals.ToArray();
         }
 
-        private static string BuildAlertMessage(bool spo2, bool hrAb, bool hrVar, SessionFeatures last)
-        {
-            if (!spo2 && !hrAb && !hrVar) return "";
-            var parts = new List<string>();
-            if (spo2) parts.Add($"Low SpO2 (avg {last.Spo2Mean:F1}%, {(int)last.Spo2DropCount} values < 95%)");
-            if (hrAb) parts.Add($"Abnormal heart rate (avg {last.HrMean:F0} bpm)");
-            if (hrVar) parts.Add($"High heart-rate variability (std = {last.HrStd:F1} bpm)");
-            return string.Join(" | ", parts);
-        }
+        if (!quantile.HasValue || !double.IsFinite(quantile.Value) || quantile.Value < 0)
+            return (0, 100, "Insuficiente date pentru calibrarea intervalului");
 
-        private record FeatureNorms(
-            double HrMeanLo, double HrMeanHi,
-            double HrStdLo, double HrStdHi,
-            double HrRangeLo, double HrRangeHi,
-            double Spo2Lo, double Spo2Hi,
-            double Spo2DLo, double Spo2DHi,
-            double EcgRangeLo, double EcgRangeHi,
-            double DurLo, double DurHi);
+        return (
+            Math.Max(0, prediction - quantile.Value),
+            Math.Min(100, prediction + quantile.Value),
+            label);
+    }
+
+    private static string BuildDataQualityLabel(SessionFeatures last)
+    {
+        int sensorCount = (last.HasHrData ? 1 : 0) +
+                          (last.HasSpo2Data ? 1 : 0) +
+                          (last.HasEcgData ? 1 : 0) +
+                          (last.HasMapData ? 1 : 0);
+        return $"Senzori disponibili: {sensorCount}/4; HR={last.HrSampleCount}, SpO2={last.Spo2SampleCount}, ECG={last.EcgSampleCount}, MAP={last.MapSampleCount} eșantioane valide.";
+    }
+
+    private static string BuildAlertMessage(bool spo2, bool heartRate, bool heartRateVariability, SessionFeatures last)
+    {
+        if (!spo2 && !heartRate && !heartRateVariability)
+            return "";
+
+        var parts = new List<string>();
+        if (spo2)
+            parts.Add($"SpO2 sub pragul configurat (medie {last.Spo2Mean:F1}%, {last.Spo2DropCount:0} valori sub 95%)");
+        if (heartRate)
+            parts.Add($"Ritm cardiac în afara pragurilor configurate (medie {last.HrMean:F0} bpm)");
+        if (heartRateVariability)
+            parts.Add($"Deviație standard HR ridicată (std {last.HrStd:F1} bpm)");
+        return string.Join(" | ", parts);
     }
 }
