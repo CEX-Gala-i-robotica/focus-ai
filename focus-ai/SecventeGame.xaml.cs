@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
@@ -18,15 +18,15 @@ namespace focus_ai
 {
     public partial class SecventeGame : Window
     {
-        // ── Firebase ──
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
         private const string RegPath = @"Software\FocusAI";
 
-        // ── Theme ──
+        
         private readonly bool _isDark;
 
-        // ── Game state ──
+        
         private enum GamePhase { Idle, Showing, Waiting, Feedback }
         private GamePhase _phase = GamePhase.Idle;
 
@@ -37,30 +37,30 @@ namespace focus_ai
         private int  _lives             = 3;
         private string _difficulty      = "Easy";
 
-        // Maximum number of rounds.
+        
         private const int MaxLevels = 20;
 
-        // ── Timing (ms) ──
+        
         private int _flashOnMs  = 600;
         private int _flashOffMs = 250;
         private int _delayMs    = 400;
 
-        // ── Buttons ──
+        
         private Button[] _buttons = Array.Empty<Button>();
 
-        // ── Button colors per index ──
+        
         private static readonly string[] _colorsBase =
         {
             "#EF4444", "#3B82F6", "#22C55E", "#F59E0B",
             "#8B5CF6", "#EC4899", "#06B6D4", "#84CC16", "#F97316",
         };
 
-        // ── Session timing ──
+        
         private DateTime _sessionStart;
 
-        // ═══════════════════════════════════════════════════
-        //  CONSTRUCTOR
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         public SecventeGame(bool isDark)
         {
             InitializeComponent();
@@ -75,9 +75,9 @@ namespace focus_ai
             this.Closing += SecventeGame_Closing;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  BUTTON STYLING
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void StyleButtons()
         {
             for (int i = 0; i < _buttons.Length; i++)
@@ -112,9 +112,9 @@ namespace focus_ai
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  FLASH helpers
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private async Task FlashButton(int idx, bool isCorrect = true)
         {
             var btn = _buttons[idx];
@@ -162,9 +162,9 @@ namespace focus_ai
                 : null;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  CURRENT SCORE (0..100)
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private double GetCurrentScore()
         {
             int completed = Math.Max(0, _level - 1);
@@ -173,9 +173,9 @@ namespace focus_ai
             return Math.Min(100, Math.Max(0, raw));
         }
 
-        // ═══════════════════════════════════════════════════
-        //  START GAME
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void StartGame_Click(object sender, RoutedEventArgs e)
         {
             _difficulty = DiffEasy.IsChecked == true   ? "Easy"
@@ -220,9 +220,9 @@ namespace focus_ai
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  ROUND LOGIC
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private async Task NextRound()
         {
             if (_level > MaxLevels)
@@ -241,7 +241,7 @@ namespace focus_ai
 
             UpdateHUD();
             UpdateProgress(0, _sequence.Count);
-            StatusMessage.Text = $"🔵  {LanguageManager.T("Watch the sequence...")} ({LanguageManager.T("Level")} {_level}/{MaxLevels})";
+            StatusMessage.Text = $"{LanguageManager.T("Watch the sequence...")} · {LanguageManager.T("Level")} {_level}/{MaxLevels}";
 
             await Task.Delay(_delayMs + 200);
 
@@ -252,13 +252,13 @@ namespace focus_ai
             }
 
             _phase = GamePhase.Waiting;
-            StatusMessage.Text = $"👆  {LanguageManager.T("Repeat the sequence!")}";
+            StatusMessage.Text = LanguageManager.T("Repeat the sequence!");
             SetButtonsEnabled(true);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  PLAYER INPUT
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private async void SeqButton_Click(object sender, RoutedEventArgs e)
         {
             if (_phase != GamePhase.Waiting) return;
@@ -281,7 +281,7 @@ namespace focus_ai
                     SetButtonsEnabled(false);
 
                     _level++;
-                    StatusMessage.Text = $"✅  {LanguageManager.T("Correct! Current score:")} {GetCurrentScore():F0}/100";
+                    StatusMessage.Text = $"{LanguageManager.T("Correct! Current score:")} {GetCurrentScore():F0}/100";
                     UpdateHUD();
 
                     await Task.Delay(900);
@@ -308,7 +308,7 @@ namespace focus_ai
                     string livesText = LanguageManager.Current == AppLanguage.Romanian
                         ? (_lives == 1 ? "viata" : "vieti")
                         : (_lives == 1 ? "life" : "lives");
-                    StatusMessage.Text = $"❌  {LanguageManager.T("Wrong! You have")} {_lives} {livesText} {LanguageManager.T("left. Replaying the sequence...")}";
+                    StatusMessage.Text = $"{LanguageManager.T("Wrong! You have")} {_lives} {livesText} {LanguageManager.T("left. Replaying the sequence...")}";
                     await Task.Delay(1200);
 
                     _playerInput.Clear();
@@ -324,26 +324,20 @@ namespace focus_ai
                     }
 
                     _phase = GamePhase.Waiting;
-                    StatusMessage.Text = $"👆  {LanguageManager.T("Repeat the sequence!")}";
+                    StatusMessage.Text = LanguageManager.T("Repeat the sequence!");
                     SetButtonsEnabled(true);
                 }
             }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HUD + PROGRESS
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void UpdateHUD()
         {
             LevelText.Text = $"{Math.Min(_level, MaxLevels)}/{MaxLevels}";
             ScoreText.Text = $"{GetCurrentScore():F0} / 100";
-            LivesText.Text = _lives switch
-            {
-                3 => "❤️ ❤️ ❤️",
-                2 => "❤️ ❤️ 🖤",
-                1 => "❤️ 🖤 🖤",
-                _ => "🖤 🖤 🖤"
-            };
+            LivesText.Text = $"{_lives} / 3";
         }
 
         private void UpdateProgress(int done, int total)
@@ -359,9 +353,9 @@ namespace focus_ai
                 b.IsEnabled = enabled;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  GAME OVER / WIN
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void ShowGameOver(bool won)
         {
             _phase = GamePhase.Idle;
@@ -370,19 +364,17 @@ namespace focus_ai
             int completedLevels = Math.Max(0, _level - 1);
             double finalScore = GetCurrentScore();
 
-            string emoji, title;
+            string title;
             if (won || completedLevels == MaxLevels)
             {
-                emoji = "🏆";
                 title = LanguageManager.T("Congratulations! You completed all levels!");
             }
             else
             {
-                emoji = _lives == 0 ? "💀" : "🎯";
                 title = _lives == 0 ? LanguageManager.T("Game Over!") : LanguageManager.T("Well played!");
             }
 
-            WinEmoji.Text    = emoji;
+            WinEmoji.Text    = LanguageManager.T("SESSION SUMMARY");
             WinTitle.Text    = title;
             WinSubtitle.Text = $"{LanguageManager.T("Level reached:")} {completedLevels}/{MaxLevels}  •  {LanguageManager.T("Score:")} {finalScore:F1}/100  •  {LanguageManager.T("Difficulty:")} {LanguageManager.T(_difficulty)}";
             WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
@@ -392,9 +384,9 @@ namespace focus_ai
             _ = SaveSessionAsync(finalScore);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  SAVE TO FIREBASE (MODIFIED: dateTime format & duration format)
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private async Task SaveSessionAsync(double finalScore)
         {
             try
@@ -404,9 +396,9 @@ namespace focus_ai
                 if (string.IsNullOrEmpty(uid)) return;
 
                 var duration = DateTime.Now - _sessionStart;
-                // Format duration as MM:SS with leading zeros (e.g., "01:11")
+                
                 string durationFormatted = $"{duration.Minutes:D2}:{duration.Seconds:D2}";
-                // Format dateTime as YYYY-MM-DD HH:MM:SS
+                
                 string dateTimeFormatted = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
                 var payload = new
@@ -432,12 +424,12 @@ namespace focus_ai
                         new StringContent(json, Encoding.UTF8, "application/json"));
                 }
             }
-            catch { /* silently ignore */ }
+            catch {   }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  NAV BUTTONS
-        // ═══════════════════════════════════════════════════
+        
+        
+        
 
         private void WinPlayAgain_Click(object sender, RoutedEventArgs e)
         {
@@ -463,21 +455,22 @@ namespace focus_ai
             Owner?.Show();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HELPERS
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private string GetReg(string key)
         {
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
     }
 
-    // ── Romanian plural helper ──
+    
     internal static class RoExtensions
     {
         internal static string PluralRo(this string singular, int count)

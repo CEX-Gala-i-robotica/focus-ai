@@ -1,138 +1,19 @@
-﻿<Window x:Class="focus_ai.TestDetailsWindow"
+<Window x:Class="focus_ai.TestDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Test Details"
-        Height="860" Width="1100"           
-        Background="{DynamicResource BgRoot}"
-        FontFamily="{StaticResource AppFontFamily}"
-        WindowState="Maximized"
-        ResizeMode="CanMinimize">
-
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>   <!-- header -->
-            <RowDefinition Height="*"/>      <!-- conținutul principal -->
-            <RowDefinition Height="Auto"/>   <!-- stats (jos, în coloana dreaptă) -->
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <TextBlock Grid.Row="0"
-                   Text="TEST DETAILS · EVOLUTION CHARTS"
-                   Style="{StaticResource KickerTextStyle}"
-                   Margin="0,0,0,12" Opacity="0.7"/>
-
-        <!-- Rândul principal: două coloane -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>   <!-- stânga: MAP -->
-                <ColumnDefinition Width="*"/>   <!-- dreapta: celelalte grafice -->
-            </Grid.ColumnDefinitions>
-
-            <!-- ========== COLȚUL STÂNG: MAP ========== -->
-            <Border Grid.Column="0"
-                    Background="{DynamicResource BgCard}"
-                    BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                    CornerRadius="12" Margin="0,0,10,0" Padding="50,12,16,30">
-                <Grid>
-                    <Canvas x:Name="MapYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
-                    <Canvas x:Name="MapXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
-                    <Canvas x:Name="MapCanvas"   Background="Transparent" ClipToBounds="True"/>
-                </Grid>
-            </Border>
-
-            <!-- ========== COLȚUL DREAPT: ECG, SPO2, HR, DIST ========== -->
-            <Grid Grid.Column="1" Margin="10,0,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>   <!-- ECG -->
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="*"/>   <!-- SPO2 -->
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="*"/>   <!-- HR -->
-                    <RowDefinition Height="10"/>
-                    <RowDefinition Height="55"/>  <!-- DIST -->
-                </Grid.RowDefinitions>
-
-                <!-- ECG -->
-                <Grid Grid.Row="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="ECG  (x1 - left · x2 - right)"
-                               Foreground="#4DFFDF" FontSize="9" Opacity="0.55"
-                               Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
-                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="12" Padding="50,12,16,30">
-                        <Grid>
-                            <Canvas x:Name="EcgYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
-                            <Canvas x:Name="EcgXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
-                            <Canvas x:Name="EcgCanvas1"  Background="Transparent" ClipToBounds="True"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-
-                <!-- SPO2 -->
-                <Grid Grid.Row="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="SPO2  (%)"
-                               Foreground="#4D9FFF" FontSize="9" Opacity="0.55"
-                               Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
-                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="12" Padding="50,12,16,30">
-                        <Grid>
-                            <Canvas x:Name="Spo2YLabels" Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
-                            <Canvas x:Name="Spo2XLabels" Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
-                            <Canvas x:Name="Spo2Canvas"  Background="Transparent" ClipToBounds="True"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-
-                <!-- HR -->
-                <Grid Grid.Row="4">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="HR  (bpm)"
-                               Foreground="#FF6B4D" FontSize="9" Opacity="0.55"
-                               Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
-                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="12" Padding="50,12,16,30">
-                        <Grid>
-                            <Canvas x:Name="HrYLabels"  Width="40" HorizontalAlignment="Left" Margin="-44,0,0,0"/>
-                            <Canvas x:Name="HrXLabels"  Height="22" VerticalAlignment="Bottom" Margin="0,0,0,-26"/>
-                            <Canvas x:Name="HrCanvas"   Background="Transparent" ClipToBounds="True"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-
-                <!-- DIST -->
-                <Grid Grid.Row="6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Grid.Row="0" Text="DIST  (active moments)"
-                               Foreground="#A0A0FF" FontSize="9" Opacity="0.55"
-                               Margin="0,0,0,4" FontFamily="Consolas"/>
-                    <Border Grid.Row="1" Background="{DynamicResource BgCard}"
-                            BorderBrush="{DynamicResource BgInputBorder}" BorderThickness="1"
-                            CornerRadius="12" Padding="50,6,16,6">
-                        <Canvas x:Name="DistCanvas" Background="Transparent" ClipToBounds="True"/>
-                    </Border>
-                </Grid>
-            </Grid>
+        Title="Focus AI · Assessment details" Height="900" Width="1360"
+        MinHeight="760" MinWidth="1080" Background="{DynamicResource BgRoot}"
+        FontFamily="{StaticResource AppFontFamily}" WindowState="Maximized" ResizeMode="CanMinimize">
+    <Grid Background="{DynamicResource BgRoot}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{DynamicResource BgSidebar}" BorderBrush="{DynamicResource BgSep}" BorderThickness="0,0,0,1" Padding="34,24"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="FOCUS AI  /  ASSESSMENT DATA" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentSecFg}"/><TextBlock Text="Signal explorer" FontSize="30" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,7,0,0"/><TextBlock Text="A detailed view of measured movement and physiological signals." FontSize="13" Foreground="{DynamicResource TxtSecondary}" Margin="0,6,0,0"/></StackPanel><StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"><TextBlock Text="SESSION DIAGNOSTICS" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Right"/><TextBlock x:Name="StatsText" Foreground="{DynamicResource TxtSecondary}" FontSize="11" FontFamily="Consolas" Margin="0,7,0,0" HorizontalAlignment="Right"/></StackPanel></Grid></Border>
+        <Grid Grid.Row="1" Margin="34,26,34,30"><Grid.ColumnDefinitions><ColumnDefinition Width="1.25*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="0.9*"/></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="24" Padding="24"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="01  /  GAZE TRAJECTORY" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentSecFg}"/><TextBlock Text="Visual path" FontSize="20" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,7,0,0"/></StackPanel><Border Grid.Column="1" Background="{DynamicResource BgNavActive}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="12" Padding="10,5" VerticalAlignment="Top"><TextBlock Text="SCATTER MAP" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtSecondary}"/></Border></Grid><Grid Grid.Row="1" Margin="0,18,0,4"><Canvas x:Name="MapYLabels" Width="40" HorizontalAlignment="Left" Margin="0,0,0,0"/><Canvas x:Name="MapXLabels" Height="24" VerticalAlignment="Bottom" Margin="44,0,0,0"/><Border Margin="48,0,0,28" Background="{DynamicResource BgSection}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="14" Padding="10"><Canvas x:Name="MapCanvas" Background="Transparent" ClipToBounds="True"/></Border></Grid><Grid Grid.Row="2" Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Horizontal and vertical gaze displacement" FontSize="11" Foreground="{DynamicResource TxtSecondary}"/><TextBlock Grid.Column="1" Text="XY COORDINATES" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}"/></Grid></Grid></Border>
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="20" Padding="16" Margin="0,0,0,12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="130"/></Grid.RowDefinitions><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="02  /  ECG" FontSize="9" FontWeight="SemiBold" Foreground="#85B8FF"/><TextBlock Text="Cardiac waveform" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,4,0,0"/></StackPanel><TextBlock Grid.Column="1" Text="ECG" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" VerticalAlignment="Top"/></Grid><Grid Grid.Row="1" Margin="0,9,0,0"><Canvas x:Name="EcgYLabels" Width="36" HorizontalAlignment="Left" Margin="0,0,0,0"/><Canvas x:Name="EcgXLabels" Height="18" VerticalAlignment="Bottom" Margin="40,0,0,0"/><Border Margin="40,0,0,20" Background="{DynamicResource BgSection}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="10" Padding="7"><Canvas x:Name="EcgCanvas1" Background="Transparent" ClipToBounds="True"/></Border></Grid></Grid></Border>
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="20" Padding="16" Margin="0,0,0,12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="130"/></Grid.RowDefinitions><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="03  /  SPO₂" FontSize="9" FontWeight="SemiBold" Foreground="#85B8FF"/><TextBlock Text="Oxygen saturation" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,4,0,0"/></StackPanel><TextBlock Grid.Column="1" Text="SPO₂" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" VerticalAlignment="Top"/></Grid><Grid Grid.Row="1" Margin="0,9,0,0"><Canvas x:Name="Spo2YLabels" Width="36" HorizontalAlignment="Left"/><Canvas x:Name="Spo2XLabels" Height="18" VerticalAlignment="Bottom" Margin="40,0,0,0"/><Border Margin="40,0,0,20" Background="{DynamicResource BgSection}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="10" Padding="7"><Canvas x:Name="Spo2Canvas" Background="Transparent" ClipToBounds="True"/></Border></Grid></Grid></Border>
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="20" Padding="16" Margin="0,0,0,12"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="130"/></Grid.RowDefinitions><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="04  /  HEART RATE" FontSize="9" FontWeight="SemiBold" Foreground="#85B8FF"/><TextBlock Text="Pulse response" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,4,0,0"/></StackPanel><TextBlock Grid.Column="1" Text="BPM" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" VerticalAlignment="Top"/></Grid><Grid Grid.Row="1" Margin="0,9,0,0"><Canvas x:Name="HrYLabels" Width="36" HorizontalAlignment="Left"/><Canvas x:Name="HrXLabels" Height="18" VerticalAlignment="Bottom" Margin="40,0,0,0"/><Border Margin="40,0,0,20" Background="{DynamicResource BgSection}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="10" Padding="7"><Canvas x:Name="HrCanvas" Background="Transparent" ClipToBounds="True"/></Border></Grid></Grid></Border>
+                <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="20" Padding="16"><Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="78"/></Grid.RowDefinitions><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="05  /  DISTRACTION EVENTS" FontSize="9" FontWeight="SemiBold" Foreground="#85B8FF"/><TextBlock Text="Attention events" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,4,0,0"/></StackPanel><TextBlock Grid.Column="1" Text="DIST" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" VerticalAlignment="Top"/></Grid><Border Grid.Row="1" Margin="0,10,0,0" Background="{DynamicResource BgSection}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="10" Padding="7"><Canvas x:Name="DistCanvas" Background="Transparent" ClipToBounds="True"/></Border></Grid></Border>
+            </StackPanel></ScrollViewer>
         </Grid>
-
-        <!-- Statistici (jos, sub coloana dreaptă) -->
-        <TextBlock x:Name="StatsText" Grid.Row="2"
-                   Foreground="{DynamicResource TxtMuted}" FontSize="10" FontFamily="Consolas"
-                   Margin="0,10,0,0" HorizontalAlignment="Right"/>
     </Grid>
 </Window>

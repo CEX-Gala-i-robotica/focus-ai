@@ -49,8 +49,8 @@ public record SessionFeatures
 public record PredictionResult
 {
     public double PredictedScore { get; init; }
-    public double ConfidenceLow { get; init; }
-    public double ConfidenceHigh { get; init; }
+    public double PredictionIntervalLow { get; init; }
+    public double PredictionIntervalHigh { get; init; }
     public double LinearRegrScore { get; init; }
     public double HoltScore { get; init; }
     public double KnnScore { get; init; }
@@ -64,8 +64,9 @@ public record PredictionResult
     public bool AlertHrVariabil { get; init; }
     public string AlertMessage { get; init; } = "";
     public int SessionsUsed { get; init; }
-    public double ModelMAE { get; init; }
-    public string ConfidenceLabel { get; init; } = "Unknown";
+    public double? ModelMAE { get; init; }
+    public string IntervalStatusLabel { get; init; } = "Uncalibrated interval";
+    public double? TestIntervalCoverage90 { get; init; }
     public string IntervalLabel { get; init; } = "Uncalibrated";
     public string ModelName { get; init; } = "";
     public int PredictionHorizon { get; init; } = 1;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Media;
 using System.Threading.Tasks;
@@ -31,7 +31,7 @@ namespace focus_ai
                 TxtTimer.Text = _stopwatch.Elapsed.TotalSeconds.ToString("F3") + " s";
 
             BioCollector.Instance.TouchDetected += OnTouchDetected;
-            SetStatus("Press Start to begin the test", StatusColor.Blue);
+            SetStatus(LanguageManager.T("Press Start to begin the test"), StatusColor.Blue);
         }
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
@@ -46,7 +46,7 @@ namespace focus_ai
             TxtTimer.Text = "0.000 s";
             _stopwatch.Reset();
 
-            SetStatus("Wait for the sound cue...", StatusColor.Orange);
+            SetStatus(LanguageManager.T("Wait for the sound cue..."), StatusColor.Orange);
 
             int waitTime = _random.Next(5000, 15001);
             await Task.Delay(waitTime);
@@ -60,11 +60,11 @@ namespace focus_ai
                 _stopwatch.Start();
                 _uiTimer.Start();
 
-                SetStatus("PRESS THE SENSOR NOW!", StatusColor.Green);
+                SetStatus(LanguageManager.T("PRESS THE SENSOR NOW!"), StatusColor.Green);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error: " + ex.Message);
+                MessageBox.Show(LanguageManager.T("Error:") + " " + ex.Message);
                 BtnStart.IsEnabled = true;
                 _testStarted = false;
             }

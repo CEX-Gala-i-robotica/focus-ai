@@ -12,8 +12,8 @@ namespace focus_ai
         {
             base.OnStartup(e);
 
-            bool isDark = IsSystemDarkTheme();
-            ThemeManager.Apply(isDark);
+            LanguageManager.Initialize();
+            ThemeManager.Apply(true);
 
             bool firstRun = IsFirstRun();
             bool loggedIn = IsLoggedIn();
@@ -62,10 +62,13 @@ namespace focus_ai
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(RegPath);
+                using var key = Registry.CurrentUser.OpenSubKey(RegPath, writable: true);
                 if (key == null) return false;
                 string loggedIn = key.GetValue("LoggedIn") as string ?? "0";
-                string idToken = key.GetValue("IdToken") as string ?? "";
+                string storedToken = key.GetValue("IdToken") as string ?? "";
+                string idToken = SessionTokenProtector.Unprotect(storedToken);
+                if (!string.IsNullOrWhiteSpace(idToken) && !SessionTokenProtector.IsProtected(storedToken))
+                    key.SetValue("IdToken", SessionTokenProtector.Protect(idToken));
                 return loggedIn == "1" && !string.IsNullOrEmpty(idToken);
             }
             catch { return false; }

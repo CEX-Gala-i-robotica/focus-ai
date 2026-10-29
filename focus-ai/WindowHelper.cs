@@ -14,7 +14,7 @@ namespace focus_ai
         private static int _primaryWindows;
         private static int _secondaryContentWindows;
 
-        #region WinAPI
+           
 
         [DllImport("user32.dll")]
         private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip,
@@ -60,19 +60,19 @@ namespace focus_ai
         private const uint SWP_NOZORDER = 0x0004;
         private const uint SWP_SHOWWINDOW = 0x0040;
 
-        #endregion
+          
 
-        /// <summary>
-        /// Afiseaza pe monitorul secundar mesajul de asteptare cat timp nu ruleaza o fereastra de test sau exercitiu.
-        /// </summary>
+        
+        
+        
         public static void InitializeSecondaryWaitingWindow()
         {
             Application.Current.Dispatcher.BeginInvoke(new Action(UpdateWaitingWindow));
         }
 
-        /// <summary>
-        /// Apeleaza asta pentru ferestrele pacientului: teste si exercitii.
-        /// </summary>
+        
+        
+        
         public static void MoveToSecondMonitor(Window window)
         {
             bool tracked = false;
@@ -98,9 +98,9 @@ namespace focus_ai
             };
         }
 
-        /// <summary>
-        /// Apeleaza asta pentru ferestrele medicului, ca sa ramana pe monitorul principal.
-        /// </summary>
+        
+        
+        
         public static void MoveToPrimaryMonitor(Window window)
         {
             bool tracked = false;

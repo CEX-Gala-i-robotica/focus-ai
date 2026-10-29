@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -19,7 +20,7 @@ namespace focus_ai
         private readonly string _patientId;
         private readonly string _patientName;
         private readonly bool _isDark;
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
         private readonly System.Threading.CancellationTokenSource _cts = new();
         private List<SessionFeatures>? _lastHistory;
@@ -83,8 +84,8 @@ namespace focus_ai
                     return;
                 }
 
-                var engine = new PredictionEngine();
-                var result = engine.Predict(history, horizon: 1);
+                PredictionEngineResolution resolution = await PredictionModelService.GetEngineAsync(history, "patient:" + _patientId);
+                var result = resolution.Engine.Predict(history, horizon: 1);
                 _lastHistory = history;
                 _lastPrediction = result;
 
@@ -121,9 +122,10 @@ namespace focus_ai
                 var v = entry.Value;
                 string dt = v.TryGetProperty("dateTime", out var dtv) ? dtv.GetString() ?? "" : "";
                 string dur = v.TryGetProperty("duration", out var dv) ? dv.GetString() ?? "" : "";
-                double scor = v.TryGetProperty("scor", out var sv) ? sv.GetDouble() : 0;
+                double storedScore = v.TryGetProperty("scor", out var sv) && sv.ValueKind == JsonValueKind.Number ? sv.GetDouble() : 0;
                 string mapRaw = v.TryGetProperty("map", out var mp) ? mp.GetString() ?? "" : "";
-                SessionFeatures? features = FeatureExtractor.FromJsonElement(v);
+                SessionFeatures features = FeatureExtractor.FromJsonElement(v);
+                double scor = features.HasScoreData ? features.Score : storedScore;
                 list.Add(new TestEntry(entry.Name, dt, dur, scor, mapRaw, features));
             }
             return list.OrderBy(t => t.DateTime).ToList();
@@ -159,7 +161,7 @@ namespace focus_ai
             var series = new LineSeries
             {
                 Title = LanguageManager.T("Actual score"),
-                Color = OxyColor.FromRgb(59, 130, 246),
+                Color = OxyColor.FromRgb(201, 196, 255),
                 MarkerType = MarkerType.Circle,
                 MarkerSize = 3,
                 StrokeThickness = 1.5
@@ -175,35 +177,36 @@ namespace focus_ai
                 Title = LanguageManager.T("Prediction (next session)"),
                 MarkerType = MarkerType.Diamond,
                 MarkerSize = 6,
-                MarkerFill = OxyColor.FromRgb(34, 197, 94),
+                MarkerFill = OxyColor.FromRgb(201, 196, 255),
                 MarkerStroke = OxyColors.White,
                 MarkerStrokeThickness = 1
             };
             predictionPoint.Points.Add(new ScatterPoint(DateTimeAxis.ToDouble(predictedDate), prediction.PredictedScore));
             plotModel.Series.Add(predictionPoint);
 
-            var confidenceLow = new LineSeries
+            var intervalLow = new LineSeries
             {
-                Title = LanguageManager.T("Confidence interval (low)"),
-                Color = OxyColor.FromArgb(80, 34, 197, 94),
+                Title = LanguageManager.T("Prediction interval (low)"),
+                Color = OxyColor.FromArgb(80, 201, 196, 255),
                 StrokeThickness = 1,
                 LineStyle = LineStyle.Dash
             };
-            var confidenceHigh = new LineSeries
+            var intervalHigh = new LineSeries
             {
-                Title = LanguageManager.T("Confidence interval (high)"),
-                Color = OxyColor.FromArgb(80, 34, 197, 94),
+                Title = LanguageManager.T("Prediction interval (high)"),
+                Color = OxyColor.FromArgb(80, 201, 196, 255),
                 StrokeThickness = 1,
                 LineStyle = LineStyle.Dash
             };
-            confidenceLow.Points.Add(new DataPoint(DateTimeAxis.ToDouble(predictedDate), prediction.ConfidenceLow));
-            confidenceHigh.Points.Add(new DataPoint(DateTimeAxis.ToDouble(predictedDate), prediction.ConfidenceHigh));
-            plotModel.Series.Add(confidenceLow);
-            plotModel.Series.Add(confidenceHigh);
+            intervalLow.Points.Add(new DataPoint(DateTimeAxis.ToDouble(predictedDate), prediction.PredictionIntervalLow));
+            intervalHigh.Points.Add(new DataPoint(DateTimeAxis.ToDouble(predictedDate), prediction.PredictionIntervalHigh));
+            plotModel.Series.Add(intervalLow);
+            plotModel.Series.Add(intervalHigh);
 
             TrendPlot.Model = plotModel;
             PredictionAnnotation.Text = string.Format(
-                LanguageManager.T("Prediction based on {0} sessions. The shaded area represents the confidence interval (80%). Last score: {1:F1} -> expected score: {2:F1}."),
+                UiCulture,
+                LanguageManager.T("Prediction based on {0} sessions. The interval is empirical only when sufficient historical evaluation data are available. Last score: {1:F1} -> expected score: {2:F1}."),
                 history.Count,
                 history.Last().Score,
                 prediction.PredictedScore);
@@ -211,31 +214,59 @@ namespace focus_ai
 
         private void UpdateStats(List<SessionFeatures> history, PredictionResult prediction)
         {
-            PredictedScoreValue.Text = $"{prediction.PredictedScore:F1}";
-            ConfidenceRange.Text = $"{prediction.ConfidenceLow:F1} – {prediction.ConfidenceHigh:F1}";
+            PredictedScoreValue.Text = FormatNumber(prediction.PredictedScore, "F1");
+            PredictionRange.Text = $"{FormatNumber(prediction.PredictionIntervalLow, "F1")} – {FormatNumber(prediction.PredictionIntervalHigh, "F1")}";
             TrendLabel.Text = LanguageManager.T(prediction.TrendLabel);
-            TrendPerSession.Text = $"{prediction.TrendPerSession:+0.##;-0.##;0} {LanguageManager.T("points/session")}";
-            ConfidenceLevel.Text = LanguageManager.T(prediction.ConfidenceLabel);
-            MAEValue.Text = $"MAE: {prediction.ModelMAE:F2}";
+            TrendPerSession.Text = $"{FormatNumber(prediction.TrendPerSession, "+0.##;-0.##;0")} {LanguageManager.T("points/session")}";
+            IntervalStatusLabel.Text = BuildIntervalStatus(prediction);
+            MAEValue.Text = BuildMaeLabel(prediction.ModelMAE);
             SessionsCount.Text = prediction.SessionsUsed.ToString();
 
-            LinearRegrScore.Text = $"{prediction.LinearRegrScore:F1}";
-            HoltScore.Text = $"{prediction.HoltScore:F1}";
-            KnnScore.Text = $"{prediction.KnnScore:F1}";
+            LinearRegrScore.Text = FormatNumber(prediction.LinearRegrScore, "F1");
+            HoltScore.Text = FormatNumber(prediction.HoltScore, "F1");
+            KnnScore.Text = FormatNumber(prediction.KnnScore, "F1");
 
-            string explanation = string.Format(
-                LanguageManager.T("The ensemble model combines linear regression (weight {0}), Holt exponential smoothing, and k-NN based on physiological similarity. Final prediction: {1:F1}."),
-                GetWeightDescription(history.Count),
-                prediction.PredictedScore);
-            EnsembleExplanation.Text = explanation;
+            EnsembleExplanation.Text = BuildModelExplanation(prediction);
         }
 
-        private string GetWeightDescription(int n)
+        private static CultureInfo UiCulture => LanguageManager.Current == AppLanguage.Romanian
+            ? CultureInfo.GetCultureInfo("ro-RO")
+            : CultureInfo.GetCultureInfo("en-US");
+
+        private static string FormatNumber(double value, string format)
+            => value.ToString(format, UiCulture);
+
+        private static string BuildIntervalStatus(PredictionResult prediction)
         {
-            if (n <= 3) return "15%";
-            if (n <= 6) return "25%";
-            if (n <= 12) return "35%";
-            return "40%";
+            string status = LanguageManager.T(prediction.IntervalStatusLabel);
+            if (!prediction.TestIntervalCoverage90.HasValue)
+                return status;
+
+            string coverage = prediction.TestIntervalCoverage90.Value.ToString("P0", UiCulture);
+            return LanguageManager.Current == AppLanguage.Romanian
+                ? $"{status} · acoperire pe setul de validare: {coverage}"
+                : $"{status} · holdout coverage: {coverage}";
+        }
+
+        private static string BuildMaeLabel(double? mae)
+        {
+            if (mae.HasValue)
+                return $"MAE: {FormatNumber(mae.Value, "F2")}";
+
+            return LanguageManager.Current == AppLanguage.Romanian
+                ? "MAE: indisponibil"
+                : "MAE: n/a";
+        }
+
+        private static string BuildModelExplanation(PredictionResult prediction)
+        {
+            string mae = prediction.ModelMAE.HasValue
+                ? FormatNumber(prediction.ModelMAE.Value, "F2")
+                : LanguageManager.Current == AppLanguage.Romanian ? "indisponibil" : "not available";
+
+            return LanguageManager.Current == AppLanguage.Romanian
+                ? $"Model selectat: {prediction.ModelName}. MAE istoric: {mae}. Eroarea raportată și intervalul de predicție descriu evaluările anterioare și nu garantează rezultatul următor."
+                : $"Selected model: {prediction.ModelName}. Historical MAE: {mae}. The reported error and prediction interval describe past evaluation results and do not guarantee the next result.";
         }
 
         private void DisplayAlerts(PredictionResult result)
@@ -267,11 +298,12 @@ namespace focus_ai
                 return "";
 
             return message
-                .Replace("Low SpO2", LanguageManager.T("Low SpO2"))
-                .Replace("Abnormal heart rate", LanguageManager.T("Abnormal heart rate"))
-                .Replace("High heart-rate variability", LanguageManager.T("High heart-rate variability"))
-                .Replace("avg", LanguageManager.Current == AppLanguage.Romanian ? "medie" : "avg")
-                .Replace("values", LanguageManager.Current == AppLanguage.Romanian ? "valori" : "values");
+                .Replace("Low SpO2", LanguageManager.T("Low SpO2"), StringComparison.Ordinal)
+                .Replace("Abnormal heart rate", LanguageManager.T("Abnormal heart rate"), StringComparison.Ordinal)
+                .Replace("High dispersion in heart-rate samples", LanguageManager.T("High dispersion in heart-rate samples"), StringComparison.Ordinal)
+                .Replace("mean", LanguageManager.Current == AppLanguage.Romanian ? "medie" : "mean", StringComparison.Ordinal)
+                .Replace("fraction below", LanguageManager.Current == AppLanguage.Romanian ? "proporție sub" : "fraction below", StringComparison.Ordinal)
+                .Replace("standard deviation", LanguageManager.Current == AppLanguage.Romanian ? "deviație standard" : "standard deviation", StringComparison.Ordinal);
         }
 
         private async Task<string> SafeGetAsync(string url)
@@ -285,7 +317,8 @@ namespace focus_ai
             try
             {
                 using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\FocusAI");
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }

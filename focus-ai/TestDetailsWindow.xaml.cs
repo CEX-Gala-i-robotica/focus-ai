@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Windows;
@@ -11,28 +12,67 @@ namespace focus_ai
 {
     public partial class TestDetailsWindow : Window
     {
-        // ── Constructor ──────────────────────────────────────────────────────
+        private readonly string _mapRaw;
+        private readonly string _ecgRaw;
+        private readonly string _spo2Raw;
+        private readonly string _hrRaw;
+        private readonly string _distRaw;
+        private readonly string _cptRaw;
+        
         public TestDetailsWindow(string mapRaw, string ecgRaw,
                                   string spo2Raw, string hrRaw, string distRaw,
                                   string cptRaw = "")
         {
             InitializeComponent();
+            _mapRaw = mapRaw;
+            _ecgRaw = ecgRaw;
+            _spo2Raw = spo2Raw;
+            _hrRaw = hrRaw;
+            _distRaw = distRaw;
+            _cptRaw = cptRaw;
             LanguageManager.Register(this);
             WindowHelper.MoveToPrimaryMonitor(this);
-            Loaded += (_, _) => DrawAll(mapRaw, ecgRaw, spo2Raw, hrRaw, distRaw, cptRaw);
+            Loaded += (_, _) => DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw);
+            LanguageManager.LanguageChanged += TestDetailsWindow_LanguageChanged;
+            Closed += (_, _) => LanguageManager.LanguageChanged -= TestDetailsWindow_LanguageChanged;
         }
 
-        // ── Main dispatcher ──────────────────────────────────────────────────
+        private void TestDetailsWindow_LanguageChanged(object? sender, EventArgs e)
+        {
+            if (!IsLoaded) return;
+
+            ClearChartVisuals();
+            DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw);
+        }
+
+        private void ClearChartVisuals()
+        {
+            MapCanvas.Children.Clear();
+            MapXLabels.Children.Clear();
+            MapYLabels.Children.Clear();
+            EcgCanvas1.Children.Clear();
+            EcgXLabels.Children.Clear();
+            EcgYLabels.Children.Clear();
+            Spo2Canvas.Children.Clear();
+            Spo2XLabels.Children.Clear();
+            Spo2YLabels.Children.Clear();
+            HrCanvas.Children.Clear();
+            HrXLabels.Children.Clear();
+            HrYLabels.Children.Clear();
+            DistCanvas.Children.Clear();
+        }
+
+        
         private void DrawAll(string mapRaw, string ecgRaw,
                               string spo2Raw, string hrRaw, string distRaw,
                               string cptRaw)
         {
-            // MAP – scatter (original behaviour)
+            
             var mapPoints = ParseXY(mapRaw);
             if (mapPoints.Count > 0)
                 DrawScatter(MapCanvas, MapXLabels, MapYLabels, mapPoints);
 
-            // ECG – two channels from pairs "x1,x2;…"
+            
             var ecgPairs = ParsePairs(ecgRaw);
             if (ecgPairs.Count > 0)
             {
@@ -45,48 +85,60 @@ namespace focus_ai
                 double maxX = ecgPairs.Count - 1;
 
                 DrawLineChart(EcgCanvas1, EcgXLabels, EcgYLabels,
-                    ch1, GradH(Color.FromRgb(77, 255, 223), Color.FromRgb(77, 200, 255)),
+                    ch1, GradH(Color.FromRgb(201, 196, 255), Color.FromRgb(237, 237, 237)),
                     minX, maxX, minY, maxY);
                 DrawLineChart(EcgCanvas1, null, null,
-                    ch2, GradH(Color.FromRgb(255, 77, 200), Color.FromRgb(255, 140, 77)),
+                    ch2, GradH(Color.FromRgb(194, 194, 194), Color.FromRgb(201, 196, 255)),
                     minX, maxX, minY, maxY, skipGrid: true);
             }
 
-            // SPO2 – indexed values
+            
             var spo2 = ParseValues(spo2Raw);
             if (spo2.Count > 0)
                 DrawLineChart(Spo2Canvas, Spo2XLabels, Spo2YLabels,
                     Indexed(spo2),
-                    GradH(Color.FromRgb(77, 159, 255), Color.FromRgb(77, 255, 223)));
+                    GradH(Color.FromRgb(201, 196, 255), Color.FromRgb(201, 196, 255)));
 
-            // HR – indexed values
+            
             var hr = ParseValues(hrRaw);
             if (hr.Count > 0)
                 DrawLineChart(HrCanvas, HrXLabels, HrYLabels,
                     Indexed(hr),
-                    GradH(Color.FromRgb(255, 107, 77), Color.FromRgb(255, 215, 0)));
+                    GradH(Color.FromRgb(201, 196, 255), Color.FromRgb(194, 194, 194)));
 
-            // DIST – event axis
+            
             var dist = ParseValues(distRaw);
             if (dist.Count > 0)
                 DrawDistAxis(DistCanvas, dist);
 
-            // Stats
-            int mapN  = mapPoints.Count;
+            
+            UpdateStats(mapPoints, ecgPairs, spo2, hr, dist, cptRaw);
+        }
+
+        private void UpdateStats(
+            List<Point> mapPoints,
+            List<Point> ecgPairs,
+            List<double> spo2,
+            List<double> hr,
+            List<double> dist,
+            string cptRaw)
+        {
             double spo2Min = spo2.Any(v => v > 0) ? spo2.Where(v => v > 0).Min() : 0;
-            double spo2Max = spo2.Any()            ? spo2.Max() : 0;
-            double hrMin   = hr.Any(v => v > 0)   ? hr.Where(v => v > 0).Min() : 0;
-            double hrMax   = hr.Any()              ? hr.Max() : 0;
+            double spo2Max = spo2.Any() ? spo2.Max() : 0;
+            double hrMin = hr.Any(v => v > 0) ? hr.Where(v => v > 0).Min() : 0;
+            double hrMax = hr.Any() ? hr.Max() : 0;
             int distActive = dist.Count(v => v > 0);
 
-            string cptStats = BuildCptStats(cptRaw);
+            string pointLabel = LanguageManager.Current == AppLanguage.Romanian ? "puncte" : "points";
+            string activeLabel = LanguageManager.Current == AppLanguage.Romanian ? "active" : "active";
+
             StatsText.Text =
-                $"  MAP {mapN} pt   ·   " +
-                $"ECG {ecgPairs.Count} pt   ·   " +
-                $"SPO2 [{spo2Min:F0}–{spo2Max:F0}]%   ·   " +
-                $"HR [{hrMin:F0}–{hrMax:F0}] bpm   ·   " +
-                $"DIST {distActive}/{dist.Count} active" +
-                cptStats;
+                $"  MAP {mapPoints.Count} {pointLabel}   ·   " +
+                $"ECG {ecgPairs.Count} {pointLabel}   ·   " +
+                $"SPO2 [{FormatNumber(spo2Min, "F0")}–{FormatNumber(spo2Max, "F0")}]%   ·   " +
+                $"HR [{FormatNumber(hrMin, "F0")}–{FormatNumber(hrMax, "F0")}] bpm   ·   " +
+                $"DIST {distActive}/{dist.Count} {activeLabel}" +
+                BuildCptStats(cptRaw);
         }
 
         private static string BuildCptStats(string cptRaw)
@@ -102,7 +154,10 @@ namespace focus_ai
                 double falseAlarmRate = root.TryGetProperty("false_alarm_rate", out var fa) ? fa.GetDouble() : 0;
                 double meanRt = root.TryGetProperty("mean_reaction_time_ms", out var rt) ? rt.GetDouble() : 0;
 
-                return $"   ·   CPT Accuracy {accuracy:F1}%   ·   Mean RT {meanRt:F0} ms   ·   Hit Rate {hitRate:F2}   ·   False Alarm Rate {falseAlarmRate:F2}";
+                return $"   ·   CPT {LanguageManager.T("Accuracy")} {FormatNumber(accuracy, "F1")}%   ·   " +
+                       $"{LanguageManager.T("Mean RT")} {FormatNumber(meanRt, "F0")} ms   ·   " +
+                       $"{LanguageManager.T("Hit Rate")} {FormatNumber(hitRate, "F2")}   ·   " +
+                       $"{LanguageManager.T("False Alarm Rate")} {FormatNumber(falseAlarmRate, "F2")}";
             }
             catch
             {
@@ -110,9 +165,9 @@ namespace focus_ai
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // SCATTER PLOT  (original MAP logic, unchanged)
-        // ════════════════════════════════════════════════════════════════════
+        
+        
+        
         private void DrawScatter(Canvas graph, Canvas xLbl, Canvas yLbl,
                                   List<Point> points)
         {
@@ -164,10 +219,10 @@ namespace focus_ai
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // LINE CHART  (ECG channels, SPO2, HR)
-        // ════════════════════════════════════════════════════════════════════
-        private void DrawLineChart(Canvas graph, Canvas xLbl, Canvas yLbl,
+        
+        
+        
+        private void DrawLineChart(Canvas graph, Canvas? xLbl, Canvas? yLbl,
                                     List<Point> points, LinearGradientBrush lineBrush,
                                     double? overrideMinX = null, double? overrideMaxX = null,
                                     double? overrideMinY = null, double? overrideMaxY = null,
@@ -235,9 +290,9 @@ namespace focus_ai
             });
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // DIST AXIS
-        // ════════════════════════════════════════════════════════════════════
+        
+        
+        
         private void DrawDistAxis(Canvas c, List<double> vals)
         {
             c.UpdateLayout();
@@ -286,10 +341,10 @@ namespace focus_ai
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // SHARED GRID + AXES
-        // ════════════════════════════════════════════════════════════════════
-        private static void DrawGridLines(Canvas graph, Canvas xLbl, Canvas yLbl,
+        
+        
+        
+        private static void DrawGridLines(Canvas graph, Canvas? xLbl, Canvas? yLbl,
             double minX, double maxX, double minY, double maxY,
             double w, double h,
             Func<double, double> Tx, Func<double, double> Ty)
@@ -310,7 +365,7 @@ namespace focus_ai
                 graph.Children.Add(DashedLine(cx, 0, cx, h, gridBrush));
                 if (xLbl != null)
                 {
-                    var lbl = MakeLabel($"{v:G4}", labelBrush, 8.5);
+                    var lbl = MakeLabel(FormatNumber(v, "G4"), labelBrush, 8.5);
                     Canvas.SetLeft(lbl, cx - 14); Canvas.SetTop(lbl, h + 3);
                     xLbl.Children.Add(lbl);
                 }
@@ -322,7 +377,7 @@ namespace focus_ai
                 graph.Children.Add(DashedLine(0, cy, w, cy, gridBrush));
                 if (yLbl != null)
                 {
-                    var lbl = MakeLabel($"{v:G4}", labelBrush, 8.5);
+                    var lbl = MakeLabel(FormatNumber(v, "G4"), labelBrush, 8.5);
                     Canvas.SetRight(lbl, 4); Canvas.SetTop(lbl, cy - 7);
                     yLbl.Children.Add(lbl);
                 }
@@ -345,9 +400,9 @@ namespace focus_ai
             graph.Children.Add(SolidLine(xZero, 0, xZero, h, axisBrush, 1.5));
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // PARSERS
-        // ════════════════════════════════════════════════════════════════════
+        
+        
+        
 
         private static List<Point> ParseXY(string raw)
         {
@@ -396,9 +451,16 @@ namespace focus_ai
                 System.Globalization.CultureInfo.InvariantCulture,
                 out v);
 
-        // ════════════════════════════════════════════════════════════════════
-        // VISUAL HELPERS
-        // ════════════════════════════════════════════════════════════════════
+        private static CultureInfo UiCulture => LanguageManager.Current == AppLanguage.Romanian
+            ? CultureInfo.GetCultureInfo("ro-RO")
+            : CultureInfo.GetCultureInfo("en-US");
+
+        private static string FormatNumber(double value, string format)
+            => value.ToString(format, UiCulture);
+
+        
+        
+        
 
         private static Line DashedLine(double x1, double y1, double x2, double y2, Brush stroke) =>
             new Line

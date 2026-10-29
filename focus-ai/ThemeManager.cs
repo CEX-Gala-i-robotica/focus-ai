@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Media;
 
 namespace focus_ai
@@ -10,135 +10,111 @@ namespace focus_ai
         public static void Apply(bool dark)
         {
             IsDark = dark;
-            var r = Application.Current.Resources;
-            if (dark) ApplyDark(r);
-            else      ApplyLight(r);
+            var resources = Application.Current.Resources;
+            if (dark)
+                ApplyDark(resources);
+            else
+                ApplyLight(resources);
         }
 
-        private static void ApplyDark(ResourceDictionary r)
+        private static void ApplyDark(ResourceDictionary resources)
         {
-            // Fonduri
-            S(r, "BgRoot",          "#0B0F19");
-            S(r, "BgSidebar",       "#0D1220");
-            S(r, "BgMain",          "#0B0F19");
-            S(r, "BgCard",          "#1A2035");
-            S(r, "BgCardHover",     "#222C46");
-            S(r, "BgNavActive",     "#182036");
-            S(r, "BgNavHover",      "#151C2E");
-            S(r, "BgUserBar",       "#111827");
-            S(r, "BgSep",           "#252D41");
-            S(r, "BgToggle",        "#171F33");
-            S(r, "BgSection",       "#111827");
-            S(r, "BgInput",         "#111827");
-            S(r, "BgInputBorder",   "#252D41");
-
-            // Stat cards
-            S(r, "BgStatBlue",      "#1A2035");
-            S(r, "BgStatGreen",     "#1A2035");
-            S(r, "BgStatPurple",    "#1A2035");
-            S(r, "BgStatOrange",    "#1A2035");
-
-            // Game cards
-            S(r, "GameCard1Bg",     "#1A2035");
-            S(r, "GameCard2Bg",     "#1A2035");
-            S(r, "GameCard3Bg",     "#1A2035");
-            S(r, "GameCard4Bg",     "#1A2035");
-            S(r, "GameCard5Bg",     "#1A2035");
-            S(r, "GameCardLockBg",  "#111827");
-
-            // Texte
-            S(r, "TxtPrimary",      "#F8FAFC");
-            S(r, "TxtSecondary",    "#A0AEC0");
-            S(r, "TxtMuted",        "#718096");
-            S(r, "TxtVersion",      "#718096");
-            S(r, "TxtNavActive",    "#FFFFFF");
-            S(r, "TxtOnline",       "#22C55E");
-
-            // Stat labels
-            S(r, "TxtStatBlue",     "#60A5FA");
-            S(r, "TxtStatGreen",    "#4ADE80");
-            S(r, "TxtStatPurple",   "#A78BFA");
-            S(r, "TxtStatOrange",   "#FB923C");
-
-            // Accent
-            S(r, "AccentPrimary",   "#3B82F6");
-            S(r, "AccentHover",     "#2563EB");
-            S(r, "AccentSecBg",     "#172036");
-            S(r, "AccentSecFg",     "#60A5FA");
-            S(r, "AccentSecHov",    "#222C46");
-
-            // Tabel
-            S(r, "RowBg",           "#00000000");
-            S(r, "RowHover",        "#222C46");
-            S(r, "RowBorder",       "#252D41");
-            S(r, "RowNumBg",        "#161B2C");
+            Set(resources, "BgRoot", "#0B0F19");
+            Set(resources, "BgSidebar", "#0D1220");
+            Set(resources, "BgMain", "#0B0F19");
+            Set(resources, "BgCard", "#151C2C");
+            Set(resources, "BgCardHover", "#1B2740");
+            Set(resources, "BgNavActive", "#18253C");
+            Set(resources, "BgNavHover", "#151D2F");
+            Set(resources, "BgUserBar", "#101827");
+            Set(resources, "BgSep", "#273247");
+            Set(resources, "BgToggle", "#151D2F");
+            Set(resources, "BgSection", "#101827");
+            Set(resources, "BgInput", "#0D1422");
+            Set(resources, "BgInputBorder", "#273247");
+            Set(resources, "BgStatBlue", "#151C2C");
+            Set(resources, "BgStatGreen", "#151C2C");
+            Set(resources, "BgStatPurple", "#151C2C");
+            Set(resources, "BgStatOrange", "#151C2C");
+            Set(resources, "GameCard1Bg", "#151C2C");
+            Set(resources, "GameCard2Bg", "#151C2C");
+            Set(resources, "GameCard3Bg", "#151C2C");
+            Set(resources, "GameCard4Bg", "#151C2C");
+            Set(resources, "GameCard5Bg", "#151C2C");
+            Set(resources, "GameCardLockBg", "#101827");
+            Set(resources, "TxtPrimary", "#F5F7FC");
+            Set(resources, "TxtSecondary", "#A6B0C2");
+            Set(resources, "TxtMuted", "#7E8AA0");
+            Set(resources, "TxtVersion", "#7E8AA0");
+            Set(resources, "TxtNavActive", "#FFFFFF");
+            Set(resources, "TxtOnline", "#22C55E");
+            Set(resources, "TxtStatBlue", "#91B9FF");
+            Set(resources, "TxtStatGreen", "#8CCFB2");
+            Set(resources, "TxtStatPurple", "#B5ACF8");
+            Set(resources, "TxtStatOrange", "#DAB58D");
+            Set(resources, "AccentPrimary", "#3B82F6");
+            Set(resources, "AccentHover", "#2563EB");
+            Set(resources, "AccentSecBg", "#17243B");
+            Set(resources, "AccentSecFg", "#8BB7FF");
+            Set(resources, "AccentSecHov", "#202F4A");
+            Set(resources, "RowBg", "#00000000");
+            Set(resources, "RowHover", "#18243A");
+            Set(resources, "RowBorder", "#273247");
+            Set(resources, "RowNumBg", "#1B263B");
         }
 
-        private static void ApplyLight(ResourceDictionary r)
+        private static void ApplyLight(ResourceDictionary resources)
         {
-            // Fonduri (culori armonizate cu Dashboard)
-            S(r, "BgRoot",          "#F4F6FB");
-            S(r, "BgSidebar",       "#FFFFFF");
-            S(r, "BgMain",          "#F4F6FB");
-            S(r, "BgCard",          "#FFFFFF");
-            S(r, "BgCardHover",     "#EDF2FF");
-            S(r, "BgNavActive",     "#EDF2FF");
-            S(r, "BgNavHover",      "#F5F7FF");
-            S(r, "BgUserBar",       "#F5F7FF");
-            S(r, "BgSep",           "#E2E8F0");
-            S(r, "BgToggle",        "#DBEAFE");
-            S(r, "BgSection",       "#FFFFFF");
-            S(r, "BgInput",         "#F8FAFC");
-            S(r, "BgInputBorder",   "#CBD5E1");
-
-            // Stat cards
-            S(r, "BgStatBlue",      "#DBEAFE");
-            S(r, "BgStatGreen",     "#DCFCE7");
-            S(r, "BgStatPurple",    "#EDE9FE");
-            S(r, "BgStatOrange",    "#FFEDD5");
-
-            // Game cards
-            S(r, "GameCard1Bg",     "#DBEAFE");
-            S(r, "GameCard2Bg",     "#DCFCE7");
-            S(r, "GameCard3Bg",     "#EDE9FE");
-            S(r, "GameCard4Bg",     "#FFEDD5");
-            S(r, "GameCard5Bg",     "#F1F5F9");
-            S(r, "GameCardLockBg",  "#E2E8F0");
-
-            // Texte
-            S(r, "TxtPrimary",      "#0F172A");
-            S(r, "TxtSecondary",    "#475569");
-            S(r, "TxtMuted",        "#94A3B8");
-            S(r, "TxtVersion",      "#94A3B8");
-            S(r, "TxtNavActive",    "#1E40AF");
-            S(r, "TxtOnline",       "#16A34A");
-
-            // Stat labels
-            S(r, "TxtStatBlue",     "#1D4ED8");
-            S(r, "TxtStatGreen",    "#15803D");
-            S(r, "TxtStatPurple",   "#6D28D9");
-            S(r, "TxtStatOrange",   "#C2410C");
-
-            // Accent
-            S(r, "AccentPrimary",   "#2563EB");
-            S(r, "AccentHover",     "#1D4ED8");
-            S(r, "AccentSecBg",     "#DBEAFE");
-            S(r, "AccentSecFg",     "#1D4ED8");
-            S(r, "AccentSecHov",    "#BFDBFE");
-
-            // Tabel
-            S(r, "RowBg",           "#FFFFFF");
-            S(r, "RowHover",        "#F5F7FF");
-            S(r, "RowBorder",       "#E2E8F0");
-            S(r, "RowNumBg",        "#F1F5F9");
+            Set(resources, "BgRoot", "#F4F6FA");
+            Set(resources, "BgSidebar", "#FBFCFE");
+            Set(resources, "BgMain", "#F4F6FA");
+            Set(resources, "BgCard", "#FFFFFF");
+            Set(resources, "BgCardHover", "#F0F4FB");
+            Set(resources, "BgNavActive", "#EAF1FC");
+            Set(resources, "BgNavHover", "#F5F7FB");
+            Set(resources, "BgUserBar", "#F8FAFD");
+            Set(resources, "BgSep", "#E1E6EF");
+            Set(resources, "BgToggle", "#FFFFFF");
+            Set(resources, "BgSection", "#F7F9FC");
+            Set(resources, "BgInput", "#F8FAFC");
+            Set(resources, "BgInputBorder", "#DDE4EE");
+            Set(resources, "BgStatBlue", "#FFFFFF");
+            Set(resources, "BgStatGreen", "#FFFFFF");
+            Set(resources, "BgStatPurple", "#FFFFFF");
+            Set(resources, "BgStatOrange", "#FFFFFF");
+            Set(resources, "GameCard1Bg", "#FFFFFF");
+            Set(resources, "GameCard2Bg", "#FFFFFF");
+            Set(resources, "GameCard3Bg", "#FFFFFF");
+            Set(resources, "GameCard4Bg", "#FFFFFF");
+            Set(resources, "GameCard5Bg", "#FFFFFF");
+            Set(resources, "GameCardLockBg", "#EEF2F7");
+            Set(resources, "TxtPrimary", "#101827");
+            Set(resources, "TxtSecondary", "#536176");
+            Set(resources, "TxtMuted", "#7E8AA0");
+            Set(resources, "TxtVersion", "#7E8AA0");
+            Set(resources, "TxtNavActive", "#173B78");
+            Set(resources, "TxtOnline", "#16835D");
+            Set(resources, "TxtStatBlue", "#2B65C8");
+            Set(resources, "TxtStatGreen", "#28765B");
+            Set(resources, "TxtStatPurple", "#6658B5");
+            Set(resources, "TxtStatOrange", "#986B37");
+            Set(resources, "AccentPrimary", "#2868D7");
+            Set(resources, "AccentHover", "#1F55B4");
+            Set(resources, "AccentSecBg", "#EAF1FC");
+            Set(resources, "AccentSecFg", "#2459AF");
+            Set(resources, "AccentSecHov", "#DBE7FA");
+            Set(resources, "RowBg", "#FFFFFF");
+            Set(resources, "RowHover", "#F4F7FC");
+            Set(resources, "RowBorder", "#E1E6EF");
+            Set(resources, "RowNumBg", "#EEF2F7");
         }
 
-        private static void S(ResourceDictionary r, string key, string hex)
+        private static void Set(ResourceDictionary resources, string key, string hex)
         {
             var color = (Color)ColorConverter.ConvertFromString(hex);
             var brush = new SolidColorBrush(color);
             brush.Freeze();
-            r[key] = brush;
+            resources[key] = brush;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -38,12 +38,8 @@ namespace focus_ai
                          @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
         private const string PythonScript = "MonitorTracking.py";
 
-        private readonly string _dbUrl =
-            ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
-        private readonly string _sendGridApiKey =
-            ConfigurationManager.AppSettings["SendGridApiKey"] ?? "";
-        private readonly string _sendGridEmail =
-            ConfigurationManager.AppSettings["SendGridEmail"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
+        private readonly string _emailServiceUrl = AppSettings.Get("EmailServiceUrl");
 
         private string _mapData = "";
         private double _reactionTimeSec = 0;
@@ -229,7 +225,7 @@ namespace focus_ai
                 }
 
                 string details = BuildEyeTrackerErrorDetails(process.ExitCode, stdoutData, stderrData);
-                MessageBox.Show("The script did not return coordinates.\nCheck the eye tracker." + details,
+                MessageBox.Show(LanguageManager.T("The script did not return coordinates.\nCheck the eye tracker.") + details,
                     "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
@@ -342,51 +338,6 @@ namespace focus_ai
             Close();
         }
 
-        private double ComputeScore(string mapStr, double reactionSec,
-                                    double goNoGoAcc, double cptAccuracy, string distStr)
-        {
-            double mapScore = 0;
-            if (!string.IsNullOrWhiteSpace(mapStr))
-            {
-                var points = mapStr.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                int total = points.Length;
-                int inRange = 0;
-
-                foreach (var pt in points)
-                {
-                    var parts = pt.Split(',');
-                    if (parts.Length == 2
-                        && double.TryParse(parts[0], out double x)
-                        && double.TryParse(parts[1], out double y))
-                    {
-                        if (x >= 0 && x <= 100 && y >= 0 && y <= 100)
-                            inRange++;
-                    }
-                }
-
-                mapScore = total > 0 ? (double)inRange / total * 45.0 : 0;
-            }
-
-            double rtScore = 0;
-            if (reactionSec > 0)
-                rtScore = Math.Min(1.0 / reactionSec * 25.0, 25.0);
-
-            double goNoGoScore = goNoGoAcc / 100.0 * 20.0;
-            double cptScore = cptAccuracy / 100.0 * 10.0;
-
-            int distZeroCount = 0;
-            if (!string.IsNullOrWhiteSpace(distStr))
-            {
-                distZeroCount = distStr.Split(',')
-                    .Count(v => v.Trim() == "0");
-            }
-            double penalty = 5.0 * distZeroCount;
-
-            double score = mapScore + rtScore + goNoGoScore + cptScore - penalty;
-
-            return Math.Round(Math.Max(0, Math.Min(100, score)), 2);
-        }
-
         private async Task SaveResultsAsync()
         {
             var bio = BioCollector.Instance;
@@ -397,7 +348,7 @@ namespace focus_ai
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
 
             double cptAccuracy = _cptResult?.Accuracy ?? 0;
-            double scor = ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, cptAccuracy, distStr);
+            double scor = TestScoreCalculator.ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, cptAccuracy, distStr);
 
             string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
             string duration = _elapsed.ToString(@"mm\:ss");
@@ -437,7 +388,8 @@ namespace focus_ai
                         response_type = t.ResponseType
                     }).ToList()
                 },
-                scor = Math.Round(scor, 2)
+                scor = Math.Round(scor, 2),
+                scoreVersion = TestScoreCalculator.CurrentVersion
             };
             string json = JsonSerializer.Serialize(payload);
 
@@ -465,7 +417,7 @@ namespace focus_ai
                     }
                     else
                     {
-                        MessageBox.Show($"Results were saved to Firebase.\nTest ID: {testId}\nThe email could not be sent to the doctor (missing address or error).",
+                        MessageBox.Show($"Results were saved to Firebase.\nTest ID: {testId}\nThe email notification was not sent. Configure the authenticated email backend to enable notifications.",
                             "Focus AI", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
@@ -485,65 +437,24 @@ namespace focus_ai
 
         private async Task<bool> SendEmailToDoctorAsync(string uid, string testId)
         {
+            if (!Uri.TryCreate(_emailServiceUrl, UriKind.Absolute, out Uri? endpoint) || endpoint.Scheme != Uri.UriSchemeHttps)
+                return false;
+
+            string token = GetReg("IdToken");
+            if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(uid) || string.IsNullOrWhiteSpace(testId))
+                return false;
+
             try
             {
-                string doctorEmailUrl = $"{_dbUrl.TrimEnd('/')}/{uid}/profile/doctor-email.json";
-                var emailResponse = await _http.GetAsync(doctorEmailUrl);
-                if (!emailResponse.IsSuccessStatusCode)
-                    return false;
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new { patientId = uid, testId }),
+                    Encoding.UTF8,
+                    "application/json");
 
-                string emailJson = await emailResponse.Content.ReadAsStringAsync();
-                if (string.IsNullOrWhiteSpace(emailJson) || emailJson == "null")
-                    return false;
-                string doctorEmail = emailJson.Trim('"');
-                if (string.IsNullOrWhiteSpace(doctorEmail))
-                    return false;
-                if (string.IsNullOrEmpty(_sendGridApiKey) || string.IsNullOrEmpty(_sendGridEmail))
-                    return false;
-
-                string link = $"https://sitefocus.vercel.app/{uid}/{testId}";
-                string subject = "Focus AI - Patient test results";
-                string htmlContent = $@"
-                    <html>
-                    <body>
-                        <h2>Focus AI</h2>
-                        <p>A patient completed the cognitive test.</p>
-                        <p><strong>Test ID:</strong> {testId}</p>
-                        <p><strong>Results link:</strong> <a href='{link}'>{link}</a></p>
-                        <p>Please open the link to view the full details.</p>
-                        <hr/>
-                        <small>This message was generated automatically by Focus AI.</small>
-                    </body>
-                    </html>";
-
-                var emailPayload = new
-                {
-                    personalizations = new[]
-                    {
-                        new
-                        {
-                            to = new[] { new { email = doctorEmail } },
-                            subject = subject
-                        }
-                    },
-                    from = new { email = _sendGridEmail },
-                    content = new[]
-                    {
-                        new
-                        {
-                            type = "text/html",
-                            value = htmlContent
-                        }
-                    }
-                };
-
-                string jsonPayload = System.Text.Json.JsonSerializer.Serialize(emailPayload);
-                var httpContent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-                _http.DefaultRequestHeaders.Clear();
-                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _sendGridApiKey);
-
-                var sendResponse = await _http.PostAsync("https://api.sendgrid.com/v3/mail/send", httpContent);
-                return sendResponse.IsSuccessStatusCode;
+                using HttpResponseMessage response = await _http.SendAsync(request);
+                return response.IsSuccessStatusCode;
             }
             catch
             {
@@ -556,7 +467,8 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }

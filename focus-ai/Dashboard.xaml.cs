@@ -1,6 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -20,7 +21,7 @@ namespace focus_ai
     {
         private readonly CancellationTokenSource _cts = new();
 
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
 
         private const string RegPath = @"Software\FocusAI";
@@ -36,24 +37,25 @@ namespace focus_ai
         private string _selectedPatientId = "";
         private string _selectedPatientName = "";
 
-        private record TestEntry(string Id, string DateTime, string Duration, double Scor, string MapRaw,
+        private record TestEntry(string Id, string DateTime, DateTime RecordedAt, string Duration, double Scor, string MapRaw,
                                  SessionFeatures? Features);
-        private record ActivityEntry(string Id, string DateTime, string Duration,
+        private record ActivityEntry(string Id, string DateTime, DateTime RecordedAt, string Duration,
                                      string Game, string Difficulty, double Scor);
         private record PatientEntry(string Id, string Name, string Email, string Phone,
                                     int TestCount, double TotalTestScore,
                                     int ActivityCount, double TotalActivityScore,
                                     PredictionSummary Prediction);
-        private record PredictionSummary(string Direction, double Confidence, string Reason);
+        private record PredictionSummary(string Direction, string Reason);
 
         public Dashboard()
         {
             InitializeComponent();
             WindowHelper.MoveToPrimaryMonitor(this);
-            _isDark = IsSystemDarkTheme();
+            _isDark = true;
             ThemeManager.Apply(_isDark);
             ThemeIcon.Text = _isDark ? "☀️" : "🌙";
             LanguageManager.Register(this, LanguageToggleBtn);
+            LanguageManager.LanguageChanged += Dashboard_LanguageChanged;
 
             LoadUserInfoFromRegistry();
             _ = LoadProfileFromFirebaseAsync();
@@ -61,6 +63,13 @@ namespace focus_ai
             this.Closing += Dashboard_Closing;
 
             _ = LoadPatientsFromFirebaseAsync();
+        }
+
+        private void Dashboard_LanguageChanged(object? sender, EventArgs e)
+        {
+            if (_patientsCache.Count > 0) RenderPatients(_patientsCache);
+            if (_testsCache.Count > 0) RenderTests(_testsCache);
+            if (_activitiesCache.Count > 0) RenderActivities(_activitiesCache);
         }
 
         private static bool IsSystemDarkTheme()
@@ -212,7 +221,7 @@ namespace focus_ai
             ProfileFullName.Text = displayName;
             ProfileEmail.Text = email;
             SidebarEmail.Text = email;
-            ProfilePhone.Text = phone.Length > 0 ? $"📞 {phone}" : "";
+            ProfilePhone.Text = phone.Length > 0 ? phone : "";
 
             string initials = BuildInitials(name, surname, email);
             ProfileInitials.Text = initials;
@@ -317,12 +326,16 @@ namespace focus_ai
                 string mapRaw = v.TryGetProperty("map", out var mp) ? mp.GetString() ?? "" : "";
                 string dt = v.TryGetProperty("dateTime", out var dtv) ? dtv.GetString() ?? "" : "";
                 string dur = v.TryGetProperty("duration", out var dv) ? dv.GetString() ?? "" : "";
-                double scor = v.TryGetProperty("scor", out var sv) ? sv.GetDouble() : 0;
+                double storedScore = v.TryGetProperty("scor", out var sv) && sv.ValueKind == JsonValueKind.Number ? sv.GetDouble() : 0;
                 SessionFeatures? features = TryExtractFeatures(v);
-                list.Add(new TestEntry(entry.Name, dt, dur, scor, mapRaw, features));
+                double scor = features is { HasScoreData: true } ? features.Score : storedScore;
+                DateTime recordedAt = features?.DateTime is { } featureDate && featureDate != DateTime.MinValue
+                    ? featureDate
+                    : ParseRecordedAt(dt);
+                list.Add(new TestEntry(entry.Name, dt, recordedAt, dur, scor, mapRaw, features));
             }
 
-            return list.OrderByDescending(t => t.DateTime).ToList();
+            return list.OrderByDescending(t => t.RecordedAt).ToList();
         }
 
         private static SessionFeatures? TryExtractFeatures(JsonElement element)
@@ -335,6 +348,86 @@ namespace focus_ai
             {
                 return null;
             }
+        }
+
+        private static CultureInfo UiCulture => LanguageManager.Current == AppLanguage.Romanian
+            ? CultureInfo.GetCultureInfo("ro-RO")
+            : CultureInfo.GetCultureInfo("en-US");
+
+        private static DateTime ParseRecordedAt(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return DateTime.MinValue;
+
+            string[] formats =
+            {
+                "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss",
+                "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm",
+                "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK", "O"
+            };
+
+            if (DateTime.TryParseExact(value, formats, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal, out DateTime exact))
+                return exact;
+
+            return DateTime.TryParse(value, CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal, out DateTime parsed)
+                ? parsed
+                : DateTime.MinValue;
+        }
+
+        private static string FormatRecordedAt(DateTime value, string fallback)
+            => value == DateTime.MinValue ? fallback : value.ToString("dd MMM yyyy, HH:mm", UiCulture);
+
+        private static string FormatScore(double value) => value.ToString("F2", UiCulture);
+
+        private (string Background, string Foreground) GetScorePalette(double score)
+        {
+            if (!double.IsFinite(score))
+                return _isDark ? ("#1E293B", "#CBD5E1") : ("#F1F5F9", "#475569");
+
+            return score switch
+            {
+                >= 80 => _isDark ? ("#153B2A", "#86EFAC") : ("#DCFCE7", "#15803D"),
+                >= 50 => _isDark ? ("#4A3213", "#FCD34D") : ("#FEF3C7", "#B45309"),
+                _ => _isDark ? ("#451A1A", "#FCA5A5") : ("#FEE2E2", "#B91C1C")
+            };
+        }
+
+        private (string Background, string Foreground) GetDifficultyPalette(string difficulty)
+        {
+            string normalized = difficulty.Trim().ToLowerInvariant();
+
+            return normalized switch
+            {
+                "easy" or "ușor" or "usor" => _isDark ? ("#153B2A", "#86EFAC") : ("#DCFCE7", "#15803D"),
+                "medium" or "mediu" => _isDark ? ("#4A3213", "#FCD34D") : ("#FEF3C7", "#B45309"),
+                "hard" or "dificil" or "greu" => _isDark ? ("#451A1A", "#FCA5A5") : ("#FEE2E2", "#B91C1C"),
+                _ => _isDark ? ("#1E293B", "#CBD5E1") : ("#F1F5F9", "#475569")
+            };
+        }
+
+        private Border BuildScoreBadge(double score)
+        {
+            var (background, foreground) = GetScorePalette(score);
+            var foregroundBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(foreground));
+
+            return new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(background)),
+                BorderBrush = foregroundBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(18),
+                Padding = new Thickness(8, 4, 8, 4),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = FormatScore(score),
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = foregroundBrush
+                }
+            };
         }
 
         private void RenderTests(List<TestEntry> tests)
@@ -353,9 +446,9 @@ namespace focus_ai
             TestEmptyState.Visibility = Visibility.Collapsed;
             TestTableHeader.Visibility = Visibility.Visible;
 
-            BestScore.Text = $"{tests.Max(t => t.Scor):F2}";
-            AvgScore.Text = $"{tests.Average(t => t.Scor):F2}";
-            LastTestDate.Text = tests[0].DateTime;
+            BestScore.Text = FormatScore(tests.Max(t => t.Scor));
+            AvgScore.Text = FormatScore(tests.Average(t => t.Scor));
+            LastTestDate.Text = FormatRecordedAt(tests[0].RecordedAt, tests[0].DateTime);
 
             for (int i = 0; i < tests.Count; i++)
                 TestRowsPanel.Children.Add(BuildTestRow(i + 1, tests[i]));
@@ -377,20 +470,14 @@ namespace focus_ai
                 : (SolidColorBrush)FindResource("BgCardHover");
             var btnFg = (SolidColorBrush)FindResource("AccentSecFg");
 
-            var scoreColor = t.Scor >= 80
-                ? (Color)ColorConverter.ConvertFromString("#22C55E")
-                : t.Scor >= 50
-                    ? (Color)ColorConverter.ConvertFromString("#FB923C")
-                    : (Color)ColorConverter.ConvertFromString("#EF4444");
-
             var row = new Border
             {
                 Background = bgRow,
                 BorderBrush = rowBorder,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                CornerRadius = new CornerRadius(0),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(18, 12, 18, 12),
-                Margin = new Thickness(0)
+                Margin = new Thickness(0, 5, 0, 0)
             };
             row.MouseEnter += (_, _) => row.Background = rowHover;
             row.MouseLeave += (_, _) => row.Background = bgRow;
@@ -406,7 +493,7 @@ namespace focus_ai
                 };
 
             var g = new Grid();
-            int[] widths = { 50, -1, 90, 110, 80, 80 };
+            int[] widths = { 50, -1, 150, 110, 80, 90 };
             foreach (var w in widths)
                 g.ColumnDefinitions.Add(w == -1
                     ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
@@ -418,8 +505,9 @@ namespace focus_ai
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(10),
                 Background = bgNum,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             numBd.Child = new TextBlock
@@ -433,14 +521,41 @@ namespace focus_ai
             };
             Add(0, numBd);
 
-            Add(1, new TextBlock
+            var assessmentPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            assessmentPanel.Children.Add(new Border
             {
-                Text = t.DateTime,
+                Width = 28,
+                Height = 28,
+                CornerRadius = new CornerRadius(9),
+                Background = (Brush)FindResource("AccentSecBg"),
+                Margin = new Thickness(0, 0, 9, 0),
+                Child = new TextBlock
+                {
+                    Text = "✓",
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = (Brush)FindResource("AccentSecFg"),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            });
+            assessmentPanel.Children.Add(new TextBlock
+            {
+                Text = LanguageManager.T("Cognitive assessment"),
                 FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = textPri,
                 VerticalAlignment = VerticalAlignment.Center
             });
+            Add(1, assessmentPanel);
             Add(2, new TextBlock
+            {
+                Text = FormatRecordedAt(t.RecordedAt, t.DateTime),
+                FontSize = 13,
+                Foreground = textSec,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            Add(3, new TextBlock
             {
                 Text = t.Duration,
                 FontSize = 13,
@@ -448,24 +563,7 @@ namespace focus_ai
                 VerticalAlignment = VerticalAlignment.Center
             });
 
-            var scoreBd = new Border
-            {
-                Background = Brushes.Transparent,
-                BorderBrush = new SolidColorBrush(scoreColor),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(8, 4, 8, 4),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            scoreBd.Child = new TextBlock
-            {
-                Text = $"{t.Scor:F2}",
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(scoreColor)
-            };
-            Add(3, scoreBd);
+            Add(4, BuildScoreBadge(t.Scor));
 
             var btn = new Button
             {
@@ -488,7 +586,7 @@ namespace focus_ai
                     RelativeSource = new System.Windows.Data.RelativeSource(
                         System.Windows.Data.RelativeSourceMode.TemplatedParent)
                 });
-            fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
+            fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(18));
             var cp = new FrameworkElementFactory(typeof(ContentPresenter));
             cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -633,10 +731,10 @@ namespace focus_ai
                 string game = v.TryGetProperty("game", out var gv) ? gv.GetString() ?? "" : "";
                 string difficulty = v.TryGetProperty("difficulty", out var dfv) ? dfv.GetString() ?? "" : "";
                 double scor = v.TryGetProperty("scor", out var sv) ? sv.GetDouble() : 0;
-                list.Add(new ActivityEntry(entry.Name, dt, dur, game, difficulty, scor));
+                list.Add(new ActivityEntry(entry.Name, dt, ParseRecordedAt(dt), dur, game, difficulty, scor));
             }
 
-            return list.OrderByDescending(a => a.DateTime).ToList();
+            return list.OrderByDescending(a => a.RecordedAt).ToList();
         }
 
         private void RenderActivities(List<ActivityEntry> activities)
@@ -656,9 +754,9 @@ namespace focus_ai
             ActTableHeader.Visibility = Visibility.Visible;
 
             var last = activities.First();
-            ActLastDate.Text = last.DateTime;
-            ActBestScore.Text = $"{activities.Max(a => a.Scor):F2}";
-            ActAvgScore.Text = $"{activities.Average(a => a.Scor):F2}";
+            ActLastDate.Text = FormatRecordedAt(last.RecordedAt, last.DateTime);
+            ActBestScore.Text = FormatScore(activities.Max(a => a.Scor));
+            ActAvgScore.Text = FormatScore(activities.Average(a => a.Scor));
             ActTotalSessions.Text = activities.Count.ToString();
 
             for (int i = 0; i < activities.Count; i++)
@@ -693,19 +791,7 @@ namespace focus_ai
             var textPri = (SolidColorBrush)FindResource("TxtPrimary");
             var textSec = (SolidColorBrush)FindResource("TxtSecondary");
 
-            var scoreColor = a.Scor >= 80
-                ? (Color)ColorConverter.ConvertFromString("#22C55E")
-                : a.Scor >= 50
-                    ? (Color)ColorConverter.ConvertFromString("#FB923C")
-                    : (Color)ColorConverter.ConvertFromString("#EF4444");
-
-            var (diffBgHex, diffFgHex) = a.Difficulty switch
-            {
-                "Easy" or "Ușor" or "Usor" => ("#3B82F620", "#3B82F6"),
-                "Medium" or "Mediu" => ("#F59E0B20", "#F59E0B"),
-                "Hard" or "Dificil" => ("#EF444420", "#EF4444"),
-                _ => ("#64748B20", "#64748B")
-            };
+            var (diffBgHex, diffFgHex) = GetDifficultyPalette(a.Difficulty);
 
             string gameIcon = a.Game switch
             {
@@ -721,10 +807,10 @@ namespace focus_ai
             {
                 Background = bgRow,
                 BorderBrush = rowBorder,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                CornerRadius = new CornerRadius(0),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(14),
                 Padding = new Thickness(18, 12, 18, 12),
-                Margin = new Thickness(0)
+                Margin = new Thickness(0, 5, 0, 0)
             };
             row.MouseEnter += (_, _) => row.Background = rowHover;
             row.MouseLeave += (_, _) => row.Background = bgRow;
@@ -740,7 +826,7 @@ namespace focus_ai
                 };
 
             var g = new Grid();
-            int[] widths = { 46, -1, 88, 150, 140, 110 };
+            int[] widths = { 46, -1, 150, 110, 140, 110 };
             foreach (var w in widths)
                 g.ColumnDefinitions.Add(w == -1
                     ? new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }
@@ -752,8 +838,9 @@ namespace focus_ai
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(10),
                 Background = bgNum,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
             numBd.Child = new TextBlock
@@ -766,22 +853,6 @@ namespace focus_ai
                 VerticalAlignment = VerticalAlignment.Center
             };
             Add(0, numBd);
-
-            Add(1, new TextBlock
-            {
-                Text = a.DateTime,
-                FontSize = 13,
-                Foreground = textPri,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-
-            Add(2, new TextBlock
-            {
-                Text = a.Duration,
-                FontSize = 13,
-                Foreground = textSec,
-                VerticalAlignment = VerticalAlignment.Center
-            });
 
             var gamePanel = new StackPanel
             {
@@ -799,30 +870,47 @@ namespace focus_ai
             });
             gamePanel.Children.Add(new TextBlock
             {
-                Text = a.Game,
+                Text = LanguageManager.T(a.Game),
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = textPri,
                 VerticalAlignment = VerticalAlignment.Center
             });
-            Add(3, gamePanel);
+            Add(1, gamePanel);
+
+            Add(2, new TextBlock
+            {
+                Text = FormatRecordedAt(a.RecordedAt, a.DateTime),
+                FontSize = 13,
+                Foreground = textSec,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+
+            Add(3, new TextBlock
+            {
+                Text = a.Duration,
+                FontSize = 13,
+                Foreground = textSec,
+                VerticalAlignment = VerticalAlignment.Center
+            });
 
             if (!string.IsNullOrEmpty(a.Difficulty))
             {
                 var diffBd = new Border
                 {
-                    Background = Brushes.Transparent,
+                    Background = new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString(diffBgHex)),
                     BorderBrush = new SolidColorBrush(
                         (Color)ColorConverter.ConvertFromString(diffFgHex)),
                     BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(6),
+                    CornerRadius = new CornerRadius(18),
                     Padding = new Thickness(8, 3, 8, 3),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Center
                 };
                 diffBd.Child = new TextBlock
                 {
-                    Text = a.Difficulty,
+                    Text = LanguageManager.T(a.Difficulty),
                     FontSize = 11,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = new SolidColorBrush(
@@ -831,24 +919,7 @@ namespace focus_ai
                 Add(4, diffBd);
             }
 
-            var scoreBd = new Border
-            {
-                Background = Brushes.Transparent,
-                BorderBrush = new SolidColorBrush(scoreColor),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(8, 4, 8, 4),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            scoreBd.Child = new TextBlock
-            {
-                Text = $"{a.Scor:F2}",
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(scoreColor)
-            };
-            Add(5, scoreBd);
+            Add(5, BuildScoreBadge(a.Scor));
 
             row.Child = g;
             return row;
@@ -912,7 +983,7 @@ namespace focus_ai
                     var profile = await LoadPatientProfileAsync(patientId, token);
                     var tests = await LoadPatientTestsAsync(patientId, token);
                     var activities = await LoadPatientActivitiesAsync(patientId, token);
-                    var prediction = BuildPrediction(tests, activities);
+                    var prediction = await BuildPredictionAsync(patientId, tests, activities);
 
                     string name = BuildPatientName(profile, patientId);
                     string patientEmail = profile.TryGetValue("email", out var em) ? em : "";
@@ -1046,7 +1117,7 @@ namespace focus_ai
             return string.IsNullOrWhiteSpace(fullName) ? fallback : fullName;
         }
 
-        private PredictionSummary BuildPrediction(List<TestEntry> tests, List<ActivityEntry> activities)
+        private async Task<PredictionSummary> BuildPredictionAsync(string patientId, List<TestEntry> tests, List<ActivityEntry> activities)
         {
             var history = tests
                 .Select(t => t.Features)
@@ -1056,11 +1127,12 @@ namespace focus_ai
                 .ToList();
 
             if (history.Count < 2)
-                return new PredictionSummary("insufficient", 0.25, "At least 2 valid test sessions are required for ML prediction.");
+                return new PredictionSummary("insufficient", "At least 2 valid test sessions are required for prediction.");
 
             try
             {
-                var result = new PredictionEngine().Predict(history);
+                PredictionEngineResolution resolution = await PredictionModelService.GetEngineAsync(history, "patient:" + patientId);
+                PredictionResult result = resolution.Engine.Predict(history);
                 string direction = result.Trend switch
                 {
                     TrendDirection.Improving => "positive",
@@ -1068,24 +1140,29 @@ namespace focus_ai
                     _ => "stable"
                 };
 
-                double confidence = result.ConfidenceLabel switch
+                string intervalText = result.IntervalStatusLabel switch
                 {
-                    "High" => 0.90,
-                    "Medium" => 0.70,
-                    _ => 0.50
+                    "Empirical 90% interval" => $"Empirical 90% prediction interval: {result.PredictionIntervalLow:F1}-{result.PredictionIntervalHigh:F1}",
+                    "Rolling-origin empirical interval" => $"Rolling-origin empirical interval (90% nominal): {result.PredictionIntervalLow:F1}-{result.PredictionIntervalHigh:F1}",
+                    _ => "Prediction interval is not calibrated"
                 };
+                if (result.TestIntervalCoverage90.HasValue)
+                    intervalText += $"; measured holdout coverage: {result.TestIntervalCoverage90.Value:P0}";
 
                 string reason =
-                    $"Predicted next score: {result.PredictedScore:F1} " +
-                    $"[{result.ConfidenceLow:F1}-{result.ConfidenceHigh:F1}]. " +
-                    $"Trend: {result.TrendLabel} ({result.TrendPerSession:+0.##;-0.##;0} pts/session). " +
-                    $"Models: LR {result.LinearRegrScore:F1}, Holt {result.HoltScore:F1}, k-NN {result.KnnScore:F1}. " +
-                    $"MAE: {result.ModelMAE:F1}.";
+                    $"Predicted next test score: {result.PredictedScore:F1}. " +
+                    $"Model: {result.ModelName}. {intervalText}. " +
+                    $"Trend: {result.TrendLabel} ({result.TrendPerSession:+0.##;-0.##;0} points/session). " +
+                    $"Historical test MAE: {(result.ModelMAE.HasValue ? result.ModelMAE.Value.ToString("F1") : "not available")}. " +
+                    $"Data: {result.DataQualityLabel}";
+
+                if (resolution.TrainingReport is { Success: false } report)
+                    reason += $" Training status: {report.Message}";
 
                 if (!string.IsNullOrWhiteSpace(result.AlertMessage))
                     reason += $" Alerts: {result.AlertMessage}";
 
-                return new PredictionSummary(direction, confidence, reason);
+                return new PredictionSummary(direction, reason);
             }
             catch
             {
@@ -1095,21 +1172,18 @@ namespace focus_ai
 
         private static PredictionSummary BuildFallbackPrediction(List<TestEntry> tests, List<ActivityEntry> activities)
         {
-            var scores = tests.Select(t => t.Scor).Concat(activities.Select(a => a.Scor)).ToList();
-            if (scores.Count < 3)
-                return new PredictionSummary("insufficient", 0.35, "At least 3 results are required.");
+            double[] scores = tests.Select(t => t.Scor).Where(s => double.IsFinite(s) && s >= 0 && s <= 100).ToArray();
+            if (scores.Length < 2)
+                return new PredictionSummary("insufficient", "At least 2 valid test sessions are required.");
 
-            var recent = scores.Take(3).Average();
-            var previous = scores.Skip(3).Take(3).DefaultIfEmpty(recent).Average();
-            double delta = recent - previous;
-            int total = tests.Count + activities.Count;
-            double confidence = Math.Min(0.95, 0.45 + Math.Min(total, 10) * 0.04 + Math.Min(Math.Abs(delta), 20) / 100);
-
-            if (delta >= 5)
-                return new PredictionSummary("positive", confidence, $"The recent average is {delta:F1} points higher.");
-            if (delta <= -5)
-                return new PredictionSummary("negative", confidence, $"The recent average is {Math.Abs(delta):F1} points lower.");
-            return new PredictionSummary("stable", confidence, "Recent scores are close to the previous average.");
+            double latest = scores[^1];
+            double prior = scores[^2];
+            double delta = latest - prior;
+            if (delta >= 3)
+                return new PredictionSummary("positive", $"The latest test score is {delta:F1} points higher than the previous test. This is a simple fallback, not a calibrated prediction.");
+            if (delta <= -3)
+                return new PredictionSummary("negative", $"The latest test score is {Math.Abs(delta):F1} points lower than the previous test. This is a simple fallback, not a calibrated prediction.");
+            return new PredictionSummary("stable", "The latest test score is close to the previous test. This is a simple fallback, not a calibrated prediction.");
         }
 
         private void RenderPatients(List<PatientEntry> patients)
@@ -1198,7 +1272,7 @@ namespace focus_ai
             {
                 Width = 28,
                 Height = 28,
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(10),
                 Background = bgNum,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1257,7 +1331,7 @@ namespace focus_ai
                     RelativeSource = new System.Windows.Data.RelativeSource(
                         System.Windows.Data.RelativeSourceMode.TemplatedParent)
                 });
-            fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(7));
+            fef.SetValue(Border.CornerRadiusProperty, new CornerRadius(18));
             var cp = new FrameworkElementFactory(typeof(ContentPresenter));
             cp.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             cp.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
@@ -1292,22 +1366,22 @@ namespace focus_ai
         {
             var (bg, fg) = prediction.Direction switch
             {
-                "positive" => ("#22C55E20", "#22C55E"),
-                "negative" => ("#EF444420", "#EF4444"),
-                "stable" => ("#3B82F620", "#3B82F6"),
-                _ => ("#64748B20", "#64748B")
+                "positive" => (_isDark ? "#183B2A" : "#DCFCE7", _isDark ? "#4ADE80" : "#15803D"),
+                "negative" => (_isDark ? "#451A1A" : "#FEE2E2", _isDark ? "#F87171" : "#B91C1C"),
+                "stable" => (_isDark ? "#172554" : "#DBEAFE", _isDark ? "#60A5FA" : "#1D4ED8"),
+                _ => (_isDark ? "#1E293B" : "#F1F5F9", _isDark ? "#CBD5E1" : "#475569")
             };
 
             var badge = new Border
             {
-                Background = Brushes.Transparent,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(bg)),
                 BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fg)),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(18),
                 Padding = new Thickness(8, 4, 8, 4),
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                ToolTip = $"{prediction.Reason} Confidence: {prediction.Confidence:P0}"
+                ToolTip = BuildPredictionTooltip(prediction)
             };
             badge.Child = new TextBlock
             {
@@ -1317,6 +1391,20 @@ namespace focus_ai
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(fg))
             };
             return badge;
+        }
+
+        private static string BuildPredictionTooltip(PredictionSummary prediction)
+        {
+            if (LanguageManager.Current != AppLanguage.Romanian)
+                return prediction.Reason;
+
+            return prediction.Direction switch
+            {
+                "positive" => "Tendință pozitivă estimată pe baza rezultatelor din sesiunile anterioare.",
+                "negative" => "Tendință descendentă estimată pe baza rezultatelor din sesiunile anterioare.",
+                "stable" => "Rezultatele recente indică o tendință stabilă.",
+                _ => "Sunt necesare cel puțin două sesiuni de test valide pentru a calcula o estimare."
+            };
         }
 
         private void SelectPatient(PatientEntry patient)
@@ -1407,14 +1495,16 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
 
-        private void Dashboard_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void Dashboard_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _cts.Cancel();
+            LanguageManager.LanguageChanged -= Dashboard_LanguageChanged;
         }
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)

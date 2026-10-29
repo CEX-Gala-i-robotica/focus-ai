@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -20,13 +22,402 @@ namespace focus_ai
     {
         private const string RegPath = @"Software\FocusAI";
         private const string RegKey = "Language";
+
+        // Legacy Romanian resources were written without diacritics.  Keep the
+        // source map readable while rendering polished Romanian throughout the UI.
+        private static readonly Dictionary<string, string> RomanianDiacritics = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["acasa"] = "acasă", ["actiune"] = "acțiune", ["actiuni"] = "acțiuni",
+            ["activitate"] = "activitate", ["activitati"] = "activități", ["activitatilor"] = "activităților", ["activitatile"] = "activitățile",
+            ["actualizeaza"] = "actualizează", ["afisate"] = "afișate", ["afiseaza"] = "afișează",
+            ["aflata"] = "aflată", ["aflate"] = "aflate", ["aflati"] = "aflați",
+            ["alege"] = "alege", ["analizeaza"] = "analizează", ["analiza"] = "analiză",
+            ["antrenare"] = "antrenare", ["antrenamentul"] = "antrenamentul",
+            ["adresa"] = "adresă", ["apasa"] = "apasă", ["asteapta"] = "așteaptă", ["atentie"] = "atenție", ["atentiei"] = "atenției",
+            ["autentifica"] = "autentifică", ["autentificat"] = "autentificat", ["autentificare"] = "autentificare",
+            ["bazata"] = "bazată", ["bazate"] = "bazate", ["buna"] = "bună", ["bun"] = "bun",
+            ["cand"] = "când", ["cat"] = "cât", ["cauta"] = "caută", ["cautare"] = "căutare", ["clar"] = "clar", ["clara"] = "clară", ["claritate"] = "claritate", ["cognitiva"] = "cognitivă", ["cuvantului"] = "cuvântului",
+            ["completa"] = "completă", ["completat"] = "completat", ["configureaza"] = "configurează",
+            ["conectata"] = "conectată", ["conectate"] = "conectate", ["continua"] = "continuă", ["creaza"] = "creează", ["creste"] = "crește",
+            ["datorita"] = "datorită", ["datele"] = "datele", ["dificultate"] = "dificultate",
+            ["asociati"] = "asociați", ["din"] = "din", ["directia"] = "direcția", ["directii"] = "direcții", ["disponibila"] = "disponibilă",
+            ["editare"] = "editare", ["editeaza"] = "editează", ["eficienta"] = "eficientă", ["esantioane"] = "eșantioane",
+            ["evaluare"] = "evaluare", ["evaluari"] = "evaluări", ["evaluarilor"] = "evaluărilor",
+            ["exista"] = "există", ["exercitiu"] = "exercițiu", ["exercitii"] = "exerciții",
+            ["fiecarui"] = "fiecărui", ["finalizata"] = "finalizată", ["finalizate"] = "finalizate", ["finalizeaza"] = "finalizează",
+            ["foloseste"] = "folosește", ["functie"] = "funcție", ["functii"] = "funcții",
+            ["gaseste"] = "găsește", ["gresite"] = "greșite", ["grija"] = "grijă", ["imbunatateste"] = "îmbunătățește",
+            ["ignora"] = "ignoră", ["in"] = "în", ["inca"] = "încă", ["incarca"] = "încarcă", ["inchide"] = "închide", ["incepe"] = "începe", ["inceput"] = "început",
+            ["indicatiile"] = "indicațiile", ["inregistrare"] = "înregistrare", ["inregistrarile"] = "înregistrările",
+            ["intelege"] = "înțelege", ["inteligenta"] = "inteligență", ["intentie"] = "intenție", ["intre"] = "între",
+            ["intr"] = "într", ["invatamant"] = "învățământ", ["invata"] = "învață", ["invatati"] = "învățați",
+            ["latenta"] = "latență", ["joc"] = "joc", ["jocuri"] = "jocuri", ["legatura"] = "legătură", ["lipsa"] = "lipsă",
+            ["matematica"] = "matematică", ["masoara"] = "măsoară", ["masurare"] = "măsurare", ["masuratori"] = "măsurători", ["modifica"] = "modifică", ["modificari"] = "modificări",
+            ["nasterii"] = "nașterii", ["necesita"] = "necesită", ["necesare"] = "necesare", ["nici"] = "nici", ["noua"] = "nouă",
+            ["obiective"] = "obiective", ["opreste"] = "oprește", ["optimizata"] = "optimizată",
+            ["operatii"] = "operații", ["pacient"] = "pacient", ["pacienti"] = "pacienți", ["pacientii"] = "pacienții", ["pacientilor"] = "pacienților",
+            ["pastreaza"] = "păstrează", ["pentru"] = "pentru", ["poti"] = "poți", ["practica"] = "practică",
+            ["porneste"] = "pornește", ["pregatit"] = "pregătit", ["prelucrate"] = "prelucrate", ["primeste"] = "primește", ["privire"] = "privire",
+            ["procesare"] = "procesare", ["procent"] = "procent", ["progres"] = "progres", ["proprietati"] = "proprietăți",
+            ["performanta"] = "performanță", ["poti"] = "poți", ["ramai"] = "rămâi", ["rapida"] = "rapidă", ["raspunde"] = "răspunde", ["raspuns"] = "răspuns", ["raspunsului"] = "răspunsului", ["raspunsuri"] = "răspunsuri", ["reincarca"] = "reîncarcă",
+            ["reimprospateaza"] = "reîmprospătează", ["reprezinta"] = "reprezintă", ["rezolva"] = "rezolvă", ["rezultate"] = "rezultate", ["rezultat"] = "rezultat",
+            ["ridicata"] = "ridicată", ["rosu"] = "roșu", ["rotunjita"] = "rotunjită", ["salveaza"] = "salvează", ["sanatate"] = "sănătate", ["scaneaza"] = "scanează", ["scadere"] = "scădere",
+            ["scazuta"] = "scăzută", ["schimba"] = "schimbă", ["scor"] = "scor", ["secventa"] = "secvență", ["secvente"] = "secvențe", ["selecteaza"] = "selectează", ["selectiva"] = "selectivă", ["semnale"] = "semnale", ["setari"] = "setări",
+            ["sesiune"] = "sesiune", ["sesiuni"] = "sesiuni", ["siguranta"] = "siguranță", ["spatiu"] = "spațiu", ["spatiul"] = "spațiul", ["spatiului"] = "spațiului",
+            ["si"] = "și", ["stanga"] = "stânga", ["structurata"] = "structurată", ["structurate"] = "structurate", ["sunt"] = "sunt",
+            ["tau"] = "tău", ["tine"] = "ține", ["tinta"] = "țintă", ["tinte"] = "ținte", ["timp"] = "timp",
+            ["toate"] = "toate", ["trebuie"] = "trebuie", ["urmaresti"] = "urmărești", ["urmatoarea"] = "următoarea",
+            ["urmareste"] = "urmărește", ["usor"] = "ușor", ["utilizator"] = "utilizator", ["valabila"] = "valabilă", ["verifica"] = "verifică",
+            ["viata"] = "viață", ["vieti"] = "vieți", ["vizuala"] = "vizuală", ["vizuale"] = "vizuale", ["zona"] = "zonă"
+        };
         private static readonly Dictionary<string, string> EnToRo = new(StringComparer.Ordinal)
         {
             ["Focus AI - Dashboard"] = "Focus AI - Panou",
             ["Focus AI - Login"] = "Focus AI - Autentificare",
             ["Focus AI - Sign Up"] = "Focus AI - Inregistrare",
             ["Wait for the doctor's instructions"] = "Asteapta indicatiile medicului",
+            ["SESSION SUMMARY"] = "REZUMATUL SESIUNII",
+            ["Error:"] = "Eroare:",
+            ["Focus AI configuration"] = "Configurare Focus AI",
+            ["Configure the FOCUSAI_FIREBASE_API_KEY environment variable and restart Focus AI."] = "Configureaza variabila de mediu FOCUSAI_FIREBASE_API_KEY si reporneste Focus AI.",
+            ["The script did not return coordinates.\nCheck the eye tracker."] = "Scriptul nu a returnat coordonate.\nVerifica dispozitivul de urmarire a privirii.",
             ["Set up profile"] = "Configureaza profilul",
+            ["Wait for the sound cue..."] = "Așteaptă semnalul sonor...",
+            ["PRESS THE SENSOR NOW!"] = "APASĂ SENZORUL ACUM!",
+            ["N/A"] = "Indisponibil",
+            ["points!"] = "puncte!",
+            ["completed in"] = "finalizată în",
+            ["Wrong!"] = "Greșit!",
+            ["Time is up!"] = "Timpul a expirat!",
+            ["life"] = "viață",
+            ["left"] = "rămase",
+
+            // Main workspace, sign-in and account setup
+            ["Focus AI · Clinical workspace"] = "Focus AI · Spatiu clinic",
+            ["Focus AI · Sign in"] = "Focus AI · Autentificare",
+            ["Focus AI · Create account"] = "Focus AI · Creeaza un cont",
+            ["↗  Cognitive activities"] = "↗  Activitati cognitive",
+            ["↻  Refresh"] = "↻  Reimprospateaza",
+            ["↻  Refresh data"] = "↻  Actualizeaza datele",
+            ["＋  New activity"] = "＋  Activitate noua",
+            ["＋  New assessment"] = "＋  Evaluare noua",
+            ["4 stages · connected"] = "4 etape · conectate",
+            ["A clearer view of every patient."] = "O imagine mai clara a fiecarui pacient.",
+            ["A considered overview of the people in your care."] = "O privire de ansamblu asupra persoanelor aflate in grija ta.",
+            ["A snapshot across your patient workspace"] = "O privire de ansamblu asupra spatiului pacientilor tai",
+            ["ACCOUNT"] = "CONT",
+            ["Account details and workspace access"] = "Detaliile contului si accesul la spatiul de lucru",
+            ["ACTIVITY"] = "ACTIVITATE",
+            ["ACTIVITY SCORE"] = "SCOR ACTIVITATI",
+            ["ASSESSMENT"] = "EVALUARE",
+            ["ASSESSMENT FLOW"] = "FLUXUL EVALUARII",
+            ["Assessment history"] = "Istoricul evaluarilor",
+            ["ASSESSMENT SCORE"] = "SCOR EVALUARE",
+            ["Average completed"] = "Finalizate in medie",
+            ["Average per patient"] = "Media per pacient",
+            ["Bring assessments, cognitive activities, and patient progress into one focused workspace."] = "Reuneste evaluarile, activitatile cognitive si progresul pacientilor intr-un singur spatiu de lucru.",
+            ["Clinical assessments"] = "Evaluari clinice",
+            ["CLINICAL INTELLIGENCE"] = "INTELIGENTA CLINICA",
+            ["Cognitive activities"] = "Activitati cognitive",
+            ["Cognitive activity"] = "Activitate cognitiva",
+            ["Cognitive activity records are being refreshed."] = "Inregistrarile activitatilor cognitive se actualizeaza.",
+            ["Completed cognitive activities will be listed here."] = "Activitatile cognitive finalizate vor fi afisate aici.",
+            ["DATE"] = "DATA",
+            ["Edit profile  ↗"] = "Editeaza profilul  ↗",
+            ["Explore activities  ↗"] = "Exploreaza activitatile  ↗",
+            ["FOCUS AI  /  CLINICAL WORKSPACE"] = "FOCUS AI  /  SPATIU CLINIC",
+            ["FOCUS AI  /  DESKTOP"] = "FOCUS AI  /  DESKTOP",
+            ["FORECAST"] = "PREVIZIUNE",
+            ["LAST ASSESSMENT"] = "ULTIMA EVALUARE",
+            ["LIVE OVERVIEW"] = "PREZENTARE LIVE",
+            ["Loading activity history"] = "Se incarca istoricul activitatilor",
+            ["Loading assessment history"] = "Se incarca istoricul evaluarilor",
+            ["Loading patient records"] = "Se incarca inregistrarile pacientilor",
+            ["NEEDS REVIEW"] = "NECESITA REVIZUIRE",
+            ["No activity sessions yet"] = "Inca nu exista sesiuni de activitate",
+            ["No assessments to show"] = "Nu exista evaluari de afisat",
+            ["No patients yet"] = "Inca nu exista pacienti",
+            ["Patient summaries are being refreshed."] = "Rezumatul pacientilor se actualizeaza.",
+            ["Patients associated with your account will appear here."] = "Pacientii asociati contului tau vor aparea aici.",
+            ["Practice metrics"] = "Indicatori de practica",
+            ["Practice overview"] = "Prezentare generala",
+            ["QUICK ACTIONS"] = "ACTIUNI RAPIDE",
+            ["Ready for your next session"] = "Pregatit pentru urmatoarea sesiune",
+            ["Select a patient and complete an assessment to start building a history."] = "Selecteaza un pacient si finalizeaza o evaluare pentru a incepe istoricul.",
+            ["Select a patient to view their activity history"] = "Selecteaza un pacient pentru a vedea istoricul activitatilor",
+            ["Select a patient to view their assessments"] = "Selecteaza un pacient pentru a vedea evaluarile",
+            ["SIGNAL SNAPSHOT"] = "REZUMAT SEMNALE",
+            ["SIGNED IN AS"] = "AUTENTIFICAT CA",
+            ["TESTS / PATIENT"] = "TESTE / PACIENT",
+            ["The latest results will appear here."] = "Cele mai recente rezultate vor aparea aici.",
+            ["TYPE"] = "TIP",
+            ["Under your care"] = "In grija ta",
+            ["View trends  ↗"] = "Vezi tendintele  ↗",
+            ["WORKSPACE"] = "SPATIU DE LUCRU",
+            ["Workspace ready"] = "Spatiul de lucru este pregatit",
+            ["Your profile"] = "Profilul tau",
+
+            ["A focused space for patient assessments, cognitive training and meaningful progress over time."] = "Un spatiu clar pentru evaluari, antrenament cognitiv si progres relevant in timp.",
+            ["COGNITIVE HEALTH WORKSPACE"] = "SPATIU PENTRU SANATATE COGNITIVA",
+            ["Cognitive practice"] = "Exersare cognitiva",
+            ["Continue  →"] = "Continua  →",
+            ["Continue to your clinical workspace."] = "Continua in spatiul tau clinic.",
+            ["Email address"] = "Adresa de e-mail",
+            ["FOCUS AI  ·  DESIGNED FOR CLINICAL CLARITY"] = "FOCUS AI  ·  CREAT PENTRU CLARITATE CLINICA",
+            ["Four complementary signals, one workflow."] = "Patru semnale complementare, un singur flux.",
+            ["Keep me signed in"] = "Pastreaza-ma autentificat",
+            ["Longitudinal insight"] = "Perspectiva in timp",
+            ["Make training part of the care journey."] = "Integreaza antrenamentul in parcursul de ingrijire.",
+            ["New to Focus AI?  "] = "Nou in Focus AI?  ",
+            ["OR CONTINUE WITH"] = "SAU CONTINUA CU",
+            ["PRIVATE WORKSPACE  ·  SECURE SESSION"] = "SPATIU PRIVAT  ·  SESIUNE SECURIZATA",
+            ["Review patient results across sessions."] = "Analizeaza rezultatele pacientului intre sesiuni.",
+            ["Sign in to Focus AI"] = "Autentifica-te in Focus AI",
+            ["Structured assessments"] = "Evaluari structurate",
+            ["Turn every signal into understanding."] = "Transforma fiecare semnal in intelegere.",
+            ["WELCOME BACK"] = "BINE AI REVENIT",
+
+            ["A few details to set up your clinical workspace."] = "Cateva detalii pentru a configura spatiul tau clinic.",
+            ["A more connected way to care."] = "O modalitate mai conectata de a oferi ingrijire.",
+            ["Already have an account?  "] = "Ai deja un cont?  ",
+            ["By continuing, you agree to use patient data responsibly."] = "Continuand, esti de acord sa folosesti responsabil datele pacientilor.",
+            ["Cabinet address"] = "Adresa cabinetului",
+            ["Create a secure workspace for structured cognitive assessment and patient progress."] = "Creeaza un spatiu securizat pentru evaluari cognitive structurate si progresul pacientilor.",
+            ["Create account  →"] = "Creeaza contul  →",
+            ["Create your account"] = "Creeaza-ti contul",
+            ["Date of birth"] = "Data nasterii",
+            ["Eye movement, response and attention tasks."] = "Sarcini de miscare a ochilor, raspuns si atentie.",
+            ["GET STARTED"] = "INCEPE",
+            ["Keep contact and clinical history together."] = "Pastreaza impreuna datele de contact si istoricul clinic.",
+            ["Multidimensional assessments"] = "Evaluari multidimensionale",
+            ["Patient profiles"] = "Profiluri de pacienti",
+            ["PRIVATE WORKSPACE  ·  DESIGNED FOR CLINICAL CLARITY"] = "SPATIU PRIVAT  ·  CREAT PENTRU CLARITATE CLINICA",
+            ["Progress over time"] = "Progres in timp",
+            ["Turn results into a clearer longitudinal picture."] = "Transforma rezultatele intr-o imagine mai clara in timp.",
+            ["YOUR WORKSPACE INCLUDES"] = "SPATIUL TAU INCLUDE",
+
+            // Assessment flow and training library
+            ["Focus AI · Cognitive assessment"] = "Focus AI · Evaluare cognitiva",
+            ["Focus AI · Cognitive activities"] = "Focus AI · Activitati cognitive",
+            ["4 STAGES"] = "4 ETAPE",
+            ["A connected picture of attention."] = "O imagine conectata a atentiei.",
+            ["Assess response inhibition and selective attention."] = "Evalueaza inhibarea raspunsului si atentia selectiva.",
+            ["Auditory response"] = "Raspuns auditiv",
+            ["Close session"] = "Inchide sesiunea",
+            ["Cognitive assessment"] = "Evaluare cognitiva",
+            ["Complete four stages to build a structured cognitive profile."] = "Finalizeaza patru etape pentru a construi un profil cognitiv structurat.",
+            ["Each stage captures a different dimension of cognitive response."] = "Fiecare etapa surprinde o dimensiune diferita a raspunsului cognitiv.",
+            ["ELAPSED TIME"] = "TIMP SCURS",
+            ["FOCUS AI  /  ASSESSMENT PROTOCOL"] = "FOCUS AI  /  PROTOCOL DE EVALUARE",
+            ["Four distinct tasks work together to give context to reaction, gaze, and response inhibition."] = "Patru sarcini distincte ofera context pentru reactie, privire si inhibarea raspunsului.",
+            ["Go / No-Go"] = "Go / No-Go",
+            ["Measure reaction time to controlled sound cues."] = "Masurati timpul de reactie la semnale sonore controlate.",
+            ["Observe how the gaze follows a moving spatial target."] = "Observa cum privirea urmareste o tinta spatiala in miscare.",
+            ["PROTOCOL MAP"] = "HARTA PROTOCOLULUI",
+            ["SESSION GUIDE"] = "GHIDUL SESIUNII",
+            ["Start stage  →"] = "Porneste etapa  →",
+            ["The protocol"] = "Protocolul",
+            ["The timer starts with the first stage and ends when the full protocol is complete."] = "Cronometrul porneste la prima etapa si se opreste cand protocolul este finalizat.",
+            ["Track eye movement and gaze accuracy across a guided visual path."] = "Urmareste miscarea ochilor si precizia privirii pe o traiectorie vizuala ghidata.",
+            ["Visual trajectory"] = "Traiectorie vizuala",
+            ["Waiting to begin"] = "Asteapta sa incepi",
+
+            ["5 TRAINING MODULES"] = "5 MODULE DE ANTRENAMENT",
+            ["A CONSISTENT ROUTINE"] = "O RUTINA CONSTANTA",
+            ["Choose one exercise, stay focused, and return to the results to follow performance over time."] = "Alege un exercitiu, ramai concentrat si revino la rezultate pentru a urmari performanta in timp.",
+            ["Each activity focuses on a different cognitive skill. Keep sessions intentional, then review the results alongside the assessment history."] = "Fiecare activitate se concentreaza pe o abilitate cognitiva diferita. Pastreaza sesiunile intentionate, apoi analizeaza rezultatele alaturi de istoricul evaluarilor.",
+            ["EXERCISE"] = "EXERCITIU",
+            ["FOCUS AI  /  TRAINING LIBRARY"] = "FOCUS AI  /  BIBLIOTECA DE ANTRENAMENT",
+            ["FOCUS AREA"] = "ZONA DE FOCUS",
+            ["Identify the ink color and resist word interference."] = "Identifica culoarea cernelii si rezista interferentei cuvantului.",
+            ["INHIBITION"] = "INHIBITIE",
+            ["Locate a target among similar visual distractors."] = "Gaseste tinta printre distractori vizuali similari.",
+            ["Match pairs and hold visual information in mind."] = "Potriveste perechi si retine informatia vizuala.",
+            ["NO."] = "NR.",
+            ["PROCESSING SPEED"] = "VITEZA DE PROCESARE",
+            ["Progress through practice, not noise."] = "Progreseaza prin practica, nu prin zgomot.",
+            ["Quick math"] = "Matematica rapida",
+            ["Remember and repeat a growing sequence of cues."] = "Retine si repeta o secventa crescatoare de indicii.",
+            ["SELECTIVE ATTENTION"] = "ATENTIE SELECTIVA",
+            ["SEQUENTIAL MEMORY"] = "MEMORIE SECVENTIALA",
+            ["Short, intentional exercises for memory, attention and response control."] = "Exercitii scurte si intentionate pentru memorie, atentie si controlul raspunsului.",
+            ["Solve timed operations with accuracy and speed."] = "Rezolva operatii contra timp cu precizie si viteza.",
+            ["Stroop test"] = "Test Stroop",
+            ["THE TRAINING APPROACH"] = "ABORDAREA ANTRENAMENTULUI",
+            ["Visual search"] = "Cautare vizuala",
+            ["WORKING MEMORY"] = "MEMORIE DE LUCRU",
+
+            ["Focus AI · Auditory reaction"] = "Focus AI · Reactie auditiva",
+            ["ASSESSMENT STAGE"] = "ETAPA EVALUARII",
+            ["FOCUS AI  ·  RESPONSE TIME MEASUREMENT"] = "FOCUS AI  ·  MASURAREA TIMPULUI DE REACTIE",
+            ["Follow the instructions and keep your hands ready to respond."] = "Urmeaza instructiunile si tine mainile pregatite pentru raspuns.",
+            ["Measure the moment between signal and response."] = "Masura momentul dintre semnal si raspuns.",
+            ["Press Start to begin the test"] = "Apasa Porneste pentru a incepe testul",
+            ["PROTOCOL STATUS"] = "STAREA PROTOCOLULUI",
+            ["REACTION LATENCY"] = "LATENTA REACTIEI",
+            ["REACTION PROTOCOL"] = "PROTOCOL DE REACTIE",
+            ["REACTION TIMER"] = "CRONOMETRU REACTIE",
+            ["Ready"] = "Pregatit",
+            ["Response latency"] = "Latenta raspunsului",
+            ["SOUND CUE"] = "SEMNAL SONOR",
+            ["STAGE 03  /  AUDITORY RESPONSE"] = "ETAPA 03  /  RASPUNS AUDITIV",
+            ["Start test  →"] = "Porneste testul  →",
+            ["Stay ready for the cue."] = "Ramai pregatit pentru semnal.",
+            ["Wait for the sound cue. Respond as quickly and consistently as possible. The timer captures your response latency."] = "Asteapta semnalul sonor. Raspunde cat mai repede si consecvent. Cronometrul masoara latenta raspunsului.",
+
+            // Cognitive exercises and assessment detail screens
+            ["Focus AI – Stroop Test"] = "Focus AI – Test Stroop",
+            ["Focus AI - Memory"] = "Focus AI - Memorie",
+            ["Focus AI - Sequences"] = "Focus AI - Secvente",
+            ["Focus AI - Visual Search"] = "Focus AI - Cautare vizuala",
+            ["Focus AI - Quick Math"] = "Focus AI - Matematica rapida",
+            ["Focus AI – GO/NO-GO"] = "Focus AI – GO/NO-GO",
+            ["Focus AI - Hybrid CPT"] = "Focus AI - CPT hibrid",
+            ["Focus AI · Assessment details"] = "Focus AI · Detalii evaluare",
+            ["Focus AI · Profile settings"] = "Focus AI · Setari profil",
+            ["Focus AI · Trend analysis"] = "Focus AI · Analiza tendinte",
+
+            ["3 in a row"] = "3 la rand",
+            ["30 TRIALS"] = "30 RUNDE",
+            ["A color word appears on screen."] = "Pe ecran apare un cuvant colorat.",
+            ["Begin assessment  →"] = "Incepe evaluarea  →",
+            ["BLUE"] = "ALBASTRU",
+            ["COGNITIVE PROTOCOL  /  02"] = "PROTOCOL COGNITIV  /  02",
+            ["Complete 30 trials with speed and accuracy."] = "Finalizeaza 30 de runde cu viteza si precizie.",
+            ["CORRECT  /  "] = "CORECT  /  ",
+            ["INCORRECT  /  "] = "INCORECT  /  ",
+            ["Name the ink color, not the word."] = "Numeste culoarea cernelii, nu cuvantul.",
+            ["Play again  →"] = "Joaca din nou  →",
+            ["Respond to the ink color, not the word's meaning."] = "Raspunde la culoarea cernelii, nu la sensul cuvantului.",
+            ["SAMPLE STIMULUS"] = "STIMUL EXEMPLU",
+            ["See the color. Ignore the word."] = "Priveste culoarea. Ignora cuvantul.",
+            ["SELECTIVE ATTENTION  /  PROTOCOL 02"] = "ATENTIE SELECTIVA  /  PROTOCOL 02",
+            ["SESSION COMPLETE"] = "SESIUNE FINALIZATA",
+            ["SESSION SETUP"] = "CONFIGURARE SESIUNE",
+            ["THE PROTOCOL"] = "PROTOCOLUL",
+            ["This task measures how consistently you can suppress an automatic response and focus on the relevant visual signal."] = "Aceasta sarcina masoara cat de consecvent poti inhiba un raspuns automat si te poti concentra pe semnalul vizual relevant.",
+            ["Your performance is recorded in the assessment history."] = "Performanta ta este inregistrata in istoricul evaluarilor.",
+
+            ["01  /  GAZE TRAJECTORY"] = "01  /  TRAIECTORIA PRIVIRII",
+            ["02  /  ECG"] = "02  /  ECG",
+            ["03  /  SPO₂"] = "03  /  SPO₂",
+            ["04  /  HEART RATE"] = "04  /  RITM CARDIAC",
+            ["05  /  DISTRACTION EVENTS"] = "05  /  EVENIMENTE DE DISTRACTIE",
+            ["A detailed view of measured movement and physiological signals."] = "O vedere detaliata a miscarii masurate si a semnalelor fiziologice.",
+            ["Attention events"] = "Evenimente de atentie",
+            ["Cardiac waveform"] = "Unda cardiaca",
+            ["Horizontal and vertical gaze displacement"] = "Deplasare orizontala si verticala a privirii",
+            ["Oxygen saturation"] = "Saturatie de oxigen",
+            ["Pulse response"] = "Raspunsul pulsului",
+            ["SCATTER MAP"] = "HARTA DE DISPERSIE",
+            ["SESSION DIAGNOSTICS"] = "DIAGNOSTIC SESIUNE",
+            ["Signal explorer"] = "Explorator de semnale",
+            ["Visual path"] = "Traiectorie vizuala",
+            ["XY COORDINATES"] = "COORDONATE XY",
+
+            ["Addition and subtraction · values 1–20"] = "Adunare si scadere · valori 1–20",
+            ["Addition, subtraction and multiplication · values 1–50"] = "Adunare, scadere si inmultire · valori 1–50",
+            ["Advanced reasoning"] = "Rationament avansat",
+            ["All operations including division · values 1–100"] = "Toate operatiile, inclusiv impartirea · valori 1–100",
+            ["COGNITIVE TRAINING  /  05"] = "ANTRENAMENT COGNITIV  /  05",
+            ["Expert  ↗"] = "Expert  ↗",
+            ["Fluency"] = "Fluenta",
+            ["Foundation"] = "Baza",
+            ["HIGH LOAD"] = "DIFICULTATE RIDICATA",
+            ["Intermediate  ↗"] = "Intermediar  ↗",
+            ["LOW LOAD"] = "DIFICULTATE REDUSA",
+            ["MODERATE LOAD"] = "DIFICULTATE MEDIE",
+            ["Recommended start  ↗"] = "Inceput recomandat  ↗",
+            ["SELECT YOUR CHALLENGE"] = "ALEGE PROVOCAREA",
+            ["STREAK "] = "SERIE ",
+            ["TIME "] = "TIMP ",
+            ["Work through mental calculations with a balance of speed and accuracy. Each round lasts 60 seconds."] = "Rezolva calcule mentale echilibrand viteza si precizia. Fiecare runda dureaza 60 de secunde.",
+
+            ["30-second protocol · sensor response"] = "Protocol de 30 de secunde · raspuns senzor",
+            ["AVERAGE RESPONSE TIME"] = "TIMP MEDIU DE RASPUNS",
+            ["Begin test  →"] = "Incepe testul  →",
+            ["CORRECT GO"] = "GO CORECTE",
+            ["FALSE POSITIVES"] = "POZITIVE FALSE",
+            ["GO"] = "GO",
+            ["Green means you should trigger a response."] = "Verde inseamna ca trebuie sa raspunzi.",
+            ["INHIBITORY CONTROL  /  PROTOCOL 06"] = "CONTROL INHIBITOR  /  PROTOCOL 06",
+            ["NO"] = "NU",
+            ["Red means do not respond; false positives are penalized."] = "Rosu inseamna sa nu raspunzi; raspunsurile false sunt penalizate.",
+            ["Respond"] = "Raspunde",
+            ["Respond only to green GO stimuli. Withhold your response when red NO-GO stimuli appear."] = "Raspunde doar la stimulii GO verzi. Retine raspunsul cand apar stimulii NO-GO rosii.",
+            ["RESPONSE INHIBITION  /  06"] = "INHIBAREA RASPUNSULUI  /  06",
+            ["SIGNAL GUIDE"] = "GHID SEMNALE",
+            ["Withhold"] = "Retine raspunsul",
+
+            ["↻  Refresh analysis"] = "↻  Actualizeaza analiza",
+            ["Close analysis"] = "Inchide analiza",
+            ["Cognitive trajectory"] = "Traiectorie cognitiva",
+            ["Direction of change"] = "Directia schimbarii",
+            ["FOCUS AI  /  PATIENT INSIGHTS"] = "FOCUS AI  /  PERSPECTIVE PACIENT",
+            ["INTERPRETATION"] = "INTERPRETARE",
+            ["k-NN (k=3)"] = "k-NN (k=3)",
+            ["MODEL COMPARISON"] = "COMPARATIE MODELE",
+            ["MODEL OUTPUT"] = "REZULTAT MODEL",
+            ["Observed performance and next-session estimate"] = "Performanta observata si estimarea urmatoarei sesiuni",
+            ["PHYSIOLOGICAL ALERTS"] = "ALERTE FIZIOLOGICE",
+            ["Predicted score"] = "Scor estimat",
+            ["Prediction interval"] = "Interval de predictie",
+            ["PREDICTION SUMMARY"] = "REZUMAT PREDICTIE",
+            ["PREDICTIVE ANALYTICS  /  FOCUS AI"] = "ANALITICA PREDICTIVA  /  FOCUS AI",
+            ["SCORE EVOLUTION"] = "EVOLUTIA SCORULUI",
+            ["Sessions analyzed"] = "Sesiuni analizate",
+
+            ["Easy · 25s"] = "Usor · 25s",
+            ["Eight rounds with increasing difficulty"] = "Opt runde cu dificultate crescatoare",
+            ["Find the signal in the noise."] = "Gaseste semnalul in zgomot.",
+            ["Hard · 15s"] = "Dificil · 15s",
+            ["Medium · 20s"] = "Mediu · 20s",
+            ["PREVIEW / 01"] = "PREVIZUALIZARE / 01",
+            ["Scan a field of similar symbols and locate the one item that breaks the pattern. The visual field expands as you progress."] = "Scaneaza un camp de simboluri similare si gaseste elementul care rupe tiparul. Campul vizual se extinde pe masura ce progresezi.",
+            ["SELECTIVE ATTENTION  /  03"] = "ATENTIE SELECTIVA  /  03",
+            ["Start visual search  →"] = "Porneste cautarea vizuala  →",
+            ["Stay systematic. The target could appear in any position."] = "Ramai metodic. Tinta poate aparea in orice pozitie.",
+            ["TARGET RECOGNITION"] = "RECUNOASTEREA TINTEI",
+            ["Three lives — choose carefully, not randomly"] = "Trei vieti — alege cu grija, nu la intamplare",
+            ["VISUAL FIELD"] = "CAMP VIZUAL",
+
+            ["A cue sequence is shown one step at a time. Reproduce it in the same order; each new level adds another item to working memory."] = "O secventa de indicii este afisata pe rand. Reprodu-o in aceeasi ordine; fiecare nivel adauga un element in memoria de lucru.",
+            ["Begin sequence test  →"] = "Incepe testul de secvente  →",
+            ["COGNITIVE PROTOCOL  /  04"] = "PROTOCOL COGNITIV  /  04",
+            ["Final score: 0"] = "Scor final: 0",
+            ["Hold the sequence. Rebuild the pattern."] = "Retine secventa. Reconstruieste tiparul.",
+            ["MEMORY LOAD"] = "INCARCARE MEMORIE",
+            ["Observe the highlighted cue sequence."] = "Observa secventa de indicii evidentiata.",
+            ["Progress through up to 20 levels; three errors end the session."] = "Parcurge pana la 20 de niveluri; trei erori incheie sesiunea.",
+            ["Repeat the cues in the exact same order."] = "Repeta indiciile exact in aceeasi ordine.",
+            ["SEQUENTIAL MEMORY  /  PROTOCOL 04"] = "MEMORIE SECVENTIALA  /  PROTOCOL 04",
+            ["SESSION STRUCTURE"] = "STRUCTURA SESIUNII",
+            ["UP TO 20 LEVELS"] = "PANA LA 20 DE NIVELURI",
+
+            ["ACCOUNT DETAILS"] = "DETALII CONT",
+            ["Contact"] = "Contact",
+            ["Height"] = "Inaltime",
+            ["Identity"] = "Identitate",
+            ["Keep your professional profile accurate and ready for the next session."] = "Pastreaza profilul profesional corect si pregatit pentru urmatoarea sesiune.",
+            ["Name and date of birth"] = "Nume si data nasterii",
+            ["PERSONAL INFORMATION"] = "INFORMATII PERSONALE",
+            ["Phone and office address"] = "Telefon si adresa cabinetului",
+            ["Profile settings"] = "Setari profil",
+            ["Save changes  →"] = "Salveaza modificarile  →",
+            ["Update the fields below, then save your changes."] = "Actualizeaza campurile de mai jos, apoi salveaza modificarile.",
+            ["Your name, contact information and office address are used to identify your clinical workspace."] = "Numele, datele de contact si adresa cabinetului sunt folosite pentru identificarea spatiului tau clinic.",
+
+            ["- when X appears after A"] = "- cand X apare dupa A",
+            ["ATTENTION  /  INHIBITORY CONTROL"] = "ATENTIE  /  CONTROL INHIBITOR",
+            ["Hybrid CPT - Attention &amp; Inhibitory Control Test"] = "CPT hibrid - Test de atentie si control inhibitor",
+            ["Letters appear one at a time. Respond only when X follows A, and withhold responses to all other combinations."] = "Literele apar pe rand. Raspunde doar cand X urmeaza dupa A si retine raspunsul pentru toate celelalte combinatii.",
+            ["Respond to the target sequence."] = "Raspunde la secventa tinta.",
+            ["Start"] = "Porneste",
+            ["Trial 0 / 50"] = "Runda 0 / 50",
+
+            ["FOCUS AI  /  ASSESSMENT DATA"] = "FOCUS AI  /  DATE EVALUARE",
+            ["SESSION SETTINGS"] = "SETARI SESIUNE",
+            ["WORKING MEMORY  /  01"] = "MEMORIE DE LUCRU  /  01",
 
             ["Toggle theme"] = "Schimba tema",
             ["Switch to Romanian"] = "Schimba in romana",
@@ -143,7 +534,6 @@ namespace focus_ai
             ["Loading patients..."] = "Se incarca pacientii...",
             ["No associated patients"] = "Nu exista pacienti asociati",
             ["Patients appear here after they are associated with the doctor in Firebase."] = "Pacientii apar aici dupa asocierea cu medicul in Firebase.",
-            ["TESTS"] = "TESTE",
             ["Loading tests..."] = "Se incarca testele...",
             ["No tests recorded"] = "Nu exista teste inregistrate",
             ["Patient tests will appear here."] = "Testele pacientului vor aparea aici.",
@@ -242,9 +632,9 @@ namespace focus_ai
             ["Test score evolution"] = "Evolutie scoruri test",
             ["PREDICTED SCORE"] = "SCOR PREVIZIONAT",
             ["TREND"] = "TENDINTA",
-            ["MODEL CONFIDENCE"] = "INCREDERE MODEL",
+            ["PREDICTION INTERVAL STATUS"] = "STATUTUL INTERVALULUI DE PREDICTIE",
             ["SESSIONS ANALYZED"] = "SESIUNI ANALIZATE",
-            ["Prediction details (ensemble)"] = "Detalii predictie (ansamblu)",
+            ["Prediction model details"] = "Detalii model de predictie",
             ["Linear regression"] = "Regresie liniara",
             ["Holt smoothing"] = "Holt (netezire)",
             ["Physiological alerts"] = "Avertizari fiziologice",
@@ -257,11 +647,13 @@ namespace focus_ai
             ["Test score"] = "Scor test",
             ["Actual score"] = "Scor real",
             ["Prediction (next session)"] = "Predictie (urmatoarea sesiune)",
-            ["Confidence interval (low)"] = "Interval incredere (scazut)",
-            ["Confidence interval (high)"] = "Interval incredere (ridicat)",
-            ["Prediction based on {0} sessions. The shaded area represents the confidence interval (80%). Last score: {1:F1} -> expected score: {2:F1}."] = "Predictie bazata pe {0} sesiuni. Zona hasurata reprezinta intervalul de incredere (80%). Ultimul scor: {1:F1} -> scor anticipat: {2:F1}.",
+            ["Prediction interval (low)"] = "Interval de predictie (limita inferioara)",
+            ["Prediction interval (high)"] = "Interval de predictie (limita superioara)",
+            ["Empirical 90% interval"] = "Interval empiric 90%",
+            ["Rolling-origin empirical interval"] = "Interval empiric rolling-origin",
+            ["Uncalibrated interval"] = "Interval necalibrat",
+            ["Prediction based on {0} sessions. The interval is empirical only when sufficient historical evaluation data are available. Last score: {1:F1} -> expected score: {2:F1}."] = "Predictie bazata pe {0} sesiuni. Intervalul este empiric doar daca exista suficiente date de evaluare istorica. Ultimul scor: {1:F1} -> scor anticipat: {2:F1}.",
             ["points/session"] = "puncte/sesiune",
-            ["The ensemble model combines linear regression (weight {0}), Holt exponential smoothing, and k-NN based on physiological similarity. Final prediction: {1:F1}."] = "Modelul ansamblu combina regresie liniara (pondere {0}), Holt (netezire exponentiala) si k-NN bazat pe similaritate fiziologica. Predictia finala: {1:F1}.",
             ["Improving"] = "In crestere",
             ["Declining"] = "In scadere",
             ["Stable"] = "Stabil",
@@ -269,7 +661,7 @@ namespace focus_ai
             ["Low"] = "Scazuta",
             ["Low SpO2"] = "SpO2 scazut",
             ["Abnormal heart rate"] = "Ritm cardiac anormal",
-            ["High heart-rate variability"] = "Variabilitate mare a ritmului cardiac",
+            ["High dispersion in heart-rate samples"] = "Dispersie crescuta a masuratorilor ritmului cardiac",
             ["TEST DETAILS · EVOLUTION CHARTS"] = "DETALII TEST · GRAFICE EVOLUTIE",
             ["ECG  (x1 - left · x2 - right)"] = "ECG  (x1 - stanga · x2 - dreapta)",
             ["DIST  (active moments)"] = "DIST  (momente active)",
@@ -350,7 +742,6 @@ namespace focus_ai
             ["Well played!"] = "Bine jucat!",
             ["Level reached:"] = "Nivel atins:",
             ["Score:"] = "Scor:",
-            ["Difficulty:"] = "Dificultate:",
             ["Final score:"] = "Scor final:",
             ["stages completed"] = "etape finalizate",
             ["All stages are complete!"] = "Toate etapele sunt finalizate!",
@@ -440,69 +831,104 @@ namespace focus_ai
         };
 
         private static readonly Dictionary<string, string> RoToEn =
-            EnToRo.GroupBy(kv => kv.Value, StringComparer.Ordinal)
+            EnToRo.GroupBy(kv => DiacritizeRomanian(kv.Value), StringComparer.Ordinal)
                   .ToDictionary(g => g.Key, g => g.First().Key, StringComparer.Ordinal);
+
+        private static readonly ConditionalWeakTable<DependencyObject, LocalizedElementState> LocalizedValues = new();
+        private static readonly Dictionary<Window, WindowRegistration> RegisteredWindows = new();
+        private static bool _isInitialized;
+
+        private sealed class LocalizedElementState
+        {
+            public Dictionary<string, LocalizedValue> Values { get; } = new(StringComparer.Ordinal);
+        }
+
+        private sealed class LocalizedValue
+        {
+            public LocalizedValue(string source, string lastRendered)
+            {
+                Source = source;
+                LastRendered = lastRendered;
+            }
+
+            public string Source { get; set; }
+            public string LastRendered { get; set; }
+        }
+
+        private sealed class WindowRegistration
+        {
+            public Button? LanguageButton { get; set; }
+            public RoutedEventHandler? ToggleHandler { get; set; }
+        }
 
         public static AppLanguage Current { get; private set; } = Load();
 
         public static event EventHandler? LanguageChanged;
 
+        /// <summary>
+        /// Enables localization for every WPF window, including windows opened after
+        /// the language was changed from the dashboard.
+        /// </summary>
+        public static void Initialize()
+        {
+            if (_isInitialized) return;
+
+            _isInitialized = true;
+            EventManager.RegisterClassHandler(
+                typeof(Window),
+                FrameworkElement.LoadedEvent,
+                new RoutedEventHandler(OnWindowLoaded));
+        }
+
         public static string T(string english)
         {
             if (Current == AppLanguage.English) return english;
-            return EnToRo.TryGetValue(english, out var translated) ? translated : english;
+            return EnToRo.TryGetValue(english, out var translated) ? DiacritizeRomanian(translated) : english;
         }
 
         public static string TranslateLiteral(string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return value;
-
-            if (TryTranslate(value, out var translated))
-                return translated;
-
-            int firstTextIndex = IndexOfFirstTextCharacter(value);
-            if (firstTextIndex > 0)
-            {
-                string prefix = value[..firstTextIndex];
-                string core = value[firstTextIndex..];
-                if (TryTranslate(core, out var coreTranslated))
-                    return prefix + coreTranslated;
-            }
-
-            return value;
+            return Current == AppLanguage.Romanian
+                ? TranslateToRomanian(value)
+                : TranslateToEnglish(value);
         }
 
         public static void Toggle()
         {
             Current = Current == AppLanguage.English ? AppLanguage.Romanian : AppLanguage.English;
             Save();
+            ApplyToOpenWindows();
             LanguageChanged?.Invoke(null, EventArgs.Empty);
         }
 
         public static void Register(Window window, Button? languageButton = null)
         {
-            void ApplyHandler(object? _, EventArgs __)
+            Initialize();
+
+            if (!RegisteredWindows.TryGetValue(window, out var registration))
             {
-                Apply(window);
-                UpdateLanguageButton(languageButton);
+                registration = new WindowRegistration();
+                RegisteredWindows.Add(window, registration);
+                window.Closed += OnWindowClosed;
             }
 
-            if (languageButton != null)
+            if (languageButton != null && !ReferenceEquals(registration.LanguageButton, languageButton))
             {
-                languageButton.Click += (_, _) => Toggle();
-                UpdateLanguageButton(languageButton);
+                if (registration.LanguageButton != null && registration.ToggleHandler != null)
+                    registration.LanguageButton.Click -= registration.ToggleHandler;
+
+                registration.LanguageButton = languageButton;
+                registration.ToggleHandler = (_, _) => Toggle();
+                languageButton.Click += registration.ToggleHandler;
             }
 
-            LanguageChanged += ApplyHandler;
-            window.Closed += (_, _) => LanguageChanged -= ApplyHandler;
-            window.Loaded += (_, _) => ApplyHandler(null, EventArgs.Empty);
-            Apply(window);
+            ApplyWindow(window, registration);
         }
 
         public static void Apply(DependencyObject root)
         {
             if (root is Window window)
-                window.Title = TranslateLiteral(window.Title);
+                window.Title = Localize(window, nameof(Window.Title), window.Title);
 
             foreach (var element in DescendantsAndSelf(root))
             {
@@ -515,18 +941,18 @@ namespace focus_ai
                     }
                     else
                     {
-                        textBlock.Text = TranslateLiteral(textBlock.Text);
+                        textBlock.Text = Localize(textBlock, nameof(TextBlock.Text), textBlock.Text);
                     }
                 }
 
                 if (element is ContentControl contentControl && contentControl.Content is string content)
-                    contentControl.Content = TranslateLiteral(content);
+                    contentControl.Content = Localize(contentControl, nameof(ContentControl.Content), content);
 
                 if (element is HeaderedContentControl headered && headered.Header is string header)
-                    headered.Header = TranslateLiteral(header);
+                    headered.Header = Localize(headered, nameof(HeaderedContentControl.Header), header);
 
                 if (element is FrameworkElement frameworkElement && frameworkElement.ToolTip is string toolTip)
-                    frameworkElement.ToolTip = TranslateLiteral(toolTip);
+                    frameworkElement.ToolTip = Localize(frameworkElement, nameof(FrameworkElement.ToolTip), toolTip);
             }
         }
 
@@ -541,7 +967,7 @@ namespace focus_ai
         {
             if (inline is Run run)
             {
-                run.Text = TranslateLiteral(run.Text);
+                run.Text = Localize(run, nameof(Run.Text), run.Text);
                 return;
             }
 
@@ -552,12 +978,127 @@ namespace focus_ai
             }
         }
 
-        private static bool TryTranslate(string value, out string translated)
+        private static void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
-            if (Current == AppLanguage.Romanian)
-                return EnToRo.TryGetValue(value, out translated!);
+            if (sender is Window window)
+                Register(window);
+        }
 
-            return RoToEn.TryGetValue(value, out translated!);
+        private static void OnWindowClosed(object? sender, EventArgs e)
+        {
+            if (sender is not Window window || !RegisteredWindows.Remove(window, out var registration))
+                return;
+
+            if (registration.LanguageButton != null && registration.ToggleHandler != null)
+                registration.LanguageButton.Click -= registration.ToggleHandler;
+        }
+
+        private static void ApplyToOpenWindows()
+        {
+            if (Application.Current == null) return;
+
+            foreach (var window in Application.Current.Windows.Cast<Window>().ToArray())
+            {
+                if (!RegisteredWindows.TryGetValue(window, out var registration))
+                {
+                    registration = new WindowRegistration();
+                    RegisteredWindows[window] = registration;
+                }
+
+                ApplyWindow(window, registration);
+            }
+        }
+
+        private static void ApplyWindow(Window window, WindowRegistration registration)
+        {
+            Apply(window);
+            UpdateLanguageButton(registration.LanguageButton);
+        }
+
+        private static string Localize(DependencyObject owner, string propertyName, string currentValue)
+        {
+            if (string.IsNullOrWhiteSpace(currentValue)) return currentValue;
+
+            var state = LocalizedValues.GetOrCreateValue(owner);
+            if (!state.Values.TryGetValue(propertyName, out var value))
+            {
+                value = new LocalizedValue(TranslateToEnglish(currentValue), currentValue);
+                state.Values[propertyName] = value;
+            }
+            else if (!string.Equals(currentValue, value.LastRendered, StringComparison.Ordinal))
+            {
+                // The screen changed this text since the last language pass (for
+                // example a game score or a dynamically-created row). Capture the
+                // fresh source instead of translating an old value back and forth.
+                value.Source = TranslateToEnglish(currentValue);
+            }
+
+            string rendered = Current == AppLanguage.Romanian
+                ? TranslateToRomanian(value.Source)
+                : value.Source;
+            value.LastRendered = rendered;
+            return rendered;
+        }
+
+        private static string TranslateToRomanian(string value)
+        {
+            string translated = TranslateWithMap(value, EnToRo);
+            return string.Equals(translated, value, StringComparison.Ordinal)
+                ? value
+                : DiacritizeRomanian(translated);
+        }
+
+        private static string TranslateToEnglish(string value)
+        {
+            string translated = TranslateWithMap(value, RoToEn);
+            if (!string.Equals(translated, value, StringComparison.Ordinal))
+                return translated;
+
+            string normalizedRomanian = DiacritizeRomanian(value);
+            string normalizedTranslation = TranslateWithMap(normalizedRomanian, RoToEn);
+            return string.Equals(normalizedTranslation, normalizedRomanian, StringComparison.Ordinal)
+                ? value
+                : normalizedTranslation;
+        }
+
+        private static string DiacritizeRomanian(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value;
+
+            return Regex.Replace(value, @"\p{L}+", match =>
+            {
+                if (!RomanianDiacritics.TryGetValue(match.Value, out string? translated))
+                    return match.Value;
+
+                if (match.Value.All(char.IsUpper))
+                    return translated.ToUpperInvariant();
+
+                if (char.IsUpper(match.Value[0]))
+                    return char.ToUpperInvariant(translated[0]) + translated[1..];
+
+                return translated;
+            });
+        }
+
+        private static string TranslateWithMap(
+            string value,
+            IReadOnlyDictionary<string, string> translations)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return value;
+
+            if (translations.TryGetValue(value, out var translated))
+                return translated;
+
+            int firstTextIndex = IndexOfFirstTextCharacter(value);
+            if (firstTextIndex > 0)
+            {
+                string prefix = value[..firstTextIndex];
+                string core = value[firstTextIndex..];
+                if (translations.TryGetValue(core, out var coreTranslated))
+                    return prefix + coreTranslated;
+            }
+
+            return value;
         }
 
         private static int IndexOfFirstTextCharacter(string value)

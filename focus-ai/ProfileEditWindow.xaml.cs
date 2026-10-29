@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Configuration;
 using System.Net.Http;
 using System.Text.Json;
@@ -47,9 +47,9 @@ namespace focus_ai
             _ = LoadFromFirebase();
         }
 
-        // ═══════════════════════════════════════════════════
-        //  FIREBASE — LOAD PROFILE
-        // ═══════════════════════════════════════════════════
+        
+        
+        
 
         private async Task LoadFromFirebase()
         {
@@ -61,7 +61,7 @@ namespace focus_ai
                 if (string.IsNullOrEmpty(userId))
                     return;
 
-                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string baseUrl = AppSettings.Get("RealtimeDatabaseUrl");
                 string url = $"{baseUrl}/doctors/{userId}.json?auth={token}";
 
                 using HttpClient client = new();
@@ -100,9 +100,9 @@ namespace focus_ai
             catch { }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  LIVE VALIDATION
-        // ═══════════════════════════════════════════════════
+        
+        
+        
 
         private void Name_Changed(object sender, TextChangedEventArgs e)
         {
@@ -137,9 +137,9 @@ namespace focus_ai
             SetFieldState(BoxAddressBorder, ErrAddress, _addressOk);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  HELPERS
-        // ═══════════════════════════════════════════════════
+        
+        
+        
 
         private void SetFieldState(Border border, TextBlock errBlock, bool ok)
         {
@@ -170,14 +170,15 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  SAVE / CANCEL
-        // ═══════════════════════════════════════════════════
+        
+        
+        
 
         private async void Save_Click(object sender, RoutedEventArgs e)
         {
@@ -214,7 +215,7 @@ namespace focus_ai
             {
                 string userId  = GetReg("Uid");
                 string token   = GetReg("IdToken");
-                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string baseUrl = AppSettings.Get("RealtimeDatabaseUrl");
                 string doctorProfileUrl = $"{baseUrl}/doctors/{userId}.json?auth={token}";
                 string legacyUrl = $"{baseUrl}/{userId}/profile.json?auth={token}";
 
@@ -252,12 +253,12 @@ namespace focus_ai
                 return;
             }
 
-            // Mark profile as configured.
+            
             try
             {
                 string userId  = GetReg("Uid");
                 string token   = GetReg("IdToken");
-                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string baseUrl = AppSettings.Get("RealtimeDatabaseUrl");
                 string url = $"{baseUrl}/doctors/{userId}/setup.json?auth={token}";
 
                 using HttpClient markClient = new();

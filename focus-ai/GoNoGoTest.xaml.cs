@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -61,7 +61,7 @@ namespace focus_ai
 
         private static readonly Color GoColor = Color.FromRgb(22, 197, 94);
         private static readonly Color NoGoColor = Color.FromRgb(239, 68, 68);
-        private static readonly Color IdleColor = Color.FromRgb(31, 41, 55);
+        private static readonly Color IdleColor = Color.FromRgb(41, 41, 41);
 
         public GoNoGoTest(bool isDark)
         {
@@ -117,10 +117,10 @@ namespace focus_ai
             _secondsLeft = TEST_DURATION_SEC;
 
             CountdownText.Text         = _secondsLeft.ToString();
-            TimerStatusText.Text       = "Running";
+            TimerStatusText.Text       = LanguageManager.T("Running");
             TimerStatusText.Foreground = new SolidColorBrush(Color.FromRgb(34, 197, 94));
 
-            // 🔥 IMPORTANT
+            
             BioCollector.Instance.Send("START_TEST");
 
             _countdownTimer.Start();
@@ -139,10 +139,10 @@ namespace focus_ai
         {
             StopAll();
 
-            // 🔥 IMPORTANT
+            
             BioCollector.Instance.Send("STOP_TEST");
 
-            ShowCircle(IdleColor, "✓", "Finalizat");
+            ShowCircle(IdleColor, "✓", LanguageManager.T("Completed"));
             int total = _correctGo + _missedGo + _falsePositives + _correctRejects;
             Accuracy = total > 0 ? (double)(_correctGo + _correctRejects) / total * 100.0 : 0;
             ShowResultOverlay(BuildResult());
@@ -203,19 +203,19 @@ namespace focus_ai
             PulseRing1.Opacity = 0;
             PulseRing2.Opacity = 0;
 
-            // Oprește orice animație activă pe culoare
+            
             CircleBrush.BeginAnimation(SolidColorBrush.ColorProperty, null);
 
             if (_currentIsGo)
             {
-                CircleBrush.Color = GoColor;   // VERDE forțat direct
+                CircleBrush.Color = GoColor;   
                 StimulusLabel.Text = "GO";
                 StimulusSubLabel.Text = LanguageManager.T("Press!");
                 _pulseAnim?.Begin();
             }
             else
             {
-                CircleBrush.Color = NoGoColor;  // ROȘU forțat direct
+                CircleBrush.Color = NoGoColor;  
                 StimulusLabel.Text = "NO-GO";
                 StimulusSubLabel.Text = LanguageManager.T("Do not press");
             }
@@ -263,14 +263,14 @@ namespace focus_ai
                 {
                     _correctGo++;
                     _reactionTimes.Add(rtMs.Value);
-                    // Correct press on GO.
+                    
                     FlashCircle(Colors.White, GoColor);
                     wasCorrect = true;
                 }
                 else
                 {
                     _falsePositives++;
-                    // Wrong press on NO-GO.
+                    
                     FlashCircle(Colors.White, NoGoColor);
                     wasCorrect = false;
                 }
@@ -335,7 +335,7 @@ namespace focus_ai
             OverlayBody.Text =
                 $"{LanguageManager.T("Correct GO:")} {r.CorrectGo}   |   {LanguageManager.T("Missed GO:")} {r.MissedGo}\n" +
                 $"{LanguageManager.T("False positives:")} {r.FalsePositives}   |   {LanguageManager.T("Correct NO-GO:")} {r.CorrectRejects}\n" +
-                $"{LanguageManager.T("Average reaction time:")} {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : "N/A")}";
+                $"{LanguageManager.T("Average reaction time:")} {(r.AverageReactionMs > 0 ? $"{(int)r.AverageReactionMs} ms" : LanguageManager.T("N/A"))}";
 
             BeginButton.Content = LanguageManager.T("✕  Close");
             BeginButton.Click -= BeginButton_Click;

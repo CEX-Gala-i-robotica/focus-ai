@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
@@ -7,9 +7,10 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWPF>true</UseWPF>
-	<ApplicationIcon>focusai.ico</ApplicationIcon>
+	<ApplicationIcon Condition="Exists('focusai.ico')">focusai.ico</ApplicationIcon>
     </PropertyGroup>
 	<ItemGroup>
+	  <Resource Include="focusai.ico" />
 	  <Resource Include="assets\1.png" />
 	  <Resource Include="assets\2.png" />
 	  <Resource Include="assets\3.png" />
@@ -18,14 +19,14 @@
     <ItemGroup>
       <PackageReference Include="Facebook" Version="7.0.10-beta" />
       <PackageReference Include="Firebase.Auth" Version="1.0.0" />
-      <PackageReference Include="Google.Apis.Auth" Version="1.73.0" />
       <PackageReference Include="Microsoft.ML" Version="5.0.0" />
       <PackageReference Include="Microsoft.ML.LightGbm" Version="5.0.0" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.5-beta1" />
       <PackageReference Include="OxyPlot.Core" Version="2.2.0" />
       <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
-      <PackageReference Include="SendGrid" Version="9.29.3" />
       <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
+      <PackageReference Include="System.Configuration.ConfigurationManager" Version="9.0.0" />
+      <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.0" />
       <PackageReference Include="System.IO.Ports" Version="8.0.0" />
       <PackageReference Include="System.Management" Version="8.0.0" />
     </ItemGroup>

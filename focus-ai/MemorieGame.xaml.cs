@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
@@ -18,7 +18,7 @@ namespace focus_ai
     {
         private const string RegPath = @"Software\FocusAI";
         private static readonly HttpClient _http = new();
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
 
         private static readonly string[] CardSymbols =
         {
@@ -264,7 +264,8 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }

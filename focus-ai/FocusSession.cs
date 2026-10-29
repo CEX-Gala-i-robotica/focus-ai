@@ -11,7 +11,8 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
@@ -21,7 +22,7 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.CreateSubKey(RegPath);
-                k.SetValue(key, value);
+                k.SetValue(key, key == "IdToken" ? SessionTokenProtector.Protect(value) : value);
             }
             catch { }
         }

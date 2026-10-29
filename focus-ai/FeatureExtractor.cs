@@ -10,8 +10,26 @@ public static class FeatureExtractor
     public static SessionFeatures FromJsonElement(JsonElement el)
     {
         bool hasScore = TryGetDouble(el, out double score, "scor", "score");
+        bool hasScoreVersion = TryGetDouble(el, out double scoreVersion, "scoreVersion");
         bool hasTr2 = TryGetDouble(el, out double tr2, "tr2");
         bool hasGoNoGo = TryGetDouble(el, out double goNoGo, "precizieGonogo", "precizie_gonogo");
+        string mapData = GetString(el, "map");
+        string distanceData = GetString(el, "dist");
+        double cptAccuracy = TryGetNestedDouble(el, "cpt", "accuracy", out double cptValue) ? cptValue : 0;
+        bool hasScoreComponents = el.TryGetProperty("map", out _) && hasTr2 && hasGoNoGo &&
+                                  el.TryGetProperty("dist", out _);
+
+        bool scoreWithinRange = hasScore && score >= 0 && score <= 100;
+        bool scoreNeedsRecalculation = !scoreWithinRange || !hasScoreVersion || scoreVersion != TestScoreCalculator.CurrentVersion;
+        if (scoreNeedsRecalculation && hasScoreComponents)
+        {
+            score = TestScoreCalculator.ComputeScore(mapData, hasTr2 ? tr2 : 0, hasGoNoGo ? goNoGo : 0, cptAccuracy, distanceData);
+            hasScore = true;
+        }
+        else if (scoreNeedsRecalculation)
+        {
+            hasScore = false;
+        }
 
         string durationText = GetString(el, "duration");
         string dateTimeText = GetString(el, "dateTime", "datetime", "timestamp");
@@ -21,7 +39,7 @@ public static class FeatureExtractor
             .ToArray();
         var (hrMean, hrStd, hrMin, hrMax) = MeanStdMinMax(hr);
 
-        // Keep plausible numeric SpO2 values; zero and values above 100 are treated as invalid.
+        
         double[] spo2 = ParseCsvDoubles(GetString(el, "spo2"))
             .Where(v => v > 0 && v <= 100)
             .ToArray();
@@ -29,7 +47,9 @@ public static class FeatureExtractor
         double spo2Min = spo2.Length > 0 ? spo2.Min() : 0;
         double spo2Drops = spo2.Count(v => v < 95);
 
-        double[] dist = ParseCsvDoubles(GetString(el, "dist"));
+        double[] dist = ParseCsvDoubles(GetString(el, "dist"))
+            .Where(v => v == 0 || v == 1)
+            .ToArray();
         double distRatio = dist.Length > 0
             ? dist.Count(v => v > 0.5) / (double)dist.Length
             : 0;
@@ -111,6 +131,14 @@ public static class FeatureExtractor
         return "";
     }
 
+    private static bool TryGetNestedDouble(JsonElement el, string objectName, string propertyName, out double value)
+    {
+        value = 0;
+        return el.TryGetProperty(objectName, out JsonElement nested) &&
+               nested.ValueKind == JsonValueKind.Object &&
+               TryGetDouble(nested, out value, propertyName);
+    }
+
     private static bool TryGetDouble(JsonElement el, out double value, params string[] names)
     {
         foreach (string name in names)
@@ -160,7 +188,7 @@ public static class FeatureExtractor
         if (string.IsNullOrWhiteSpace(s))
             return 0;
 
-        // Plain numeric values are interpreted as minutes.
+        
         if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double minutes) &&
             double.IsFinite(minutes) && minutes >= 0)
             return minutes;
@@ -273,9 +301,9 @@ public static class FeatureExtractor
             if (pts.Length < 2)
                 continue;
 
-            bool okX = double.TryParse(pts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x) && double.IsFinite(x);
-            bool okY = double.TryParse(pts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y) && double.IsFinite(y);
-            // Preserve X/Y pairing: never append only one coordinate.
+            bool okX = double.TryParse(pts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double x) && double.IsFinite(x) && x >= 0 && x <= 100;
+            bool okY = double.TryParse(pts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double y) && double.IsFinite(y) && y >= 0 && y <= 100;
+            
             if (okX && okY)
             {
                 xs.Add(x);

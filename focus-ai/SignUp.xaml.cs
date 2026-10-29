@@ -1,15 +1,12 @@
-﻿using System;
+using System;
 using System.Configuration;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using Microsoft.Win32;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Auth.OAuth2.Flows;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -17,9 +14,8 @@ namespace focus_ai
 {
     public partial class SignUp : Window
     {
-        private readonly string FirebaseApiKey     = ConfigurationManager.AppSettings["FirebaseApiKey"];
-        private readonly string GoogleClientId     = ConfigurationManager.AppSettings["GoogleClientId"];
-        private readonly string GoogleClientSecret = ConfigurationManager.AppSettings["GoogleClientSecret"];
+        private readonly string FirebaseApiKey     = AppSettings.Get("FirebaseApiKey");
+        private readonly string GoogleClientId     = AppSettings.Get("GoogleClientId");
 
         private const string RegPath = @"Software\FocusAI";
 
@@ -45,8 +41,7 @@ namespace focus_ai
 
         private void ApplySystemTheme()
         {
-            if (IsSystemDarkTheme()) ApplyDark();
-            else ApplyLight();
+            ApplyDark();
         }
 
         private void ApplyLight()
@@ -72,12 +67,22 @@ namespace focus_ai
             SetBrush("InputBgBrush",     "DarkInputBg");
             SetBrush("DividerBrush",     "DarkDivider");
             CardShadow.Color   = Colors.Black;
-            CardShadow.Opacity = 0.50;
+            CardShadow.Opacity = 0.06;
         }
 
         private void SetBrush(string brushKey, string colorKey)
         {
             Resources[brushKey] = new SolidColorBrush((Color)FindResource(colorKey));
+        }
+
+        private bool EnsureFirebaseApiKeyConfigured()
+        {
+            if (!string.IsNullOrWhiteSpace(FirebaseApiKey))
+                return true;
+
+            MessageBox.Show(LanguageManager.T("Configure the FOCUSAI_FIREBASE_API_KEY environment variable and restart Focus AI."),
+                LanguageManager.T("Focus AI configuration"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
         }
 
         private async void SignUpButton_Click(object sender, RoutedEventArgs e)
@@ -119,6 +124,9 @@ namespace focus_ai
                                 MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+
+            if (!EnsureFirebaseApiKeyConfigured())
+                return;
 
             SetUiBusy(true);
 
@@ -162,6 +170,9 @@ namespace focus_ai
 
         private async void GoogleSignUpButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!EnsureFirebaseApiKeyConfigured())
+                return;
+
             SetUiBusy(true);
 
             try
@@ -214,28 +225,15 @@ namespace focus_ai
                 key.SetValue("RememberMe", "1");
                 key.SetValue("Email",      email);
                 key.SetValue("LoggedIn",   "1");
-                key.SetValue("IdToken",    idToken);
+                key.SetValue("IdToken",    SessionTokenProtector.Protect(idToken));
                 key.SetValue("Uid",        uid);
             }
             catch { }
         }
 
-        private async Task<string> GetGoogleIdTokenAsync()
+        private Task<string> GetGoogleIdTokenAsync()
         {
-            var flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
-            {
-                ClientSecrets = new ClientSecrets
-                {
-                    ClientId     = GoogleClientId,
-                    ClientSecret = GoogleClientSecret
-                },
-                Scopes = new[] { "openid", "email", "profile" }
-            });
-
-            var credential = await new AuthorizationCodeInstalledApp(flow, new LocalServerCodeReceiver())
-                .AuthorizeAsync("user", CancellationToken.None);
-
-            return credential.Token.IdToken;
+            return GooglePkceAuthenticator.GetIdTokenAsync(GoogleClientId);
         }
 
         private void SetUiBusy(bool busy)
@@ -256,7 +254,7 @@ namespace focus_ai
 
             if (needsSetup)
             {
-                bool isDark = IsSystemDarkTheme();
+                bool isDark = true;
                 var setup = new ProfileEditWindow(isDark, isSetupMode: true);
                 setup.Show();
             }
@@ -270,7 +268,7 @@ namespace focus_ai
         {
             try
             {
-                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string baseUrl = AppSettings.Get("RealtimeDatabaseUrl");
                 string url = $"{baseUrl}/doctors/{uid}/setup.json?auth={token}";
 
                 using var client = new HttpClient();
@@ -302,7 +300,7 @@ namespace focus_ai
 
             try
             {
-                string baseUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+                string baseUrl = AppSettings.Get("RealtimeDatabaseUrl");
                 using HttpClient client = new();
                 var now = DateTime.UtcNow.ToString("O");
 

@@ -97,7 +97,7 @@ internal static class BaselineForecasts
             trend = beta * (level - previousLevel) + (1 - beta) * trend;
         }
 
-        // Bound trend contribution to avoid an unstable extrapolation on short histories.
+        
         double perStepTrend = Math.Clamp(trend, -15, 15);
         return Math.Clamp(level + perStepTrend * horizon, 0, 100);
     }
@@ -112,8 +112,8 @@ internal static class BaselineForecasts
         if (candidates.Count == 0)
             return history[^1].Score;
 
-        // A candidate's label is its actually observed next-session score; this corrects the
-        // earlier version, which averaged scores of sessions similar to the query session itself.
+        
+        
         candidates = candidates.TakeLast(100).ToList();
         float[] queryVector = query.ToFeatureArray();
         var candidateVectors = candidates.Select(c => c.Row.ToFeatureArray()).ToList();

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -16,7 +16,7 @@ namespace focus_ai
 {
     public partial class StroopGame : Window
     {
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
         private const string RegPath = @"Software\FocusAI";
         private readonly bool _isDark;
@@ -138,22 +138,22 @@ namespace focus_ai
 
             var activeColors = Colors.Take(_numColors).ToArray();
 
-            // Culoarea cernelii (răspunsul corect)
+            
             var inkColor  = activeColors[_rng.Next(activeColors.Length)];
-            // Cuvântul afișat — diferit de culoarea cernelii
+            
             var wordCandidates = activeColors.Where(c => c.Key != inkColor.Key).ToArray();
             var wordColor = wordCandidates[_rng.Next(wordCandidates.Length)];
 
             _correctColorKey = inkColor.Key;
-            _wordColorKey    = wordColor.Key;   // culoarea reală a cuvântului scris
+            _wordColorKey    = wordColor.Key;   
 
             WordLabel.Text       = wordColor.DisplayName;
             WordLabel.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(inkColor.Hex));
 
-            // ── Construim lista de 4 opțiuni ──────────────────────────────────────
-            // Slot 0: răspunsul corect (culoarea cernelii)
-            // Slot 1: cuvântul scris cu propria lui culoare (distractor semantic obligatoriu)
-            // Slot 2-3: alte culori aleatorii diferite de primele două
+            
+            
+            
+            
             var optionKeys = new List<string> { inkColor.Key, wordColor.Key };
 
             var remaining = activeColors
@@ -164,18 +164,18 @@ namespace focus_ai
                 .ToList();
             optionKeys.AddRange(remaining);
 
-            // Completăm dacă nu avem destule culori distincte
+            
             while (optionKeys.Count < _numOptions)
             {
                 var extra = activeColors[_rng.Next(activeColors.Length)].Key;
                 if (!optionKeys.Contains(extra)) optionKeys.Add(extra);
             }
 
-            // Amestecăm pozițiile
+            
             optionKeys = optionKeys.OrderBy(_ => _rng.Next()).ToList();
             _currentOptionKeys = optionKeys;
 
-            // ── Stilizăm butoanele ──────────────────────────────────────────────
+            
             for (int i = 0; i < _btns.Length; i++)
             {
                 string key  = optionKeys[i];
@@ -268,7 +268,7 @@ namespace focus_ai
             if (_streak >= 3)
             {
                 StreakBadge.Visibility = Visibility.Visible;
-                TxtStreak.Text = $"🔥 {_streak} {LanguageManager.T("in a row!")}";
+                TxtStreak.Text = $"{_streak}  ·  {LanguageManager.T("in a row!")}";
             }
             else
             {
@@ -323,9 +323,9 @@ namespace focus_ai
             }, DispatcherPriority.Loaded);
         }
 
-        // ═══════════════════════════════════════════════════
-        //  END GAME
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void EndGame()
         {
             _limitTimer?.Stop();
@@ -336,14 +336,11 @@ namespace focus_ai
             double finalScore = Math.Min(100.0, _score / (double)(TotalRounds * 100) * 100.0);
             TimeSpan duration = _gameStopwatch.Elapsed;
 
-            string emoji = finalScore >= 85 ? "🏆"
-                         : finalScore >= 60 ? "🥈"
-                         : "💪";
             string title = finalScore >= 85 ? LanguageManager.T("Excellent!")
                          : finalScore >= 60 ? LanguageManager.T("Well done!")
                          : LanguageManager.T("Keep going!");
 
-            WinEmoji.Text    = emoji;
+            WinEmoji.Text    = LanguageManager.T("SESSION SUMMARY");
             WinTitle.Text    = title;
             WinSubtitle.Text = $"{_correctCount} {LanguageManager.T("correct")}  •  {LanguageManager.T("Accuracy:")} {accuracy:F1}%  •  {LanguageManager.T("Average time:")} {avgTime:F2}s";
             WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
@@ -389,9 +386,9 @@ namespace focus_ai
             catch { }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  NAV
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void WinPlayAgain_Click(object sender, RoutedEventArgs e)
         {
             WinOverlay.Visibility = Visibility.Collapsed;
@@ -418,12 +415,13 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
 
-        // BtnBack_Click din header (diferit de BackButton în overlay)
+        
         private void BtnBack_Click(object sender, RoutedEventArgs e) => BackButton_Click(sender, e);
     }
 }

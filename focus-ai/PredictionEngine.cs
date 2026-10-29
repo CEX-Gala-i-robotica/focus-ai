@@ -5,11 +5,11 @@ using focus_ai.Prediction.Models;
 
 namespace focus_ai.Prediction;
 
-/// <summary>
-/// Predicts the next score using a loaded ML.NET artifact when available. Without an artifact,
-/// it selects a simple baseline by chronological backtesting. Horizons greater than one use Holt,
-/// because future sensor values are not available for recursive ML inference.
-/// </summary>
+
+
+
+
+
 public sealed class PredictionEngine
 {
     private readonly double _holtAlpha;
@@ -33,7 +33,7 @@ public sealed class PredictionEngine
         _ml = new MLContext(seed: 42);
     }
 
-    /// <summary>Loads a model artifact produced by NextSessionModelTrainer.TrainAndSave.</summary>
+    
     public PredictionEngine(
         string modelPath,
         double holtAlpha = 0.45,
@@ -55,7 +55,7 @@ public sealed class PredictionEngine
         _metadata = JsonSerializer.Deserialize<PredictionModelMetadata>(File.ReadAllText(metadataPath))
                     ?? throw new InvalidDataException("Fișierul de metadate al modelului este invalid.");
 
-        if (_metadata.FeatureSchemaVersion != "next-session-v1")
+        if (_metadata.ArtifactVersion != 2 || _metadata.FeatureSchemaVersion != "next-session-v2")
             throw new InvalidDataException(
                 $"Schema modelului ({_metadata.FeatureSchemaVersion}) nu este compatibilă cu această versiune de FeatureBuilder.");
 
@@ -91,8 +91,8 @@ public sealed class PredictionEngine
 
         if (horizon > 1)
         {
-            // The ML training target is one session ahead. There are no future sensor values to feed
-            // the tabular model recursively, so use an explicit statistical multi-step fallback.
+            
+            
             modelName = "Holt (multi-step fallback)";
             predictedScore = holtScore;
         }
@@ -141,7 +141,9 @@ public sealed class PredictionEngine
         }
 
         SessionFeatures last = ordered[^1];
-        bool alertSpo2 = last.HasSpo2Data && (last.Spo2Mean < 95 || last.Spo2DropCount > 3);
+        bool alertSpo2 = last.HasSpo2Data &&
+                         (last.Spo2Mean < 95 ||
+                          (last.Spo2SampleCount > 0 && last.Spo2DropCount / last.Spo2SampleCount >= 0.05));
         bool alertHrAbnormal = last.HasHrData && last.HrMean > 0 && (last.HrMean < 45 || last.HrMean > 110);
         bool alertHrVar = last.HasHrData && last.HrStd > 25;
 
@@ -149,15 +151,17 @@ public sealed class PredictionEngine
         (double low, double high, string intervalLabel) = GetPredictionInterval(
             modelName, predictedScore, horizon, ordered);
 
-        string confidenceLabel = !double.IsFinite(modelMae)
-            ? "Unknown"
-            : modelMae < 5 ? "High" : modelMae < 12 ? "Medium" : "Low";
+        string intervalStatusLabel = intervalLabel.Contains("rolling-origin", StringComparison.OrdinalIgnoreCase)
+            ? "Rolling-origin empirical interval"
+            : intervalLabel.Contains("90%", StringComparison.Ordinal)
+                ? "Empirical 90% interval"
+                : "Uncalibrated interval";
 
         return new PredictionResult
         {
             PredictedScore = Math.Round(predictedScore, 1),
-            ConfidenceLow = Math.Round(low, 1),
-            ConfidenceHigh = Math.Round(high, 1),
+            PredictionIntervalLow = Math.Round(low, 1),
+            PredictionIntervalHigh = Math.Round(high, 1),
             LinearRegrScore = Math.Round(linearScore, 1),
             HoltScore = Math.Round(holtScore, 1),
             KnnScore = Math.Round(knnScore, 1),
@@ -171,8 +175,9 @@ public sealed class PredictionEngine
             AlertHrVariabil = alertHrVar,
             AlertMessage = BuildAlertMessage(alertSpo2, alertHrAbnormal, alertHrVar, last),
             SessionsUsed = ordered.Count,
-            ModelMAE = double.IsFinite(modelMae) ? Math.Round(modelMae, 2) : 0,
-            ConfidenceLabel = confidenceLabel,
+            ModelMAE = double.IsFinite(modelMae) ? Math.Round(modelMae, 2) : null,
+            IntervalStatusLabel = intervalStatusLabel,
+            TestIntervalCoverage90 = _metadata?.TestIntervalCoverage90,
             IntervalLabel = intervalLabel,
             ModelName = modelName,
             PredictionHorizon = horizon,
@@ -238,7 +243,7 @@ public sealed class PredictionEngine
         }
         else if (_metadata is null || !NextSessionModelTrainer.IsMlModel(modelName))
         {
-            // For baselines, walk-forward historical errors can serve as an empirical interval estimate.
+            
             List<NextSessionTrainingSample> samples = NextSessionFeatureBuilder.BuildTrainingSamples(history);
             double[] errors = samples
                 .TakeLast(Math.Min(samples.Count, Math.Max(_windowSize, 5)))
@@ -248,11 +253,11 @@ public sealed class PredictionEngine
                 .OrderBy(v => v)
                 .ToArray();
 
-            if (errors.Length >= 5)
+            int oneBasedIndex = (int)Math.Ceiling((errors.Length + 1) * 0.90);
+            if (errors.Length >= 9 && oneBasedIndex <= errors.Length)
             {
-                int index = Math.Clamp((int)Math.Ceiling((errors.Length + 1) * 0.90) - 1, 0, errors.Length - 1);
-                quantile = errors[index];
-                label = $"Interval empiric rolling-origin ({errors.Length} erori istorice)";
+                quantile = errors[oneBasedIndex - 1];
+                label = $"Interval empiric rolling-origin nominal 90% ({errors.Length} erori istorice)";
             }
         }
 
@@ -281,11 +286,14 @@ public sealed class PredictionEngine
 
         var parts = new List<string>();
         if (spo2)
-            parts.Add($"SpO2 sub pragul configurat (medie {last.Spo2Mean:F1}%, {last.Spo2DropCount:0} valori sub 95%)");
+        {
+            double dropRate = last.Spo2SampleCount > 0 ? last.Spo2DropCount / last.Spo2SampleCount : 0;
+            parts.Add($"Low SpO2 (mean {last.Spo2Mean:F1}%, fraction below 95%: {dropRate:P1})");
+        }
         if (heartRate)
-            parts.Add($"Ritm cardiac în afara pragurilor configurate (medie {last.HrMean:F0} bpm)");
+            parts.Add($"Abnormal heart rate (mean {last.HrMean:F0} bpm)");
         if (heartRateVariability)
-            parts.Add($"Deviație standard HR ridicată (std {last.HrStd:F1} bpm)");
+            parts.Add($"High dispersion in heart-rate samples (standard deviation {last.HrStd:F1} bpm)");
         return string.Join(" | ", parts);
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Net.Http;
@@ -18,7 +18,7 @@ namespace focus_ai
     {
         private const int GameDuration = 60;
         private const string RegPath = @"Software\FocusAI";
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
         private readonly bool _isDark;
 
@@ -222,9 +222,9 @@ namespace focus_ai
             TxtAccuracy.Text = total > 0 ? $"{(int)((double)_correct / total * 100)}%" : "—";
         }
 
-        // ═══════════════════════════════════════════════════
-        //  END GAME — overlay identic cu MemorieGame
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void EndGame()
         {
             _timer.Stop();
@@ -234,14 +234,11 @@ namespace focus_ai
             double accuracy = total > 0 ? (double)_correct / total : 0;
             double finalScore = Math.Round(Math.Min(100, (accuracy * 60) + (_correct * 1.2) + (_bestStreak * 0.5)), 2);
 
-            string emoji = finalScore >= 80 ? "🏆"
-                         : finalScore >= 50 ? "👍"
-                         : "💪";
             string title = finalScore >= 80 ? LanguageManager.T("Excellent!")
                          : finalScore >= 50 ? LanguageManager.T("Good!")
                          : LanguageManager.T("Keep practicing!");
 
-            WinEmoji.Text    = emoji;
+            WinEmoji.Text    = LanguageManager.T("SESSION SUMMARY");
             WinTitle.Text    = title;
             WinSubtitle.Text = $"{_correct} {LanguageManager.T("correct")}  •  {_wrong} {LanguageManager.T("wrong")}  •  {LanguageManager.T("Best streak:")} {_bestStreak}";
             WinScore.Text    = $"{LanguageManager.T("Final score:")} {finalScore:F1} / 100";
@@ -285,9 +282,9 @@ namespace focus_ai
             catch { }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  NAV din overlay
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void WinPlayAgain_Click(object s, RoutedEventArgs e)
         {
             WinOverlay.Visibility      = Visibility.Collapsed;
@@ -318,7 +315,8 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }

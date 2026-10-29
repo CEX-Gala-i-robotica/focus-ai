@@ -1,4 +1,4 @@
-﻿<Window x:Class="focus_ai.MemorieGame"
+<Window x:Class="focus_ai.MemorieGame"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Focus AI - Memory"
@@ -12,7 +12,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- HEADER -->
+        
         <Border Grid.Row="0" Background="{DynamicResource BgSidebar}" Padding="28,18,28,18">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -31,7 +31,7 @@
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border Background="{TemplateBinding Background}"
-                                        CornerRadius="8" Padding="14,8">
+                                        CornerRadius="18" Padding="14,8">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -43,36 +43,34 @@
                         </Button.Template>
                     </Button>
                     <StackPanel Margin="18,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="🧠  Memory" FontSize="18" FontWeight="Bold"
-                                   Foreground="{DynamicResource TxtPrimary}"/>
-                        <TextBlock Text="Find all matching card pairs"
-                                   FontSize="11" Foreground="{DynamicResource TxtSecondary}"/>
+                        <TextBlock Text="WORKING MEMORY  /  01" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}"/>
+                        <TextBlock Text="Memory" FontSize="20" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" Margin="0,3,0,0"/>
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="{DynamicResource BgStatBlue}" CornerRadius="12" Padding="16,10" Margin="0,0,10,0">
+                    <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="18" Padding="16,10" Margin="0,0,10,0">
                         <StackPanel>
                             <TextBlock Text="TIME" FontSize="9" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TxtStatBlue}" HorizontalAlignment="Center"/>
+                                       Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="TimerText" Text="00:00"
                                        FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="{DynamicResource BgStatPurple}" CornerRadius="12" Padding="16,10" Margin="0,0,10,0">
+                    <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="18" Padding="16,10" Margin="0,0,10,0">
                         <StackPanel>
                             <TextBlock Text="MOVES" FontSize="9" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TxtStatPurple}" HorizontalAlignment="Center"/>
+                                       Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="MovesText" Text="0"
                                        FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="{DynamicResource BgStatGreen}" CornerRadius="12" Padding="16,10">
+                    <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="18" Padding="16,10">
                         <StackPanel>
                             <TextBlock Text="PAIRS" FontSize="9" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TxtStatGreen}" HorizontalAlignment="Center"/>
+                                       Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Center"/>
                             <TextBlock x:Name="PairsText" Text="0 / 8"
                                        FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center"/>
@@ -82,12 +80,12 @@
             </Grid>
         </Border>
 
-        <!-- DIFFICULTY BAR -->
-        <Border Grid.Row="1" Padding="28,12,28,12" Background="{DynamicResource BgMain}">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="Difficulty:" FontSize="12"
+        
+        <Border Grid.Row="1" Padding="24,10" Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}" BorderThickness="1" CornerRadius="12" Margin="28,12,28,6">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <TextBlock Text="SESSION SETTINGS" FontSize="10"
                            Foreground="{DynamicResource TxtSecondary}"
-                           VerticalAlignment="Center" Margin="0,0,14,0"/>
+                           VerticalAlignment="Center" Margin="0,0,20,0" FontWeight="SemiBold"/>
                 <RadioButton x:Name="DiffEasy"   Content="Easy (4x4)" GroupName="Difficulty" IsChecked="True"
                              Foreground="{DynamicResource TxtPrimary}" FontSize="12" Cursor="Hand"
                              Margin="0,0,20,0" VerticalContentAlignment="Center"
@@ -108,7 +106,7 @@
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
                             <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="8" Padding="16,7">
+                                    CornerRadius="18" Padding="16,7">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -122,19 +120,19 @@
             </StackPanel>
         </Border>
 
-        <!-- CARD GRID -->
+        
         <Border Grid.Row="2" Background="{DynamicResource BgMain}" Padding="28,8,28,8">
             <Viewbox Stretch="Uniform">
                 <UniformGrid x:Name="CardGrid" Rows="4" Columns="4" Width="640" Height="480"/>
             </Viewbox>
         </Border>
 
-        <!-- WIN OVERLAY – acoperă toate rândurile -->
+        
         <Grid Grid.Row="0" Grid.RowSpan="4" x:Name="WinOverlay" Visibility="Collapsed" Background="#CC000000">
             <Border CornerRadius="24" Padding="48,40" Background="{DynamicResource BgCard}"
                     HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="360">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="🏆" FontSize="52" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="SESSION COMPLETE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentSecFg}" HorizontalAlignment="Center" Margin="0,0,0,14"/>
                     <TextBlock Text="Congratulations!" FontSize="26" FontWeight="Bold"
                                Foreground="{DynamicResource TxtPrimary}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                     <TextBlock x:Name="WinSubtitle" Text=""
@@ -151,7 +149,7 @@
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}"
-                                            CornerRadius="9" Padding="20,10">
+                                            CornerRadius="18" Padding="20,10">
                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -168,7 +166,7 @@
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border Background="{TemplateBinding Background}"
-                                            CornerRadius="9" Padding="20,10">
+                                            CornerRadius="18" Padding="20,10">
                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>

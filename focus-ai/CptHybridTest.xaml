@@ -12,7 +12,7 @@
             <Setter Property="Height" Value="42"/>
             <Setter Property="MinWidth" Value="140"/>
             <Setter Property="Padding" Value="18,0"/>
-            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Background" Value="{DynamicResource AccentPrimary}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
@@ -23,21 +23,21 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="ButtonBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="6"
+                                CornerRadius="18"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#1D4ED8"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource AccentHover}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#1E40AF"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource AccentHover}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ButtonBorder" Property="Background" Value="#334155"/>
-                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TxtMuted}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -46,25 +46,25 @@
         </Style>
         <Style x:Key="GhostClinicalButton" TargetType="Button" BasedOn="{StaticResource PrimaryClinicalButton}">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="Foreground" Value="{DynamicResource TxtMuted}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="ButtonBorder"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="6"
+                                CornerRadius="18"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#1F2937"/>
-                                <Setter Property="Foreground" Value="#E5E7EB"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource BgSep}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TxtPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#111827"/>
-                                <Setter Property="Foreground" Value="#F8FAFC"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource BgCard}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TxtPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground" Value="#475569"/>
@@ -76,14 +76,14 @@
         </Style>
     </Window.Resources>
 
-    <Grid Background="#0B1120">
+    <Grid Background="{DynamicResource BgRoot}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#0F172A" Padding="38,22,38,18">
+        <Border Grid.Row="0" Background="{DynamicResource BgSidebar}" Padding="38,22,38,18">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -93,16 +93,16 @@
                 <StackPanel>
                     <TextBlock Text="Hybrid CPT - Attention &amp; Inhibitory Control Test"
                                FontSize="24" FontWeight="SemiBold"
-                               Foreground="#E5E7EB"/>
+                               Foreground="{DynamicResource TxtPrimary}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                     <TextBlock Text="PROGRESS" FontSize="10" FontWeight="SemiBold"
-                               Foreground="#64748B" HorizontalAlignment="Right"/>
+                               Foreground="{DynamicResource TxtMuted}" HorizontalAlignment="Right"/>
                     <TextBlock x:Name="ProgressText"
                                Text="Trial 0 / 50"
                                FontSize="22" FontWeight="Bold"
-                               Foreground="#60A5FA"
+                               Foreground="{DynamicResource AccentSecFg}"
                                HorizontalAlignment="Right"
                                Margin="0,4,0,0"/>
                 </StackPanel>
@@ -110,8 +110,8 @@
         </Border>
 
         <Grid Grid.Row="1" Margin="38,22">
-            <Border Background="#111827" BorderBrush="#1F2937"
-                    BorderThickness="1" CornerRadius="6" Padding="30">
+            <Border Background="{DynamicResource BgCard}" BorderBrush="{DynamicResource BgSep}"
+                    BorderThickness="1" CornerRadius="18" Padding="30">
                 <Grid>
                     <Grid x:Name="InstructionsPanel">
                         <Grid.RowDefinitions>
@@ -121,13 +121,9 @@
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0">
-                            <TextBlock Text="Hybrid CPT - Attention &amp; Inhibitory Control Test"
-                                       FontSize="26" FontWeight="Bold"
-                                       Foreground="#F8FAFC"
-                                       Margin="0,0,0,14"/>
-                            <TextBlock Text="In this test, letters will appear one at a time on the screen."
-                                       FontSize="16" Foreground="#CBD5E1"
-                                       Margin="0,0,0,16"/>
+                            <TextBlock Text="ATTENTION  /  INHIBITORY CONTROL" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TxtMuted}" Margin="0,0,0,12"/>
+                            <TextBlock Text="Respond to the target sequence." FontSize="34" FontWeight="Medium" Foreground="{DynamicResource TxtPrimary}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                            <TextBlock Text="Letters appear one at a time. Respond only when X follows A, and withhold responses to all other combinations." FontSize="15" Foreground="{DynamicResource TxtSecondary}" TextWrapping="Wrap" LineHeight="22" Margin="0,0,0,20"/>
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -141,40 +137,40 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Press SPACE:"
                                            FontSize="16" FontWeight="SemiBold"
-                                           Foreground="#E5E7EB" Margin="0,0,0,10"/>
+                                           Foreground="{DynamicResource TxtPrimary}" Margin="0,0,0,10"/>
                                 <TextBlock Text="- when X appears after A"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,18"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,18"/>
 
                                 <TextBlock Text="Respond:"
                                            FontSize="16" FontWeight="SemiBold"
-                                           Foreground="#E5E7EB" Margin="0,0,0,10"/>
+                                           Foreground="{DynamicResource TxtPrimary}" Margin="0,0,0,10"/>
                                 <TextBlock Text="- as quickly as possible"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,6"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,6"/>
                                 <TextBlock Text="- but as accurately as possible"
-                                           FontSize="14" Foreground="#CBD5E1"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Do NOT press:"
                                            FontSize="16" FontWeight="SemiBold"
-                                           Foreground="#E5E7EB" Margin="0,0,0,10"/>
+                                           Foreground="{DynamicResource TxtPrimary}" Margin="0,0,0,10"/>
                                 <TextBlock Text="- for other letters"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,6"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,6"/>
                                 <TextBlock Text="- for X after letters other than A (example: BX, CX)"
-                                           FontSize="14" Foreground="#CBD5E1" TextWrapping="Wrap"
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" TextWrapping="Wrap"
                                            Margin="0,0,0,18"/>
 
                                 <TextBlock Text="The test measures:"
                                            FontSize="16" FontWeight="SemiBold"
-                                           Foreground="#E5E7EB" Margin="0,0,0,10"/>
+                                           Foreground="{DynamicResource TxtPrimary}" Margin="0,0,0,10"/>
                                 <TextBlock Text="- attention"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,6"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,6"/>
                                 <TextBlock Text="- reaction speed"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,6"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,6"/>
                                 <TextBlock Text="- impulse control"
-                                           FontSize="14" Foreground="#CBD5E1" Margin="0,0,0,6"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}" Margin="0,0,0,6"/>
                                 <TextBlock Text="- working memory"
-                                           FontSize="14" Foreground="#CBD5E1"/>
+                                           FontSize="14" Foreground="{DynamicResource TxtSecondary}"/>
                             </StackPanel>
                             </Grid>
                         </ScrollViewer>
@@ -196,7 +192,7 @@
                         <TextBlock x:Name="StatusText"
                                    Text="Fixation"
                                    FontSize="14"
-                                   Foreground="#94A3B8"
+                                   Foreground="{DynamicResource TxtMuted}"
                                    HorizontalAlignment="Center"/>
 
                         <TextBlock x:Name="StimulusText"
@@ -204,7 +200,7 @@
                                    Text="+"
                                    FontSize="168"
                                    FontWeight="Bold"
-                                   Foreground="#F8FAFC"
+                                   Foreground="{DynamicResource TxtPrimary}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
                                    FontFamily="Consolas"/>
@@ -214,7 +210,7 @@
                                    Text=""
                                    FontSize="26"
                                    FontWeight="Bold"
-                                   Foreground="#60A5FA"
+                                   Foreground="{DynamicResource AccentSecFg}"
                                    HorizontalAlignment="Center"/>
                     </Grid>
 
@@ -227,7 +223,7 @@
 
                         <TextBlock Text="Results Dashboard"
                                    FontSize="28" FontWeight="Bold"
-                                   Foreground="#F8FAFC"
+                                   Foreground="{DynamicResource TxtPrimary}"
                                    Margin="0,0,0,24"/>
 
                         <Grid Grid.Row="1">
@@ -240,52 +236,52 @@
                             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                             <UniformGrid Columns="2" Rows="4">
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Accuracy" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultAccuracyText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Accuracy" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultAccuracyText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Mean Reaction Time" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultMeanRtText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Mean Reaction Time" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultMeanRtText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Hit Rate" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultHitRateText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Hit Rate" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultHitRateText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="False Alarm Rate" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultFalseAlarmRateText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="False Alarm Rate" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultFalseAlarmRateText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Total Hits" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultHitsText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Total Hits" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultHitsText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Total Misses" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultMissesText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Total Misses" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultMissesText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Total False Alarms" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultFalseAlarmsText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Total False Alarms" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultFalseAlarmsText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
-                                    <TextBlock Text="Correct Rejections" Foreground="#94A3B8" FontSize="12"/>
-                                    <TextBlock x:Name="ResultCorrectRejectionsText" Text="-" Foreground="#F8FAFC" FontSize="26" FontWeight="Bold"/>
+                                    <TextBlock Text="Correct Rejections" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultCorrectRejectionsText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                             </UniformGrid>
                             </ScrollViewer>
 
-                            <Border Grid.Column="2" Background="#0F172A"
-                                    BorderBrush="#1F2937" BorderThickness="1"
-                                    CornerRadius="6" Padding="24">
+                            <Border Grid.Column="2" Background="{DynamicResource BgSidebar}"
+                                    BorderBrush="{DynamicResource BgSep}" BorderThickness="1"
+                                    CornerRadius="18" Padding="24">
                                 <StackPanel>
                                     <TextBlock Text="Automatic Interpretation"
                                                FontSize="18" FontWeight="SemiBold"
-                                               Foreground="#E5E7EB"
+                                               Foreground="{DynamicResource TxtPrimary}"
                                                Margin="0,0,0,14"/>
                                     <TextBlock x:Name="ResultInterpretationText"
                                                Text="-"
                                                FontSize="14"
-                                               Foreground="#CBD5E1"
+                                               Foreground="{DynamicResource TxtSecondary}"
                                                TextWrapping="Wrap"
                                                LineHeight="22"/>
                                 </StackPanel>
@@ -302,7 +298,7 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="2" Background="#0F172A" Padding="38,16,38,24">
+        <Border Grid.Row="2" Background="{DynamicResource BgSidebar}" Padding="38,16,38,24">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>

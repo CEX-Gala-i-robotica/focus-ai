@@ -1,12 +1,16 @@
+using focus_ai;
 using System.Text.Json;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using focus_ai.Prediction.Models;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 namespace focus_ai.Prediction;
 public static class NextSessionModelTrainer
 {
     private const double CalibrationLevel = 0.90;
+    private const string FeatureSchemaVersion = "next-session-v2";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static TrainingReport TrainAndSave(
@@ -18,7 +22,13 @@ public static class NextSessionModelTrainer
             throw new ArgumentException("Calea modelului nu poate fi goală.", nameof(modelPath));
 
         options ??= new PredictionTrainingOptions();
-        List<NextSessionTrainingSample> samples = NextSessionFeatureBuilder.BuildTrainingSamples(history);
+        ValidateOptions(options);
+        List<SessionFeatures> orderedHistory = NextSessionFeatureBuilder.OrderAndValidate(history);
+        string dataFingerprint = CalculateHistoryFingerprint(orderedHistory);
+        List<NextSessionTrainingSample> samples = NextSessionFeatureBuilder.BuildTrainingSamples(orderedHistory)
+            .Where(sample => double.IsFinite(sample.TargetScore) && sample.TargetScore >= 0 && sample.TargetScore <= 100 &&
+                             sample.Row.ToFeatureArray().All(float.IsFinite))
+            .ToList();
         int count = samples.Count;
 
         if (count < options.MinimumExamplesForBacktesting)
@@ -32,7 +42,7 @@ public static class NextSessionModelTrainer
             };
         }
 
-        // Chronological partitions: 60% train, next 15% validation, next 10% calibration, last 15% test.
+        
         int trainEnd = (int)Math.Floor(count * 0.60);
         int validationEnd = (int)Math.Floor(count * 0.75);
         int calibrationEnd = (int)Math.Floor(count * 0.85);
@@ -55,7 +65,7 @@ public static class NextSessionModelTrainer
         var ml = new MLContext(seed: 42);
         var candidateValidationMae = new Dictionary<string, double>(StringComparer.Ordinal);
         var mlModels = new Dictionary<string, ITransformer>(StringComparer.Ordinal);
-        // Baselines are evaluated prequentially: each validation example only sees its own prefix.
+        
         foreach (string baselineName in BaselineForecasts.CandidateNames)
         {
             double[] predictions = validationSamples
@@ -65,8 +75,8 @@ public static class NextSessionModelTrainer
                 validationSamples.Select(s => s.TargetScore).ToArray(), predictions).Mae;
         }
 
-        // Only attempt learned models after there is enough data to make the comparison meaningful.
-        if (count >= options.MinimumExamplesForSdca && trainSamples.Count >= 20)
+        
+        if (count >= options.MinimumExamplesForSdca && trainSamples.Count >= 50)
         {
             TryAddMlCandidate(
                 "ML.NET SDCA",
@@ -99,7 +109,7 @@ public static class NextSessionModelTrainer
         string selectedModel = bestBaseline;
         double selectedValidationMae = bestBaselineMae;
 
-        // Use an ML model only when it beats the best baseline by a minimum margin.
+        
         var bestMl = mlModels.Keys
             .Select(name => (Name: name, Mae: candidateValidationMae.GetValueOrDefault(name, double.PositiveInfinity)))
             .OrderBy(x => x.Mae)
@@ -117,7 +127,7 @@ public static class NextSessionModelTrainer
         IDataView? finalTrainingData = null;
         if (IsMlModel(selectedModel))
         {
-            // Retrain only on data strictly before the calibration partition.
+            
             List<NextSessionRow> finalRows = samples.Take(validationEnd).Select(s => s.Row).ToList();
             finalTrainingData = ml.Data.LoadFromEnumerable(finalRows);
             IEstimator<ITransformer> finalPipeline = BuildPipelineForModel(ml, selectedModel, options, finalRows.Count);
@@ -130,9 +140,13 @@ public static class NextSessionModelTrainer
             .Zip(calibrationPredictions, (actual, predicted) => Math.Abs(actual - predicted))
             .ToArray();
 
-        double? quantile90 = calibrationErrors.Length >= options.MinimumCalibrationExamples
+        int minimumForFinite90Percentile = (int)Math.Ceiling(CalibrationLevel / (1.0 - CalibrationLevel));
+        int minimumCalibrationExamples = Math.Max(options.MinimumCalibrationExamples, minimumForFinite90Percentile);
+        double? quantile90 = calibrationErrors.Length >= minimumCalibrationExamples
             ? FiniteSampleQuantile(calibrationErrors, CalibrationLevel)
             : null;
+        if (!quantile90.HasValue || !double.IsFinite(quantile90.Value))
+            quantile90 = null;
 
         double[] testPredictions = PredictSamples(selectedModel, finalModel, ml, testSamples);
         double[] testLabels = testSamples.Select(s => s.TargetScore).ToArray();
@@ -159,15 +173,17 @@ public static class NextSessionModelTrainer
         }
         else if (File.Exists(fullModelPath))
         {
-            // Prevent an old ML zip from being mistaken for a current baseline artifact.
+            
             File.Delete(fullModelPath);
         }
 
         var metadata = new PredictionModelMetadata
         {
+            ArtifactVersion = 2,
             SelectedModel = selectedModel,
             TrainedAtUtc = DateTime.UtcNow,
             TrainingExamples = validationEnd,
+            ValidationExamples = validationSamples.Count,
             CalibrationExamples = calibrationSamples.Count,
             TestExamples = testSamples.Count,
             ValidationMae = selectedValidationMae,
@@ -175,7 +191,10 @@ public static class NextSessionModelTrainer
             TestRmse = testMetrics.Rmse,
             TestRSquared = testMetrics.RSquared,
             CalibrationQuantile90 = quantile90,
-            TestIntervalCoverage90 = intervalCoverage
+            TestIntervalCoverage90 = intervalCoverage,
+            FeatureSchemaVersion = FeatureSchemaVersion,
+            DataFingerprint = dataFingerprint,
+            ScoreFormulaVersion = TestScoreCalculator.CurrentVersion
         };
 
         string metadataPath = fullModelPath + ".meta.json";
@@ -186,7 +205,7 @@ public static class NextSessionModelTrainer
         string calibrationMessage = quantile90.HasValue
             ? $"Intervalul empiric nominal 90% a fost calibrat cu {calibrationSamples.Count} exemple; acoperirea pe test este " +
               (intervalCoverage.HasValue ? $"{intervalCoverage.Value:P0}." : "neevaluată.")
-            : $"Nu există suficiente exemple de calibrare pentru un interval nominal 90% (minim {options.MinimumCalibrationExamples}).";
+            : $"Nu există suficiente exemple de calibrare pentru un interval nominal 90% (minim {minimumCalibrationExamples}).";
 
         return new TrainingReport
         {
@@ -206,6 +225,25 @@ public static class NextSessionModelTrainer
             TestIntervalCoverage90 = intervalCoverage,
             ModelPath = fullModelPath
         };
+    }
+
+    public static string CalculateHistoryFingerprint(IReadOnlyList<SessionFeatures> history)
+    {
+        List<SessionFeatures> ordered = NextSessionFeatureBuilder.OrderAndValidate(history);
+        string payload = JsonSerializer.Serialize(ordered);
+        byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(FeatureSchemaVersion + "|score-v" + TestScoreCalculator.CurrentVersion + "|" + payload));
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void ValidateOptions(PredictionTrainingOptions options)
+    {
+        if (options.MinimumExamplesForBacktesting < 10)
+            throw new ArgumentOutOfRangeException(nameof(options.MinimumExamplesForBacktesting));
+        if (options.MinimumExamplesForSdca < 1 || options.MinimumTrainingRowsForLightGbm < 1 ||
+            options.MinimumCalibrationExamples < 1 || options.MinimumLightGbmLeafSize < 2 ||
+            options.LightGbmLeaves < 3 || options.LightGbmIterations < 10 ||
+            !double.IsFinite(options.LightGbmLearningRate) || !double.IsFinite(options.MinimumMlMaeImprovement))
+            throw new ArgumentException("Opțiunile de antrenare nu sunt valide.", nameof(options));
     }
 
     internal static bool IsMlModel(string modelName) =>
@@ -243,7 +281,7 @@ public static class NextSessionModelTrainer
         }
         catch (Exception ex)
         {
-            // An ML candidate failing to train must not prevent the well-defined baselines from working.
+            
             Console.Error.WriteLine($"Candidatul {name} nu a putut fi antrenat și va fi ignorat: {ex.Message}");
         }
     }
@@ -350,16 +388,16 @@ public static class NextSessionModelTrainer
             return 0;
 
         probability = Math.Clamp(probability, 0.01, 0.99);
-        // Finite-sample order statistic used by split-conformal regression intervals.
         int oneBasedIndex = (int)Math.Ceiling((sorted.Length + 1) * probability);
-        int index = Math.Clamp(oneBasedIndex - 1, 0, sorted.Length - 1);
-        return sorted[index];
+        if (oneBasedIndex > sorted.Length)
+            return double.NaN;
+        return sorted[oneBasedIndex - 1];
     }
 
     private sealed record RegressionSummary(double Mae, double Rmse, double RSquared);
 }
 
-/// <summary>Public ML.NET output DTO used when enumerating transformed rows.</summary>
+
 public sealed class ScoreOutput
 {
     public ScoreOutput() { }

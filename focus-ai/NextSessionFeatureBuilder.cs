@@ -2,10 +2,10 @@ using focus_ai.Prediction.Models;
 
 namespace focus_ai.Prediction;
 
-/// <summary>
-/// Builds next-session examples without target leakage.
-/// For target session i, predictors only see sessions [0..i-1].
-/// </summary>
+
+
+
+
 public static class NextSessionFeatureBuilder
 {
     public static NextSessionRow BuildForNextSession(IReadOnlyList<SessionFeatures> history)
@@ -22,7 +22,7 @@ public static class NextSessionFeatureBuilder
         List<SessionFeatures> ordered = OrderAndValidate(history);
         var samples = new List<NextSessionTrainingSample>();
 
-        // Start at target index 2: every training example has at least two complete prior sessions.
+        
         for (int targetIndex = 2; targetIndex < ordered.Count; targetIndex++)
         {
             List<SessionFeatures> prefix = ordered.Take(targetIndex).ToList();
@@ -39,17 +39,77 @@ public static class NextSessionFeatureBuilder
         if (history is null)
             throw new ArgumentNullException(nameof(history));
 
-        // Invalid/missing target scores cannot be used for lag features or supervised labels.
+        
         var valid = history
             .Where(s => s is not null && s.HasScoreData && double.IsFinite(s.Score) && s.Score >= 0 && s.Score <= 100)
+            .Select(Sanitize)
             .ToList();
 
-        // If all timestamps exist, order explicitly. Otherwise preserve caller order; sorting a mixture
-        // of valid and missing timestamps could silently reorder a user's history incorrectly.
+        
+        
         if (valid.Count > 1 && valid.All(s => s.DateTime != DateTime.MinValue))
             valid = valid.OrderBy(s => s.DateTime).ToList();
 
         return valid;
+    }
+
+
+    private static SessionFeatures Sanitize(SessionFeatures session)
+    {
+        bool hasTr2 = session.HasTr2Data && double.IsFinite(session.Tr2) && session.Tr2 > 0 && session.Tr2 <= 600;
+        bool hasGoNoGo = session.HasPrecizieGonogoData && double.IsFinite(session.PrecizieGonogo) && session.PrecizieGonogo >= 0 && session.PrecizieGonogo <= 100;
+        bool hasHr = session.HasHrData && session.HrSampleCount > 0 &&
+                     double.IsFinite(session.HrMean) && session.HrMean >= 25 && session.HrMean <= 250 &&
+                     double.IsFinite(session.HrStd) && session.HrStd >= 0 &&
+                     double.IsFinite(session.HrRange) && session.HrRange >= 0;
+        bool hasSpo2 = session.HasSpo2Data && session.Spo2SampleCount > 0 &&
+                       double.IsFinite(session.Spo2Mean) && session.Spo2Mean > 0 && session.Spo2Mean <= 100 &&
+                       double.IsFinite(session.Spo2Min) && session.Spo2Min > 0 && session.Spo2Min <= 100 &&
+                       double.IsFinite(session.Spo2DropCount) && session.Spo2DropCount >= 0;
+        bool hasDist = session.HasDistData && session.DistSampleCount > 0 &&
+                       double.IsFinite(session.DistRatio) && session.DistRatio >= 0 && session.DistRatio <= 1;
+        bool hasEcg = session.HasEcgData && session.EcgSampleCount > 0 &&
+                      double.IsFinite(session.EcgDrMean) && double.IsFinite(session.EcgStMean) &&
+                      double.IsFinite(session.EcgRange) && session.EcgRange >= 0;
+        bool hasMap = session.HasMapData && session.MapSampleCount > 0 &&
+                      double.IsFinite(session.MapXVar) && session.MapXVar >= 0 &&
+                      double.IsFinite(session.MapYVar) && session.MapYVar >= 0 &&
+                      double.IsFinite(session.MapTotalPath) && session.MapTotalPath >= 0;
+        bool hasDuration = double.IsFinite(session.DurationMinutes) && session.DurationMinutes >= 0 && session.DurationMinutes <= 1440;
+
+        return session with
+        {
+            Tr2 = hasTr2 ? session.Tr2 : 0,
+            HasTr2Data = hasTr2,
+            PrecizieGonogo = hasGoNoGo ? session.PrecizieGonogo : 0,
+            HasPrecizieGonogoData = hasGoNoGo,
+            HrMean = hasHr ? session.HrMean : 0,
+            HrStd = hasHr ? session.HrStd : 0,
+            HrRange = hasHr ? session.HrRange : 0,
+            HrMin = hasHr && double.IsFinite(session.HrMin) ? session.HrMin : 0,
+            HrMax = hasHr && double.IsFinite(session.HrMax) ? session.HrMax : 0,
+            HrSampleCount = hasHr ? session.HrSampleCount : 0,
+            HasHrData = hasHr,
+            Spo2Mean = hasSpo2 ? session.Spo2Mean : 0,
+            Spo2Min = hasSpo2 ? session.Spo2Min : 0,
+            Spo2DropCount = hasSpo2 ? session.Spo2DropCount : 0,
+            Spo2SampleCount = hasSpo2 ? session.Spo2SampleCount : 0,
+            HasSpo2Data = hasSpo2,
+            DistRatio = hasDist ? session.DistRatio : 0,
+            DistSampleCount = hasDist ? session.DistSampleCount : 0,
+            HasDistData = hasDist,
+            EcgDrMean = hasEcg ? session.EcgDrMean : 0,
+            EcgStMean = hasEcg ? session.EcgStMean : 0,
+            EcgRange = hasEcg ? session.EcgRange : 0,
+            EcgSampleCount = hasEcg ? session.EcgSampleCount : 0,
+            HasEcgData = hasEcg,
+            MapXVar = hasMap ? session.MapXVar : 0,
+            MapYVar = hasMap ? session.MapYVar : 0,
+            MapTotalPath = hasMap ? session.MapTotalPath : 0,
+            MapSampleCount = hasMap ? session.MapSampleCount : 0,
+            HasMapData = hasMap,
+            DurationMinutes = hasDuration ? session.DurationMinutes : 0
+        };
     }
 
     private static NextSessionRow BuildFeatureRow(IReadOnlyList<SessionFeatures> history, double label)
@@ -103,29 +163,29 @@ public static class NextSessionFeatureBuilder
             HrStd = ToFloat(last.HrStd),
             HrRange = ToFloat(last.HrRange),
             HrHasData = last.HasHrData ? 1 : 0,
-            HrSampleCount = ToFloat(last.HrSampleCount),
+            HrSamplesPerMinute = ToFloat(SamplesPerMinute(last.HrSampleCount, last.DurationMinutes)),
 
             Spo2Mean = ToFloat(last.Spo2Mean),
             Spo2Min = ToFloat(last.Spo2Min),
-            Spo2DropCount = ToFloat(last.Spo2DropCount),
+            Spo2DropRate = ToFloat(last.Spo2SampleCount > 0 ? last.Spo2DropCount / last.Spo2SampleCount : 0),
             Spo2HasData = last.HasSpo2Data ? 1 : 0,
-            Spo2SampleCount = ToFloat(last.Spo2SampleCount),
+            Spo2SamplesPerMinute = ToFloat(SamplesPerMinute(last.Spo2SampleCount, last.DurationMinutes)),
 
             DistRatio = ToFloat(last.DistRatio),
             DistHasData = last.HasDistData ? 1 : 0,
-            DistSampleCount = ToFloat(last.DistSampleCount),
+            DistReadingsPerMinute = ToFloat(SamplesPerMinute(last.DistSampleCount, last.DurationMinutes)),
 
             EcgDrMean = ToFloat(last.EcgDrMean),
             EcgStMean = ToFloat(last.EcgStMean),
             EcgRange = ToFloat(last.EcgRange),
             EcgHasData = last.HasEcgData ? 1 : 0,
-            EcgSampleCount = ToFloat(last.EcgSampleCount),
+            EcgPairsPerMinute = ToFloat(SamplesPerMinute(last.EcgSampleCount, last.DurationMinutes)),
 
             MapXVar = ToFloat(last.MapXVar),
             MapYVar = ToFloat(last.MapYVar),
             MapTotalPath = ToFloat(last.MapTotalPath),
             MapHasData = last.HasMapData ? 1 : 0,
-            MapSampleCount = ToFloat(last.MapSampleCount),
+            MapPointsPerMinute = ToFloat(SamplesPerMinute(last.MapSampleCount, last.DurationMinutes)),
 
             DurationMinutes = ToFloat(last.DurationMinutes),
             DaysSincePrevious = ToFloat(daysSincePrevious),
@@ -137,6 +197,11 @@ public static class NextSessionFeatureBuilder
             HasTimestampData = hasTimestamp ? 1 : 0
         };
     }
+
+    private static double SamplesPerMinute(int count, double durationMinutes) =>
+        count > 0 && double.IsFinite(durationMinutes) && durationMinutes > 0
+            ? count / durationMinutes
+            : 0;
 
     private static double LinearSlope(IReadOnlyList<double> values)
     {
@@ -159,7 +224,7 @@ public static class NextSessionFeatureBuilder
         if (!double.IsFinite(value))
             return 0;
 
-        // Avoid infinities after casting unusually large finite doubles to Single.
+        
         return (float)Math.Clamp(value, -1_000_000, 1_000_000);
     }
 }

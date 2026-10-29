@@ -241,7 +241,7 @@ namespace focus_ai
             Result = BuildResult(_testResults);
 
             ResultAccuracyText.Text = $"{Result.Accuracy:F1}%";
-            ResultMeanRtText.Text = Result.MeanReactionTimeMs > 0 ? $"{Result.MeanReactionTimeMs:F0} ms" : "N/A";
+            ResultMeanRtText.Text = Result.MeanReactionTimeMs > 0 ? $"{Result.MeanReactionTimeMs:F0} ms" : LanguageManager.T("N/A");
             ResultHitRateText.Text = $"{Result.HitRate:F2}";
             ResultFalseAlarmRateText.Text = $"{Result.FalseAlarmRate:F2}";
             ResultHitsText.Text = Result.Hits.ToString();

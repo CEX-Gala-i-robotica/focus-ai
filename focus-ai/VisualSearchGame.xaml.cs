@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -17,7 +17,7 @@ namespace focus_ai
     public partial class VisualSearchGame : Window
     {
         private const string RegPath = @"Software\FocusAI";
-        private readonly string _dbUrl = ConfigurationManager.AppSettings["RealtimeDatabaseUrl"] ?? "";
+        private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
         private static readonly HttpClient _http = new();
         private const int TotalRounds = 8;
 
@@ -97,7 +97,7 @@ namespace focus_ai
             _isPlaying = true;
             _gameStopwatch.Restart();
 
-            // Ascunde overlay-ul dacă era vizibil
+            
             WinOverlay.Visibility = Visibility.Collapsed;
 
             PanelInstruction.Visibility = Visibility.Collapsed;
@@ -108,7 +108,7 @@ namespace focus_ai
 
         private void BtnRestart_Click(object sender, RoutedEventArgs e)
         {
-            // Replay button returns to the instruction screen.
+            
             WinOverlay.Visibility = Visibility.Collapsed;
             PanelGame.Visibility  = Visibility.Collapsed;
             PanelInstruction.Visibility = Visibility.Visible;
@@ -135,11 +135,10 @@ namespace focus_ai
 
             TxtRound.Text    = $"{_round}/{TotalRounds}";
             TxtScore.Text    = _score.ToString();
-            TxtLives.Text    = string.Concat(Enumerable.Repeat("❤️", _lives))
-                             + string.Concat(Enumerable.Repeat("🖤", 3 - _lives));
+            TxtLives.Text = $"{_lives} / 3";
             TxtTimer.Text    = _timeLeft.ToString();
             TxtTimer.Foreground = (SolidColorBrush)FindResource("TxtPrimary");
-            TxtRoundInfo.Text   = $"Round {_round}/{TotalRounds}  •  {cols}×{rows}";
+            TxtRoundInfo.Text   = $"{LanguageManager.T("Round")} {_round}/{TotalRounds}  •  {cols}×{rows}";
 
             GameGrid.Columns = cols;
             GameGrid.Children.Clear();
@@ -211,7 +210,8 @@ namespace focus_ai
                 _score += pts;
 
                 btn.Background = new SolidColorBrush(Color.FromArgb(200, 34, 197, 94));
-                ShowFeedback("✅", $"+{pts} points!", $"Round {_round} completed in {elapsed:F1}s");
+                ShowFeedback("✅", $"+{pts} {LanguageManager.T("points!")}",
+                    $"{LanguageManager.T("Round")} {_round} {LanguageManager.T("completed in")} {elapsed:F1}s");
 
                 var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(850) };
                 t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
@@ -225,8 +225,7 @@ namespace focus_ai
                 restore.Start();
 
                 _lives--;
-                TxtLives.Text = string.Concat(Enumerable.Repeat("❤️", Math.Max(_lives, 0)))
-                              + string.Concat(Enumerable.Repeat("🖤", 3 - Math.Max(_lives, 0)));
+                TxtLives.Text = $"{Math.Max(_lives, 0)} / 3";
 
                 if (_lives <= 0)
                 {
@@ -235,7 +234,7 @@ namespace focus_ai
                 }
                 else
                 {
-                    ShowFeedback("❌", "Wrong!", $"You have {_lives} {(_lives == 1 ? "life" : "lives")} left");
+                    ShowFeedback("❌", LanguageManager.T("Wrong!"), BuildLivesRemaining(_lives));
                     var ft = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
                     ft.Tick += (_, _) => { ft.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; };
                     ft.Start();
@@ -259,17 +258,24 @@ namespace focus_ai
             {
                 _timer.Stop();
                 _lives--;
-                TxtLives.Text = string.Concat(Enumerable.Repeat("❤️", Math.Max(_lives, 0)))
-                              + string.Concat(Enumerable.Repeat("🖤", 3 - Math.Max(_lives, 0)));
+                TxtLives.Text = $"{Math.Max(_lives, 0)} / 3";
                 HighlightTarget();
 
                 if (_lives <= 0) { EndGame(false); return; }
 
-                ShowFeedback("⏰", "Time is up!", $"You have {_lives} {(_lives == 1 ? "life" : "lives")} left");
+                ShowFeedback("⏰", LanguageManager.T("Time is up!"), BuildLivesRemaining(_lives));
                 var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
                 t.Tick += (_, _) => { t.Stop(); PanelFeedback.Visibility = Visibility.Collapsed; NextRound(); };
                 t.Start();
             }
+        }
+
+        private static string BuildLivesRemaining(int lives)
+        {
+            if (LanguageManager.Current == AppLanguage.Romanian)
+                return lives == 1 ? "Mai ai o viață rămasă" : $"Mai ai {lives} vieți rămase";
+
+            return lives == 1 ? "You have 1 life left" : $"You have {lives} lives left";
         }
 
         private void HighlightTarget()
@@ -295,9 +301,9 @@ namespace focus_ai
                     : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
         }
 
-        // ═══════════════════════════════════════════════════
-        //  END GAME — overlay ca la MemorieGame
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void EndGame(bool won)
         {
             _isPlaying = false;
@@ -309,19 +315,16 @@ namespace focus_ai
             TimeSpan duration  = _gameStopwatch.Elapsed;
             double normalized  = Math.Min(100.0, _score / (double)(TotalRounds * 575) * 100.0);
 
-            string emoji = won              ? "🏆"
-                         : _round > TotalRounds / 2 ? "😤"
-                         : "💀";
             string title = won ? LanguageManager.T("Congratulations!") : LanguageManager.T("Game Over");
 
-            WinEmoji.Text    = emoji;
+            WinEmoji.Text    = LanguageManager.T("SESSION SUMMARY");
             WinTitle.Text    = title;
             WinSubtitle.Text = won
                 ? $"{LanguageManager.T("You completed all")} {TotalRounds} {LanguageManager.T("rounds!")}"
                 : $"{LanguageManager.T("You reached round")} {_round}/{TotalRounds}  •  {LanguageManager.T("Difficulty:")} {LanguageManager.T(_difficulty)}";
             WinScore.Text = $"{LanguageManager.T("Score:")} {_score}  •  {duration.Minutes:D2}:{duration.Seconds:D2}";
 
-            // Arată overlay-ul pe PanelGame
+            
             WinOverlay.Visibility = Visibility.Visible;
 
             _ = SaveActivityAsync(won, duration);
@@ -373,9 +376,9 @@ namespace focus_ai
             catch { }
         }
 
-        // ═══════════════════════════════════════════════════
-        //  NAV
-        // ═══════════════════════════════════════════════════
+        
+        
+        
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             _timer.Stop();
@@ -396,7 +399,8 @@ namespace focus_ai
             try
             {
                 using var k = Registry.CurrentUser.OpenSubKey(RegPath);
-                return k?.GetValue(key)?.ToString() ?? "";
+                string value = k?.GetValue(key)?.ToString() ?? "";
+                return key == "IdToken" ? SessionTokenProtector.Unprotect(value) : value;
             }
             catch { return ""; }
         }
