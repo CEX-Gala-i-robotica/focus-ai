@@ -1,8 +1,10 @@
+
 using System;
 using System.Diagnostics;
 using System.Media;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -13,25 +15,41 @@ namespace focus_ai
         private readonly Stopwatch _stopwatch = new();
         private readonly DispatcherTimer _uiTimer = new();
         private readonly Random _random = new();
+
         public double? ReactionTime { get; private set; }
+
         private readonly bool _isDark;
         private bool _testStarted;
         private bool _finished;
+        private bool _spaceDown;
 
         public BuzzerTest(bool isDark)
         {
             InitializeComponent();
+
             LanguageManager.Register(this);
             WindowHelper.MoveToSecondMonitor(this);
+
             _isDark = isDark;
+
             ThemeManager.Apply(_isDark);
 
             _uiTimer.Interval = TimeSpan.FromMilliseconds(10);
-            _uiTimer.Tick += (s, e) =>
-                TxtTimer.Text = _stopwatch.Elapsed.TotalSeconds.ToString("F3") + " s";
 
-            BioCollector.Instance.TouchDetected += OnTouchDetected;
-            SetStatus(LanguageManager.T("Press Start to begin the test"), StatusColor.Blue);
+            _uiTimer.Tick += (s, e) =>
+            {
+                TxtTimer.Text =
+                    _stopwatch.Elapsed.TotalSeconds.ToString("F3") + " s";
+            };
+
+            PreviewKeyDown += BuzzerTest_PreviewKeyDown;
+            PreviewKeyUp += BuzzerTest_PreviewKeyUp;
+
+            Loaded += (_, _) => Keyboard.Focus(this);
+
+            SetStatus(
+                LanguageManager.T("Press Start to begin the test"),
+                StatusColor.Blue);
         }
 
         private async void BtnStart_Click(object sender, RoutedEventArgs e)
@@ -43,58 +61,111 @@ namespace focus_ai
             _finished = false;
 
             BtnStart.IsEnabled = false;
+
             TxtTimer.Text = "0.000 s";
+
             _stopwatch.Reset();
 
-            SetStatus(LanguageManager.T("Wait for the sound cue..."), StatusColor.Orange);
+            SetStatus(
+                LanguageManager.T("Wait for the sound cue..."),
+                StatusColor.Orange);
 
             int waitTime = _random.Next(5000, 15001);
+
             await Task.Delay(waitTime);
+
+            if (!IsLoaded || _finished)
+                return;
 
             try
             {
-                BioCollector.Instance.Send("START_TEST");
-
                 SystemSounds.Beep.Play();
 
                 _stopwatch.Start();
                 _uiTimer.Start();
 
-                SetStatus(LanguageManager.T("PRESS THE SENSOR NOW!"), StatusColor.Green);
+                Keyboard.Focus(this);
+
+                SetStatus(
+                    LanguageManager.T("PRESS SPACE NOW!"),
+                    StatusColor.Green);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(LanguageManager.T("Error:") + " " + ex.Message);
+                MessageBox.Show(
+                    LanguageManager.T("Error:") + " " + ex.Message);
+
                 BtnStart.IsEnabled = true;
                 _testStarted = false;
             }
         }
 
-        private void OnTouchDetected()
+        private void BuzzerTest_PreviewKeyDown(
+            object sender,
+            KeyEventArgs e)
         {
-            if (!_testStarted || _finished || !_stopwatch.IsRunning)
+            if (e.Key != Key.Space || !_testStarted)
                 return;
 
-            _finished = true;
-            _stopwatch.Stop();
-            ReactionTime = _stopwatch.Elapsed.TotalSeconds;
-            _uiTimer.Stop();
+            e.Handled = true;
 
-            BioCollector.Instance.Send("STOP_TEST");
+            if (_spaceDown)
+                return;
+
+            _spaceDown = true;
+
+            HandleSpacePress();
+        }
+
+        private void BuzzerTest_PreviewKeyUp(
+            object sender,
+            KeyEventArgs e)
+        {
+            if (e.Key == Key.Space)
+                _spaceDown = false;
+        }
+
+        private void HandleSpacePress()
+        {
+            if (!_testStarted ||
+                _finished ||
+                !_stopwatch.IsRunning)
+            {
+                return;
+            }
+
+            _finished = true;
+
+            _stopwatch.Stop();
+
+            ReactionTime = _stopwatch.Elapsed.TotalSeconds;
+
+            _uiTimer.Stop();
 
             double elapsed = _stopwatch.Elapsed.TotalSeconds;
 
-            Dispatcher.Invoke(() =>
-            {
-                TxtTimer.Text = elapsed.ToString("F3") + " s";
-                SetStatus($"{LanguageManager.T("Nice! Time:")} {elapsed:F3} s", StatusColor.Blue);
+            TxtTimer.Text = elapsed.ToString("F3") + " s";
 
-                MessageBox.Show($"{LanguageManager.T("Result:")} {elapsed:F3} {LanguageManager.T("seconds")}", LanguageManager.T("Test completed"));
-                Close();
-            });
+            SetStatus(
+                $"{LanguageManager.T("Nice! Time:")} {elapsed:F3} s",
+                StatusColor.Blue);
+
+            MessageBox.Show(
+                $"{LanguageManager.T("Result:")} {elapsed:F3} " +
+                $"{LanguageManager.T("seconds")}",
+                LanguageManager.T("Test completed"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            Close();
         }
 
-        private enum StatusColor { Blue, Green, Orange }
+        private enum StatusColor
+        {
+            Blue,
+            Green,
+            Orange
+        }
 
         private void SetStatus(string text, StatusColor color)
         {
@@ -120,10 +191,7 @@ namespace focus_ai
         protected override void OnClosed(EventArgs e)
         {
             _uiTimer.Stop();
-            BioCollector.Instance.TouchDetected -= OnTouchDetected;
-
-            if (_testStarted && !_finished)
-                BioCollector.Instance.Send("STOP_TEST");
+            _stopwatch.Stop();
 
             base.OnClosed(e);
         }

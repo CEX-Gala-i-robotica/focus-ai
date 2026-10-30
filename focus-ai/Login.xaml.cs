@@ -40,7 +40,8 @@ namespace focus_ai
 
         private void ApplySystemTheme()
         {
-            ApplyDark();
+            if (IsSystemDarkTheme()) ApplyDark();
+            else ApplyLight();
         }
 
         private void ApplyLight()
@@ -66,7 +67,7 @@ namespace focus_ai
             SetBrush("InputBgBrush", "DarkInputBg");
             SetBrush("DividerBrush", "DarkDivider");
             CardShadow.Color = Colors.Black;
-            CardShadow.Opacity = 0.06;
+            CardShadow.Opacity = 0.50;
         }
 
         private void SetBrush(string brushKey, string colorKey)
@@ -128,8 +129,8 @@ namespace focus_ai
             if (!string.IsNullOrWhiteSpace(FirebaseApiKey))
                 return true;
 
-            MessageBox.Show(LanguageManager.T("Configure the FOCUSAI_FIREBASE_API_KEY environment variable and restart Focus AI."),
-                LanguageManager.T("Focus AI configuration"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Configure the FOCUSAI_FIREBASE_API_KEY environment variable and restart Focus AI.",
+                "Focus AI configuration", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
@@ -304,7 +305,7 @@ namespace focus_ai
 
             if (needsSetup)
             {
-                bool isDark = true;
+                bool isDark = IsSystemDarkTheme();
                 var setup = new ProfileEditWindow(isDark, isSetupMode: true);
                 setup.Show();
             }

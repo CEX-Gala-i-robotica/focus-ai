@@ -68,8 +68,7 @@ namespace focus_ai
 
         private void StartTest_Loaded(object sender, RoutedEventArgs e)
         {
-            var bio = BioCollector.Instance;
-            bio.TryOpen(bio.LastDetectedPortName);
+            BioCollector.Instance.TryOpen();
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
