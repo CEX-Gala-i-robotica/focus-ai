@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO.Ports;
 using System.Threading;
 using System.Windows;
@@ -15,13 +16,15 @@ namespace focus_ai
             int ecgStanga,
             int heartRate,
             int spo2,
-            bool distance)
+            bool distance,
+            double? rrIntervalMs = null)
         {
             EcgDreapta = ecgDreapta;
             EcgStanga = ecgStanga;
             HeartRate = heartRate;
             SpO2 = spo2;
             Distance = distance;
+            RrIntervalMs = rrIntervalMs;
         }
 
         public int EcgDreapta { get; }
@@ -29,6 +32,7 @@ namespace focus_ai
         public int HeartRate { get; }
         public int SpO2 { get; }
         public bool Distance { get; }
+        public double? RrIntervalMs { get; }
     }
 
     public struct EcgSample
@@ -51,6 +55,8 @@ namespace focus_ai
         public List<int> HeartRate { get; } = new();
         public List<int> SpO2 { get; } = new();
         public List<bool> Distance { get; } = new();
+        /// <summary>Beat-to-beat NN/RR intervals received from the device, in milliseconds.</summary>
+        public List<double> RrIntervalsMs { get; } = new();
 
         public int LiveHr { get; private set; }
         public int LiveSpo2 { get; private set; }
@@ -203,6 +209,7 @@ namespace focus_ai
                 HeartRate.Clear();
                 SpO2.Clear();
                 Distance.Clear();
+                RrIntervalsMs.Clear();
             }
 
             _streaming = true;
@@ -273,6 +280,13 @@ namespace focus_ai
                 return;
             }
 
+            if (TryParseRrLine(line, out double standaloneRr))
+            {
+                if (_streaming)
+                    RrIntervalsMs.Add(standaloneRr);
+                return;
+            }
+
             // Citire date senzori.
             if (line.StartsWith(
                 "DATA,",
@@ -300,6 +314,8 @@ namespace focus_ai
                     HeartRate.Add(frame.HeartRate);
                     SpO2.Add(frame.SpO2);
                     Distance.Add(true);
+                    if (frame.RrIntervalMs.HasValue)
+                        RrIntervalsMs.Add(frame.RrIntervalMs.Value);
                 }
 
                 SampleReceived?.Invoke(
@@ -342,6 +358,10 @@ namespace focus_ai
             if (!TryParseOptionalInt(parts[4], out int spo2))
                 return false;
 
+            double? rrIntervalMs = null;
+            if (parts.Length >= 7)
+                TryParseOptionalRrInterval(parts[6], out rrIntervalMs);
+
             // Ignorăm valoarea distanței primită de la Arduino.
             // În aplicație aceasta este permanent TRUE.
             frame = new BioDataFrame(
@@ -349,7 +369,8 @@ namespace focus_ai
                 ecgSt,
                 hr,
                 spo2,
-                true);
+                true,
+                rrIntervalMs);
 
             return true;
         }
@@ -393,6 +414,38 @@ namespace focus_ai
             return int.TryParse(value.Trim(), out result);
         }
 
+        /// <summary>
+        /// Parses a standalone beat interval message: <c>RR,812.5</c>. It is
+        /// optional in the firmware protocol and accepted alongside DATA frames.
+        /// </summary>
+        public static bool TryParseRrLine(string line, out double rrIntervalMs)
+        {
+            rrIntervalMs = 0;
+            if (string.IsNullOrWhiteSpace(line))
+                return false;
+
+            string[] parts = line.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 || !parts[0].Equals("RR", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out rrIntervalMs) &&
+                   HrvMetrics.IsValidRrInterval(rrIntervalMs);
+        }
+
+        private static bool TryParseOptionalRrInterval(string value, out double? rrIntervalMs)
+        {
+            rrIntervalMs = null;
+            if (string.IsNullOrWhiteSpace(value))
+                return true;
+
+            if (!double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed) ||
+                !HrvMetrics.IsValidRrInterval(parsed))
+                return false;
+
+            rrIntervalMs = parsed;
+            return true;
+        }
+
         private static bool WaitForArduinoReady(
             SerialPort serial,
             TimeSpan timeout)
@@ -427,6 +480,7 @@ namespace focus_ai
                 || line.StartsWith(
                        "DATA,",
                        StringComparison.OrdinalIgnoreCase)
+                || TryParseRrLine(line, out _)
                 || !string.IsNullOrWhiteSpace(ExtractNfcUid(line));
         }
     }

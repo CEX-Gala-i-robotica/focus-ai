@@ -58,6 +58,11 @@ public static class NextSessionFeatureBuilder
     {
         bool hasTr2 = session.HasTr2Data && double.IsFinite(session.Tr2) && session.Tr2 > 0 && session.Tr2 <= 600;
         bool hasGoNoGo = session.HasPrecizieGonogoData && double.IsFinite(session.PrecizieGonogo) && session.PrecizieGonogo >= 0 && session.PrecizieGonogo <= 100;
+        bool hasCptExGaussian = session.HasCptExGaussianData && session.CptReactionTimeSampleCount >= 6 &&
+                                double.IsFinite(session.CptMuMs) && session.CptMuMs > 0 &&
+                                double.IsFinite(session.CptSigmaMs) && session.CptSigmaMs > 0 &&
+                                double.IsFinite(session.CptTauMs) && session.CptTauMs > 0 &&
+                                double.IsFinite(session.CptReactionTimeCv) && session.CptReactionTimeCv >= 0;
         bool hasHr = session.HasHrData && session.HrSampleCount > 0 &&
                      double.IsFinite(session.HrMean) && session.HrMean >= 25 && session.HrMean <= 250 &&
                      double.IsFinite(session.HrStd) && session.HrStd >= 0 &&
@@ -71,11 +76,21 @@ public static class NextSessionFeatureBuilder
         bool hasEcg = session.HasEcgData && session.EcgSampleCount > 0 &&
                       double.IsFinite(session.EcgDrMean) && double.IsFinite(session.EcgStMean) &&
                       double.IsFinite(session.EcgRange) && session.EcgRange >= 0;
+        bool hasHrv = session.HasHrvData && session.RrSampleCount >= 2 &&
+                      ((double.IsFinite(session.HrvSdnnMs) && session.HrvSdnnMs >= 0 &&
+                        double.IsFinite(session.HrvRmssdMs) && session.HrvRmssdMs >= 0) ||
+                       (double.IsFinite(session.HrvDfaAlpha1) && session.HrvDfaAlpha1 > 0) ||
+                       (double.IsFinite(session.HrvSampleEntropy) && session.HrvSampleEntropy >= 0));
         bool hasMap = session.HasMapData && session.MapSampleCount > 0 &&
                       double.IsFinite(session.MapXVar) && session.MapXVar >= 0 &&
                       double.IsFinite(session.MapYVar) && session.MapYVar >= 0 &&
                       double.IsFinite(session.MapTotalPath) && session.MapTotalPath >= 0;
         bool hasDuration = double.IsFinite(session.DurationMinutes) && session.DurationMinutes >= 0 && session.DurationMinutes <= 1440;
+        bool hasAttention = session.HasAttentionData && session.AttentionObservationCount > 0 &&
+                            double.IsFinite(session.AttentionEstimate) && session.AttentionEstimate >= 0 && session.AttentionEstimate <= 1 &&
+                            double.IsFinite(session.AttentionPosteriorStandardDeviation) && session.AttentionPosteriorStandardDeviation >= 0 &&
+                            double.IsFinite(session.AttentionConfidenceLow) && session.AttentionConfidenceLow >= 0 && session.AttentionConfidenceLow <= 1 &&
+                            double.IsFinite(session.AttentionConfidenceHigh) && session.AttentionConfidenceHigh >= 0 && session.AttentionConfidenceHigh <= 1;
 
         return session with
         {
@@ -83,6 +98,12 @@ public static class NextSessionFeatureBuilder
             HasTr2Data = hasTr2,
             PrecizieGonogo = hasGoNoGo ? session.PrecizieGonogo : 0,
             HasPrecizieGonogoData = hasGoNoGo,
+            CptMuMs = hasCptExGaussian ? session.CptMuMs : 0,
+            CptSigmaMs = hasCptExGaussian ? session.CptSigmaMs : 0,
+            CptTauMs = hasCptExGaussian ? session.CptTauMs : 0,
+            CptReactionTimeCv = hasCptExGaussian ? session.CptReactionTimeCv : 0,
+            CptReactionTimeSampleCount = hasCptExGaussian ? session.CptReactionTimeSampleCount : 0,
+            HasCptExGaussianData = hasCptExGaussian,
             HrMean = hasHr ? session.HrMean : 0,
             HrStd = hasHr ? session.HrStd : 0,
             HrRange = hasHr ? session.HrRange : 0,
@@ -103,11 +124,23 @@ public static class NextSessionFeatureBuilder
             EcgRange = hasEcg ? session.EcgRange : 0,
             EcgSampleCount = hasEcg ? session.EcgSampleCount : 0,
             HasEcgData = hasEcg,
+            HrvSdnnMs = hasHrv && double.IsFinite(session.HrvSdnnMs) ? session.HrvSdnnMs : 0,
+            HrvRmssdMs = hasHrv && double.IsFinite(session.HrvRmssdMs) ? session.HrvRmssdMs : 0,
+            HrvDfaAlpha1 = hasHrv && double.IsFinite(session.HrvDfaAlpha1) ? session.HrvDfaAlpha1 : 0,
+            HrvSampleEntropy = hasHrv && double.IsFinite(session.HrvSampleEntropy) ? session.HrvSampleEntropy : 0,
+            RrSampleCount = hasHrv ? session.RrSampleCount : 0,
+            HasHrvData = hasHrv,
             MapXVar = hasMap ? session.MapXVar : 0,
             MapYVar = hasMap ? session.MapYVar : 0,
             MapTotalPath = hasMap ? session.MapTotalPath : 0,
             MapSampleCount = hasMap ? session.MapSampleCount : 0,
             HasMapData = hasMap,
+            AttentionEstimate = hasAttention ? session.AttentionEstimate : 0,
+            AttentionPosteriorStandardDeviation = hasAttention ? session.AttentionPosteriorStandardDeviation : 0,
+            AttentionConfidenceLow = hasAttention ? session.AttentionConfidenceLow : 0,
+            AttentionConfidenceHigh = hasAttention ? session.AttentionConfidenceHigh : 0,
+            AttentionObservationCount = hasAttention ? session.AttentionObservationCount : 0,
+            HasAttentionData = hasAttention,
             DurationMinutes = hasDuration ? session.DurationMinutes : 0
         };
     }
@@ -159,6 +192,13 @@ public static class NextSessionFeatureBuilder
             PrecizieGonogo = ToFloat(last.PrecizieGonogo),
             HasPrecizieGonogoData = last.HasPrecizieGonogoData ? 1 : 0,
 
+            CptMuMs = ToFloat(last.CptMuMs),
+            CptSigmaMs = ToFloat(last.CptSigmaMs),
+            CptTauMs = ToFloat(last.CptTauMs),
+            CptReactionTimeCv = ToFloat(last.CptReactionTimeCv),
+            CptReactionTimeSampleCount = ToFloat(last.CptReactionTimeSampleCount),
+            CptHasExGaussianData = last.HasCptExGaussianData ? 1 : 0,
+
             HrMean = ToFloat(last.HrMean),
             HrStd = ToFloat(last.HrStd),
             HrRange = ToFloat(last.HrRange),
@@ -181,11 +221,23 @@ public static class NextSessionFeatureBuilder
             EcgHasData = last.HasEcgData ? 1 : 0,
             EcgPairsPerMinute = ToFloat(SamplesPerMinute(last.EcgSampleCount, last.DurationMinutes)),
 
+            HrvSdnnMs = ToFloat(last.HrvSdnnMs),
+            HrvRmssdMs = ToFloat(last.HrvRmssdMs),
+            HrvDfaAlpha1 = ToFloat(last.HrvDfaAlpha1),
+            HrvSampleEntropy = ToFloat(last.HrvSampleEntropy),
+            RrSampleCount = ToFloat(last.RrSampleCount),
+            HrvHasData = last.HasHrvData ? 1 : 0,
+
             MapXVar = ToFloat(last.MapXVar),
             MapYVar = ToFloat(last.MapYVar),
             MapTotalPath = ToFloat(last.MapTotalPath),
             MapHasData = last.HasMapData ? 1 : 0,
             MapPointsPerMinute = ToFloat(SamplesPerMinute(last.MapSampleCount, last.DurationMinutes)),
+
+            AttentionEstimate = ToFloat(last.AttentionEstimate),
+            AttentionPosteriorStandardDeviation = ToFloat(last.AttentionPosteriorStandardDeviation),
+            AttentionObservationCount = ToFloat(last.AttentionObservationCount),
+            AttentionHasData = last.HasAttentionData ? 1 : 0,
 
             DurationMinutes = ToFloat(last.DurationMinutes),
             DaysSincePrevious = ToFloat(daysSincePrevious),

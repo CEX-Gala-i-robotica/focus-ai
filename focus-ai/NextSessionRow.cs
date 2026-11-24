@@ -25,6 +25,12 @@ public sealed class NextSessionRow
     public float HasTr2Data { get; set; }
     public float PrecizieGonogo { get; set; }
     public float HasPrecizieGonogoData { get; set; }
+    public float CptMuMs { get; set; }
+    public float CptSigmaMs { get; set; }
+    public float CptTauMs { get; set; }
+    public float CptReactionTimeCv { get; set; }
+    public float CptReactionTimeSampleCount { get; set; }
+    public float CptHasExGaussianData { get; set; }
 
     public float HrMean { get; set; }
     public float HrStd { get; set; }
@@ -48,11 +54,23 @@ public sealed class NextSessionRow
     public float EcgHasData { get; set; }
     public float EcgPairsPerMinute { get; set; }
 
+    public float HrvSdnnMs { get; set; }
+    public float HrvRmssdMs { get; set; }
+    public float HrvDfaAlpha1 { get; set; }
+    public float HrvSampleEntropy { get; set; }
+    public float RrSampleCount { get; set; }
+    public float HrvHasData { get; set; }
+
     public float MapXVar { get; set; }
     public float MapYVar { get; set; }
     public float MapTotalPath { get; set; }
     public float MapHasData { get; set; }
     public float MapPointsPerMinute { get; set; }
+
+    public float AttentionEstimate { get; set; }
+    public float AttentionPosteriorStandardDeviation { get; set; }
+    public float AttentionObservationCount { get; set; }
+    public float AttentionHasData { get; set; }
 
     public float DurationMinutes { get; set; }
     public float DaysSincePrevious { get; set; }
@@ -68,12 +86,17 @@ public sealed class NextSessionRow
         nameof(ScoreLast), nameof(ScoreLag1), nameof(ScoreLag2), nameof(ScoreMean3),
         nameof(ScoreStd3), nameof(ScoreDelta1), nameof(ScoreDelta2), nameof(ScoreTrend3),
         nameof(HistoryCount), nameof(Tr2), nameof(HasTr2Data), nameof(PrecizieGonogo),
-        nameof(HasPrecizieGonogoData), nameof(HrMean), nameof(HrStd), nameof(HrRange),
+        nameof(HasPrecizieGonogoData), nameof(CptMuMs), nameof(CptSigmaMs), nameof(CptTauMs),
+        nameof(CptReactionTimeCv), nameof(CptReactionTimeSampleCount), nameof(CptHasExGaussianData),
+        nameof(HrMean), nameof(HrStd), nameof(HrRange),
         nameof(HrHasData), nameof(HrSamplesPerMinute), nameof(Spo2Mean), nameof(Spo2Min),
         nameof(Spo2DropRate), nameof(Spo2HasData), nameof(Spo2SamplesPerMinute), nameof(DistRatio),
         nameof(DistHasData), nameof(DistReadingsPerMinute), nameof(EcgDrMean), nameof(EcgStMean),
         nameof(EcgRange), nameof(EcgHasData), nameof(EcgPairsPerMinute), nameof(MapXVar),
-        nameof(MapYVar), nameof(MapTotalPath), nameof(MapHasData), nameof(MapPointsPerMinute),
+        nameof(HrvSdnnMs), nameof(HrvRmssdMs), nameof(HrvDfaAlpha1), nameof(HrvSampleEntropy),
+        nameof(RrSampleCount), nameof(HrvHasData), nameof(MapYVar), nameof(MapTotalPath), nameof(MapHasData),
+        nameof(MapPointsPerMinute), nameof(AttentionEstimate), nameof(AttentionPosteriorStandardDeviation),
+        nameof(AttentionObservationCount), nameof(AttentionHasData),
         nameof(DurationMinutes), nameof(DaysSincePrevious), nameof(HasTimeGapData),
         nameof(SessionHourSin), nameof(SessionHourCos), nameof(DayOfWeekSin),
         nameof(DayOfWeekCos), nameof(HasTimestampData)
@@ -84,10 +107,13 @@ public sealed class NextSessionRow
     {
         ScoreLast, ScoreLag1, ScoreLag2, ScoreMean3, ScoreStd3, ScoreDelta1,
         ScoreDelta2, ScoreTrend3, HistoryCount, Tr2, HasTr2Data, PrecizieGonogo,
-        HasPrecizieGonogoData, HrMean, HrStd, HrRange, HrHasData, HrSamplesPerMinute,
+        HasPrecizieGonogoData, CptMuMs, CptSigmaMs, CptTauMs, CptReactionTimeCv,
+        CptReactionTimeSampleCount, CptHasExGaussianData, HrMean, HrStd, HrRange, HrHasData, HrSamplesPerMinute,
         Spo2Mean, Spo2Min, Spo2DropRate, Spo2HasData, Spo2SamplesPerMinute, DistRatio,
         DistHasData, DistReadingsPerMinute, EcgDrMean, EcgStMean, EcgRange, EcgHasData,
-        EcgPairsPerMinute, MapXVar, MapYVar, MapTotalPath, MapHasData, MapPointsPerMinute,
+        EcgPairsPerMinute, MapXVar, HrvSdnnMs, HrvRmssdMs, HrvDfaAlpha1, HrvSampleEntropy,
+        RrSampleCount, HrvHasData, MapYVar, MapTotalPath, MapHasData, MapPointsPerMinute,
+        AttentionEstimate, AttentionPosteriorStandardDeviation, AttentionObservationCount, AttentionHasData,
         DurationMinutes, DaysSincePrevious, HasTimeGapData, SessionHourSin,
         SessionHourCos, DayOfWeekSin, DayOfWeekCos, HasTimestampData
     };

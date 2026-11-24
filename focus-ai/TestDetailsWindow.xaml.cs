@@ -18,10 +18,12 @@ namespace focus_ai
         private readonly string _hrRaw;
         private readonly string _distRaw;
         private readonly string _cptRaw;
+        private readonly string _rrRaw;
+        private readonly string _attentionRaw;
         
         public TestDetailsWindow(string mapRaw, string ecgRaw,
                                   string spo2Raw, string hrRaw, string distRaw,
-                                  string cptRaw = "")
+                                  string cptRaw = "", string rrRaw = "", string attentionRaw = "")
         {
             InitializeComponent();
             _mapRaw = mapRaw;
@@ -30,9 +32,11 @@ namespace focus_ai
             _hrRaw = hrRaw;
             _distRaw = distRaw;
             _cptRaw = cptRaw;
+            _rrRaw = rrRaw;
+            _attentionRaw = attentionRaw;
             LanguageManager.Register(this);
             WindowHelper.MoveToPrimaryMonitor(this);
-            Loaded += (_, _) => DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw);
+            Loaded += (_, _) => DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw);
             LanguageManager.LanguageChanged += TestDetailsWindow_LanguageChanged;
             Closed += (_, _) => LanguageManager.LanguageChanged -= TestDetailsWindow_LanguageChanged;
         }
@@ -42,7 +46,7 @@ namespace focus_ai
             if (!IsLoaded) return;
 
             ClearChartVisuals();
-            DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw);
+            DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw);
         }
 
         private void ClearChartVisuals()
@@ -65,7 +69,7 @@ namespace focus_ai
         
         private void DrawAll(string mapRaw, string ecgRaw,
                               string spo2Raw, string hrRaw, string distRaw,
-                              string cptRaw)
+                              string cptRaw, string rrRaw, string attentionRaw)
         {
             
             var mapPoints = ParseXY(mapRaw);
@@ -113,6 +117,7 @@ namespace focus_ai
 
             
             UpdateStats(mapPoints, ecgPairs, spo2, hr, dist, cptRaw);
+            UpdateScientificMetrics(cptRaw, rrRaw, attentionRaw);
         }
 
         private void UpdateStats(
@@ -149,20 +154,136 @@ namespace focus_ai
             {
                 using var doc = JsonDocument.Parse(cptRaw);
                 var root = doc.RootElement;
-                double accuracy = root.TryGetProperty("accuracy", out var acc) ? acc.GetDouble() : 0;
-                double hitRate = root.TryGetProperty("hit_rate", out var hit) ? hit.GetDouble() : 0;
-                double falseAlarmRate = root.TryGetProperty("false_alarm_rate", out var fa) ? fa.GetDouble() : 0;
-                double meanRt = root.TryGetProperty("mean_reaction_time_ms", out var rt) ? rt.GetDouble() : 0;
+                double accuracy = TryGetJsonDouble(root, "accuracy", out double acc) ? acc : 0;
+                double hitRate = TryGetJsonDouble(root, "hit_rate", out double hit) ? hit : 0;
+                double falseAlarmRate = TryGetJsonDouble(root, "false_alarm_rate", out double fa) ? fa : 0;
+                double meanRt = TryGetJsonDouble(root, "mean_reaction_time_ms", out double rt) ? rt : 0;
+                bool hasTau = TryGetJsonDouble(root, "tau_ms", out double tau) && tau > 0;
 
                 return $"   ·   CPT {LanguageManager.T("Accuracy")} {FormatNumber(accuracy, "F1")}%   ·   " +
                        $"{LanguageManager.T("Mean RT")} {FormatNumber(meanRt, "F0")} ms   ·   " +
                        $"{LanguageManager.T("Hit Rate")} {FormatNumber(hitRate, "F2")}   ·   " +
-                       $"{LanguageManager.T("False Alarm Rate")} {FormatNumber(falseAlarmRate, "F2")}";
+                       $"{LanguageManager.T("False Alarm Rate")} {FormatNumber(falseAlarmRate, "F2")}" +
+                       (hasTau ? $"   ·   τ {FormatNumber(tau, "F0")} ms" : "");
             }
             catch
             {
                 return "";
             }
+        }
+
+        private void UpdateScientificMetrics(string cptRaw, string rrRaw, string attentionRaw)
+        {
+            UpdateCptTailMetric(cptRaw);
+            UpdateHrvMetrics(rrRaw);
+            UpdateAttentionMetric(attentionRaw);
+        }
+
+        private void UpdateCptTailMetric(string cptRaw)
+        {
+            CptTailText.Text = LanguageManager.T("No ex-Gaussian estimate available");
+            if (string.IsNullOrWhiteSpace(cptRaw) || cptRaw == "null")
+                return;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(cptRaw);
+                JsonElement root = doc.RootElement;
+                bool hasTau = TryGetJsonDouble(root, "tau_ms", out double tau) && tau > 0;
+                bool hasMu = TryGetJsonDouble(root, "mu_ms", out double mu) && mu > 0;
+                bool hasSigma = TryGetJsonDouble(root, "sigma_ms", out double sigma) && sigma > 0;
+                int sampleCount = TryGetJsonDouble(root, "reaction_time_sample_count", out double count) && count >= 0
+                    ? (int)Math.Round(count)
+                    : 0;
+                bool reliable = TryGetJsonBool(root, "ex_gaussian_reliable", out bool storedReliable) && storedReliable;
+
+                if (!hasTau)
+                    return;
+
+                string reliability = reliable
+                    ? LanguageManager.T("reporting threshold met")
+                    : LanguageManager.T("exploratory: limited valid responses");
+                CptTailText.Text = $"μ {FormatNumber(hasMu ? mu : 0, "F0")} ms   ·   σ {FormatNumber(hasSigma ? sigma : 0, "F0")} ms   ·   " +
+                                   $"τ {FormatNumber(tau, "F0")} ms   ·   n={sampleCount} ({reliability})";
+            }
+            catch
+            {
+                // The historical details view remains usable for malformed legacy payloads.
+            }
+        }
+
+        private void UpdateHrvMetrics(string rrRaw)
+        {
+            double[] rr = ParseValues(rrRaw).Where(HrvMetrics.IsValidRrInterval).ToArray();
+            HrvMetricsResult hrv = HrvMetrics.Analyze(rr);
+            if (!hrv.IsAvailable)
+            {
+                HrvMetricsText.Text = LanguageManager.T("No beat-to-beat RR intervals recorded");
+                return;
+            }
+
+            string sdnn = hrv.SdnnMs.HasValue ? $"SDNN {FormatNumber(hrv.SdnnMs.Value, "F1")} ms" : "SDNN —";
+            string rmssd = hrv.RmssdMs.HasValue ? $"RMSSD {FormatNumber(hrv.RmssdMs.Value, "F1")} ms" : "RMSSD —";
+            string dfa = hrv.DfaAlpha1.HasValue ? $"DFA α1 {FormatNumber(hrv.DfaAlpha1.Value, "F2")}" : "DFA α1 —";
+            string entropy = hrv.SampleEntropy.HasValue ? $"SampEn {FormatNumber(hrv.SampleEntropy.Value, "F2")}" : "SampEn —";
+            HrvMetricsText.Text = $"{sdnn}   ·   {rmssd}\n{dfa}   ·   {entropy}   ·   n={hrv.RrSampleCount} RR";
+        }
+
+        private void UpdateAttentionMetric(string attentionRaw)
+        {
+            AttentionEstimateText.Text = LanguageManager.T("No posterior saved");
+            AttentionIntervalText.Text = LanguageManager.T("Complete an assessment to estimate latent attention.");
+            AttentionSourcesText.Text = "";
+            if (string.IsNullOrWhiteSpace(attentionRaw) || attentionRaw == "null")
+                return;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(attentionRaw);
+                JsonElement root = doc.RootElement;
+                if (!TryGetJsonDouble(root, "estimate", out double estimate) || estimate is < 0 or > 1)
+                    return;
+
+                double standardDeviation = TryGetJsonDouble(root, "posterior_standard_deviation", out double sd) && sd >= 0 ? sd : 0;
+                double low = TryGetJsonDouble(root, "confidence_low", out double storedLow) ? storedLow : Math.Max(0, estimate - 1.96 * standardDeviation);
+                double high = TryGetJsonDouble(root, "confidence_high", out double storedHigh) ? storedHigh : Math.Min(1, estimate + 1.96 * standardDeviation);
+                int sources = TryGetJsonDouble(root, "observation_count", out double count) && count >= 0 ? (int)Math.Round(count) : 0;
+
+                AttentionEstimateText.Text = $"{LanguageManager.T("Attention")} {FormatNumber(estimate, "F2")}  ·  {FormatNumber(estimate * 100, "F0")}/100";
+                AttentionIntervalText.Text = $"95% {LanguageManager.T("model interval")}: {FormatNumber(low, "F2")} – {FormatNumber(high, "F2")}  (± {FormatNumber(1.96 * standardDeviation, "F2")})";
+                AttentionSourcesText.Text = $"{sources} {LanguageManager.T("sensor observations fused with a scalar Kalman filter")}";
+            }
+            catch
+            {
+                // Keep the details page usable for a legacy or partially written session.
+            }
+        }
+
+        private static bool TryGetJsonDouble(JsonElement root, string name, out double value)
+        {
+            value = 0;
+            if (!root.TryGetProperty(name, out JsonElement property))
+                return false;
+
+            if (property.ValueKind == JsonValueKind.Number && property.TryGetDouble(out value) && double.IsFinite(value))
+                return true;
+            return property.ValueKind == JsonValueKind.String &&
+                   double.TryParse(property.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value) &&
+                   double.IsFinite(value);
+        }
+
+        private static bool TryGetJsonBool(JsonElement root, string name, out bool value)
+        {
+            value = false;
+            if (!root.TryGetProperty(name, out JsonElement property))
+                return false;
+            if (property.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                value = property.GetBoolean();
+                return true;
+            }
+
+            return property.ValueKind == JsonValueKind.String && bool.TryParse(property.GetString(), out value);
         }
 
         

@@ -3,7 +3,7 @@ namespace focus_ai.Prediction;
 
 public sealed class PredictionModelMetadata
 {
-    public int ArtifactVersion { get; set; } = 2;
+    public int ArtifactVersion { get; set; } = 3;
     public string SelectedModel { get; set; } = string.Empty;
     public DateTime TrainedAtUtc { get; set; } = DateTime.UtcNow;
     public int TrainingExamples { get; set; }
@@ -16,7 +16,7 @@ public sealed class PredictionModelMetadata
     public double TestRSquared { get; set; }
     public double? CalibrationQuantile90 { get; set; }
     public double? TestIntervalCoverage90 { get; set; }
-    public string FeatureSchemaVersion { get; set; } = "next-session-v2";
+    public string FeatureSchemaVersion { get; set; } = "next-session-v3";
     public string DataFingerprint { get; set; } = string.Empty;
     public int ScoreFormulaVersion { get; set; } = TestScoreCalculator.CurrentVersion;
 }

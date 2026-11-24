@@ -345,9 +345,25 @@ namespace focus_ai
             string hrStr = string.Join(",", bio.HeartRate.Where(v => v != 0));
             string spo2Str = string.Join(",", bio.SpO2.Where(v => v != 0));
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
+            string rrStr = string.Join(",", bio.RrIntervalsMs.Select(value => value.ToString("F3", CultureInfo.InvariantCulture)));
 
-            double cptAccuracy = _cptResult?.Accuracy ?? 0;
-            double scor = TestScoreCalculator.ComputeScore(_mapData, _reactionTimeSec, _goNoGoAccuracy, cptAccuracy, distStr);
+            HrvMetricsResult hrv = HrvMetrics.Analyze(bio.RrIntervalsMs);
+            AttentionScoreResult attention = TestScoreCalculator.EstimateAttention(new AttentionEstimationInput
+            {
+                MapData = _mapData,
+                BuzzerReactionTimeSeconds = _reactionTimeSec > 0 ? _reactionTimeSec : null,
+                GoNoGoAccuracyPercent = _done3 ? _goNoGoAccuracy : null,
+                CptAccuracyPercent = _cptResult?.Accuracy,
+                CptHitRate = _cptResult?.HitRate,
+                CptFalseAlarmRate = _cptResult?.FalseAlarmRate,
+                CptTauMs = _cptResult?.ReactionTimeDistribution.IsAvailable == true
+                    ? _cptResult.ReactionTimeDistribution.TauMs
+                    : null,
+                CptReactionTimeCv = _cptResult?.ReactionTimeCoefficientOfVariation,
+                CptReactionTimeSampleCount = _cptResult?.ReactionTimeDistribution.SampleCount ?? 0,
+                Hrv = hrv
+            });
+            double scor = attention.Score;
 
             string dateTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm");
             string duration = _elapsed.ToString(@"mm\:ss");
@@ -364,6 +380,18 @@ namespace focus_ai
                 hr = hrStr,
                 spo2 = spo2Str,
                 dist = distStr,
+                rr_ms = rrStr,
+                hrv = new
+                {
+                    rr_sample_count = hrv.RrSampleCount,
+                    has_time_domain_metrics = hrv.HasTimeDomainMetrics,
+                    sdnn_ms = hrv.SdnnMs,
+                    rmssd_ms = hrv.RmssdMs,
+                    has_dfa_alpha1 = hrv.HasDfaAlpha1,
+                    dfa_alpha1 = hrv.DfaAlpha1,
+                    has_sample_entropy = hrv.HasSampleEntropy,
+                    sample_entropy = hrv.SampleEntropy
+                },
                 tr2 = Math.Round(_reactionTimeSec, 3),
                 precizie_gonogo = Math.Round(_goNoGoAccuracy, 2),
                 cpt = _cptResult == null ? null : new
@@ -376,6 +404,25 @@ namespace focus_ai
                     misses = _cptResult.Misses,
                     false_alarms = _cptResult.FalseAlarms,
                     correct_rejections = _cptResult.CorrectRejections,
+                    reaction_time_standard_deviation_ms = _cptResult.ReactionTimeStandardDeviationMs,
+                    reaction_time_cv = _cptResult.ReactionTimeCoefficientOfVariation,
+                    reaction_time_sample_count = _cptResult.ReactionTimeDistribution.SampleCount,
+                    ex_gaussian_available = _cptResult.ReactionTimeDistribution.IsAvailable,
+                    ex_gaussian_reliable = _cptResult.ReactionTimeDistribution.IsReliable,
+                    ex_gaussian_converged = _cptResult.ReactionTimeDistribution.Converged,
+                    ex_gaussian_log_likelihood = _cptResult.ReactionTimeDistribution.IsAvailable
+                        ? _cptResult.ReactionTimeDistribution.LogLikelihood
+                        : (double?)null,
+                    mu_ms = _cptResult.ReactionTimeDistribution.IsAvailable
+                        ? _cptResult.ReactionTimeDistribution.MuMs
+                        : (double?)null,
+                    sigma_ms = _cptResult.ReactionTimeDistribution.IsAvailable
+                        ? _cptResult.ReactionTimeDistribution.SigmaMs
+                        : (double?)null,
+                    tau_ms = _cptResult.ReactionTimeDistribution.IsAvailable
+                        ? _cptResult.ReactionTimeDistribution.TauMs
+                        : (double?)null,
+                    tau_subscore = attention.TauSubscore,
                     interpretation = _cptResult.Interpretation,
                     trials = _cptResult.Trials.Select(t => new
                     {
@@ -385,6 +432,33 @@ namespace focus_ai
                         responded = t.Responded,
                         reaction_time_ms = t.ReactionTimeMs,
                         response_type = t.ResponseType
+                    }).ToList()
+                },
+                attention = new
+                {
+                    model = "scalar-kalman-v1",
+                    estimate = Math.Round(attention.Posterior.Estimate, 4),
+                    score = Math.Round(attention.Score, 2),
+                    posterior_variance = Math.Round(attention.Posterior.PosteriorVariance, 6),
+                    posterior_standard_deviation = Math.Round(attention.Posterior.PosteriorStandardDeviation, 4),
+                    confidence_low = Math.Round(attention.Posterior.ConfidenceLow, 4),
+                    confidence_high = Math.Round(attention.Posterior.ConfidenceHigh, 4),
+                    observation_count = attention.Posterior.ObservationCount,
+                    behavioral_subscore = attention.BehavioralSubscore,
+                    gaze_on_screen_fraction = attention.GazeOnScreenFraction,
+                    gaze_sample_count = attention.GazeSampleCount,
+                    hrv_adaptivity_subscore = attention.HrvAdaptivitySubscore,
+                    pupil_engagement_subscore = attention.PupilEngagementSubscore,
+                    tau_subscore = attention.TauSubscore,
+                    updates = attention.Posterior.Updates.Select(update => new
+                    {
+                        source = update.Source,
+                        observation = Math.Round(update.Observation, 4),
+                        observation_variance = Math.Round(update.ObservationVariance, 6),
+                        kalman_gain = Math.Round(update.KalmanGain, 4),
+                        posterior_estimate = Math.Round(update.PosteriorEstimate, 4),
+                        posterior_standard_deviation = Math.Round(update.PosteriorStandardDeviation, 4),
+                        detail = update.Detail
                     }).ToList()
                 },
                 scor = Math.Round(scor, 2),

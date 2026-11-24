@@ -234,7 +234,7 @@
                             </Grid.ColumnDefinitions>
 
                             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-                            <UniformGrid Columns="2" Rows="4">
+                            <UniformGrid Columns="2" Rows="7">
                                 <StackPanel Margin="0,0,18,18">
                                     <TextBlock Text="Accuracy" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
                                     <TextBlock x:Name="ResultAccuracyText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
@@ -242,6 +242,22 @@
                                 <StackPanel Margin="0,0,18,18">
                                     <TextBlock Text="Mean Reaction Time" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
                                     <TextBlock x:Name="ResultMeanRtText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,18,18">
+                                    <TextBlock Text="ex-Gaussian μ" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultMuText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,18,18">
+                                    <TextBlock Text="ex-Gaussian σ" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultSigmaText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,18,18">
+                                    <TextBlock Text="Slow-tail τ" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultTauText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,18,18">
+                                    <TextBlock Text="RT variability (CV)" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>
+                                    <TextBlock x:Name="ResultIivText" Text="-" Foreground="{DynamicResource TxtPrimary}" FontSize="26" FontWeight="Bold"/>
                                 </StackPanel>
                                 <StackPanel Margin="0,0,18,18">
                                     <TextBlock Text="Hit Rate" Foreground="{DynamicResource TxtMuted}" FontSize="12"/>

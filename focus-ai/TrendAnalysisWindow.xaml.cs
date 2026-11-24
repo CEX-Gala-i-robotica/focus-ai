@@ -227,6 +227,30 @@ namespace focus_ai
             KnnScore.Text = FormatNumber(prediction.KnnScore, "F1");
 
             EnsembleExplanation.Text = BuildModelExplanation(prediction);
+            UpdateLatentAttention(history.Last());
+        }
+
+        private void UpdateLatentAttention(SessionFeatures latest)
+        {
+            if (!latest.HasAttentionData)
+            {
+                LatestAttentionValue.Text = LanguageManager.Current == AppLanguage.Romanian ? "Indisponibil" : "Not available";
+                LatestAttentionInterval.Text = LanguageManager.Current == AppLanguage.Romanian
+                    ? "Sesiunea nu conține observații suficiente pentru posteriorul Kalman."
+                    : "This session does not contain enough observations for a Kalman posterior.";
+                LatestAttentionSignals.Text = "";
+                return;
+            }
+
+            LatestAttentionValue.Text = FormatNumber(latest.AttentionEstimate, "F2") + "  ·  " +
+                                        FormatNumber(latest.AttentionEstimate * 100, "F0") + "/100";
+            LatestAttentionInterval.Text = "95% " + LanguageManager.T("model interval") + ": " +
+                                           FormatNumber(latest.AttentionConfidenceLow, "F2") + " – " +
+                                           FormatNumber(latest.AttentionConfidenceHigh, "F2") + " (± " +
+                                           FormatNumber(1.96 * latest.AttentionPosteriorStandardDeviation, "F2") + ")";
+            LatestAttentionSignals.Text = LanguageManager.Current == AppLanguage.Romanian
+                ? latest.AttentionObservationCount + " observații senzoriale/comportamentale fuzionate; interval condiționat de modelul de observație."
+                : latest.AttentionObservationCount + " behavioural/sensor observations fused; interval is conditional on the observation model.";
         }
 
         private static CultureInfo UiCulture => LanguageManager.Current == AppLanguage.Romanian

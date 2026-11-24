@@ -14,22 +14,8 @@ public static class FeatureExtractor
         bool hasTr2 = TryGetDouble(el, out double tr2, "tr2");
         bool hasGoNoGo = TryGetDouble(el, out double goNoGo, "precizieGonogo", "precizie_gonogo");
         string mapData = GetString(el, "map");
-        string distanceData = GetString(el, "dist");
-        double cptAccuracy = TryGetNestedDouble(el, "cpt", "accuracy", out double cptValue) ? cptValue : 0;
-        bool hasScoreComponents = el.TryGetProperty("map", out _) && hasTr2 && hasGoNoGo &&
-                                  el.TryGetProperty("dist", out _);
-
-        bool scoreWithinRange = hasScore && score >= 0 && score <= 100;
-        bool scoreNeedsRecalculation = !scoreWithinRange || !hasScoreVersion || scoreVersion != TestScoreCalculator.CurrentVersion;
-        if (scoreNeedsRecalculation && hasScoreComponents)
-        {
-            score = TestScoreCalculator.ComputeScore(mapData, hasTr2 ? tr2 : 0, hasGoNoGo ? goNoGo : 0, cptAccuracy, distanceData);
-            hasScore = true;
-        }
-        else if (scoreNeedsRecalculation)
-        {
-            hasScore = false;
-        }
+        bool hasCptAccuracy = TryGetNestedDouble(el, "cpt", "accuracy", out double cptValue);
+        double? cptAccuracy = hasCptAccuracy ? cptValue : null;
 
         string durationText = GetString(el, "duration");
         string dateTimeText = GetString(el, "dateTime", "datetime", "timestamp");
@@ -56,15 +42,52 @@ public static class FeatureExtractor
 
         var (ecgDrMean, ecgStMean, ecgRange, ecgCount) = EcgStats(GetString(el, "ecg"));
         var (mapXVar, mapYVar, mapPath, mapCount) = MapStats(GetString(el, "map"));
+        CptDistributionFeatures cpt = ExtractCptDistribution(el);
+        HrvMetricsResult hrv = ExtractHrvMetrics(el);
+
+        AttentionSessionFeatures attention = ExtractAttention(
+            el,
+            mapData,
+            hasTr2 ? tr2 : null,
+            hasGoNoGo ? goNoGo : null,
+            cptAccuracy,
+            cpt.HitRate,
+            cpt.FalseAlarmRate,
+            cpt.TauMs,
+            cpt.ReactionTimeCv,
+            cpt.ReactionTimeSampleCount,
+            hrv);
+
+        // A valid legacy score remains historical data. Recomputing v1/v2 rows
+        // under the v3 state-space model would silently change the longitudinal
+        // record. Only records with no usable score receive a best-effort v3
+        // estimate from their raw measurements.
+        bool scoreWithinRange = hasScore && score >= 0 && score <= 100;
+        if (!scoreWithinRange && attention.IsAvailable)
+        {
+            score = attention.Estimate * 100;
+            hasScore = true;
+            scoreWithinRange = true;
+        }
 
         return new SessionFeatures
         {
             Score = hasScore ? score : 0,
-            HasScoreData = hasScore && score >= 0 && score <= 100,
+            HasScoreData = scoreWithinRange,
+            ScoreFormulaVersion = hasScoreVersion && scoreVersion >= 0 && scoreVersion <= int.MaxValue
+                ? (int)Math.Round(scoreVersion)
+                : 0,
             Tr2 = hasTr2 ? tr2 : 0,
             HasTr2Data = hasTr2,
             PrecizieGonogo = hasGoNoGo ? goNoGo : 0,
             HasPrecizieGonogoData = hasGoNoGo,
+
+            CptMuMs = cpt.MuMs ?? 0,
+            CptSigmaMs = cpt.SigmaMs ?? 0,
+            CptTauMs = cpt.TauMs ?? 0,
+            CptReactionTimeCv = cpt.ReactionTimeCv ?? 0,
+            CptReactionTimeSampleCount = cpt.ReactionTimeSampleCount,
+            HasCptExGaussianData = cpt.IsAvailable,
 
             HrMean = hrMean,
             HrStd = hrStd,
@@ -90,15 +113,230 @@ public static class FeatureExtractor
             EcgSampleCount = ecgCount,
             HasEcgData = ecgCount > 0,
 
+            HrvSdnnMs = hrv.SdnnMs ?? 0,
+            HrvRmssdMs = hrv.RmssdMs ?? 0,
+            HrvDfaAlpha1 = hrv.DfaAlpha1 ?? 0,
+            HrvSampleEntropy = hrv.SampleEntropy ?? 0,
+            RrSampleCount = hrv.RrSampleCount,
+            HasHrvData = hrv.IsAvailable,
+
             MapXVar = mapXVar,
             MapYVar = mapYVar,
             MapTotalPath = mapPath,
             MapSampleCount = mapCount,
             HasMapData = mapCount > 0,
 
+            AttentionEstimate = attention.Estimate,
+            AttentionPosteriorStandardDeviation = attention.PosteriorStandardDeviation,
+            AttentionConfidenceLow = attention.ConfidenceLow,
+            AttentionConfidenceHigh = attention.ConfidenceHigh,
+            AttentionObservationCount = attention.ObservationCount,
+            HasAttentionData = attention.IsAvailable,
+
             DurationMinutes = ParseDuration(durationText),
             DateTime = ParseDateTime(dateTimeText)
         };
+    }
+
+    private static CptDistributionFeatures ExtractCptDistribution(JsonElement root)
+    {
+        if (!root.TryGetProperty("cpt", out JsonElement cpt) || cpt.ValueKind != JsonValueKind.Object)
+            return CptDistributionFeatures.Unavailable;
+
+        double? mu = TryGetDouble(cpt, out double muValue, "mu_ms") && muValue > 0 ? muValue : null;
+        double? sigma = TryGetDouble(cpt, out double sigmaValue, "sigma_ms") && sigmaValue > 0 ? sigmaValue : null;
+        double? tau = TryGetDouble(cpt, out double tauValue, "tau_ms") && tauValue > 0 ? tauValue : null;
+        double? cv = TryGetDouble(cpt, out double cvValue, "reaction_time_cv") && cvValue > 0 ? cvValue : null;
+        double? hitRate = TryGetDouble(cpt, out double hitRateValue, "hit_rate") && hitRateValue is >= 0 and <= 1
+            ? hitRateValue
+            : null;
+        double? falseAlarmRate = TryGetDouble(cpt, out double falseAlarmValue, "false_alarm_rate") && falseAlarmValue is >= 0 and <= 1
+            ? falseAlarmValue
+            : null;
+        int storedSampleCount = TryGetDouble(cpt, out double storedCountValue, "reaction_time_sample_count") &&
+                                storedCountValue is >= 0 and <= int.MaxValue
+            ? (int)Math.Round(storedCountValue)
+            : 0;
+
+        double[] hitReactionTimes = ExtractHitReactionTimes(cpt);
+        if ((!tau.HasValue || !mu.HasValue || !sigma.HasValue) && hitReactionTimes.Length >= 6)
+        {
+            ExGaussianFitResult fitted = ExGaussianFitter.Fit(hitReactionTimes);
+            if (fitted.IsAvailable)
+            {
+                mu ??= fitted.MuMs;
+                sigma ??= fitted.SigmaMs;
+                tau ??= fitted.TauMs;
+                storedSampleCount = Math.Max(storedSampleCount, fitted.SampleCount);
+            }
+        }
+
+        if (!cv.HasValue && hitReactionTimes.Length > 1)
+        {
+            double mean = hitReactionTimes.Average();
+            if (mean > 0)
+            {
+                double standardDeviation = Math.Sqrt(hitReactionTimes.Sum(value => (value - mean) * (value - mean)) /
+                                                     (hitReactionTimes.Length - 1));
+                if (double.IsFinite(standardDeviation))
+                    cv = standardDeviation / mean;
+            }
+        }
+
+        int sampleCount = Math.Max(storedSampleCount, hitReactionTimes.Length);
+        return new CptDistributionFeatures(
+            tau.HasValue,
+            mu,
+            sigma,
+            tau,
+            cv,
+            sampleCount,
+            hitRate,
+            falseAlarmRate);
+    }
+
+    private static double[] ExtractHitReactionTimes(JsonElement cpt)
+    {
+        if (!cpt.TryGetProperty("trials", out JsonElement trials) || trials.ValueKind != JsonValueKind.Array)
+            return Array.Empty<double>();
+
+        var values = new List<double>();
+        foreach (JsonElement trial in trials.EnumerateArray())
+        {
+            if (trial.ValueKind != JsonValueKind.Object ||
+                !TryGetString(trial, out string responseType, "response_type") ||
+                !responseType.Equals("HIT", StringComparison.OrdinalIgnoreCase) ||
+                !TryGetDouble(trial, out double reactionTime, "reaction_time_ms") ||
+                !double.IsFinite(reactionTime) || reactionTime <= 0)
+            {
+                continue;
+            }
+
+            values.Add(reactionTime);
+        }
+
+        return values.ToArray();
+    }
+
+    private static HrvMetricsResult ExtractHrvMetrics(JsonElement root)
+    {
+        double[] rrIntervals = ParseCsvDoubles(GetString(root, "rr_ms", "rrMs", "rr"))
+            .Where(HrvMetrics.IsValidRrInterval)
+            .ToArray();
+        if (rrIntervals.Length > 0)
+            return HrvMetrics.Analyze(rrIntervals);
+
+        if (!root.TryGetProperty("hrv", out JsonElement hrv) || hrv.ValueKind != JsonValueKind.Object)
+            return new HrvMetricsResult();
+
+        double? sdnn = TryGetDouble(hrv, out double sdnnValue, "sdnn_ms") && sdnnValue >= 0 ? sdnnValue : null;
+        double? rmssd = TryGetDouble(hrv, out double rmssdValue, "rmssd_ms") && rmssdValue >= 0 ? rmssdValue : null;
+        double? dfa = TryGetDouble(hrv, out double dfaValue, "dfa_alpha1") && dfaValue > 0 ? dfaValue : null;
+        double? entropy = TryGetDouble(hrv, out double entropyValue, "sample_entropy") && entropyValue >= 0 ? entropyValue : null;
+        int count = TryGetDouble(hrv, out double countValue, "rr_sample_count") && countValue is >= 0 and <= int.MaxValue
+            ? (int)Math.Round(countValue)
+            : 0;
+        bool hasTimeDomain = TryGetBool(hrv, out bool storedTimeDomain, "has_time_domain_metrics")
+            ? storedTimeDomain && (sdnn.HasValue || rmssd.HasValue)
+            : sdnn.HasValue || rmssd.HasValue;
+        bool hasDfa = TryGetBool(hrv, out bool storedDfa, "has_dfa_alpha1") ? storedDfa && dfa.HasValue : dfa.HasValue;
+        bool hasEntropy = TryGetBool(hrv, out bool storedEntropy, "has_sample_entropy")
+            ? storedEntropy && entropy.HasValue
+            : entropy.HasValue;
+
+        return new HrvMetricsResult
+        {
+            RrSampleCount = count,
+            HasTimeDomainMetrics = hasTimeDomain,
+            SdnnMs = hasTimeDomain ? sdnn : null,
+            RmssdMs = hasTimeDomain ? rmssd : null,
+            HasDfaAlpha1 = hasDfa,
+            DfaAlpha1 = hasDfa ? dfa : null,
+            HasSampleEntropy = hasEntropy,
+            SampleEntropy = hasEntropy ? entropy : null
+        };
+    }
+
+    private static AttentionSessionFeatures ExtractAttention(
+        JsonElement root,
+        string mapData,
+        double? tr2,
+        double? goNoGo,
+        double? cptAccuracy,
+        double? hitRate,
+        double? falseAlarmRate,
+        double? tauMs,
+        double? reactionTimeCv,
+        int reactionTimeSampleCount,
+        HrvMetricsResult hrv)
+    {
+        if (root.TryGetProperty("attention", out JsonElement attention) && attention.ValueKind == JsonValueKind.Object &&
+            TryGetDouble(attention, out double storedEstimate, "estimate") && storedEstimate is >= 0 and <= 1)
+        {
+            double standardDeviation = TryGetDouble(attention, out double storedSd, "posterior_standard_deviation") && storedSd >= 0
+                ? storedSd
+                : 0;
+            double confidenceLow = TryGetDouble(attention, out double storedLow, "confidence_low") && storedLow is >= 0 and <= 1
+                ? storedLow
+                : Math.Clamp(storedEstimate - 1.96 * standardDeviation, 0, 1);
+            double confidenceHigh = TryGetDouble(attention, out double storedHigh, "confidence_high") && storedHigh is >= 0 and <= 1
+                ? storedHigh
+                : Math.Clamp(storedEstimate + 1.96 * standardDeviation, 0, 1);
+            int observationCount = TryGetDouble(attention, out double storedCount, "observation_count") &&
+                                   storedCount is >= 0 and <= int.MaxValue
+                ? (int)Math.Round(storedCount)
+                : 0;
+            return new AttentionSessionFeatures(true, storedEstimate, standardDeviation, confidenceLow, confidenceHigh, observationCount);
+        }
+
+        AttentionScoreResult reconstructed = TestScoreCalculator.EstimateAttention(new AttentionEstimationInput
+        {
+            MapData = mapData,
+            BuzzerReactionTimeSeconds = tr2,
+            GoNoGoAccuracyPercent = goNoGo,
+            CptAccuracyPercent = cptAccuracy,
+            CptHitRate = hitRate,
+            CptFalseAlarmRate = falseAlarmRate,
+            CptTauMs = tauMs,
+            CptReactionTimeCv = reactionTimeCv,
+            CptReactionTimeSampleCount = reactionTimeSampleCount,
+            Hrv = hrv
+        });
+
+        AttentionEstimate posterior = reconstructed.Posterior;
+        return posterior.ObservationCount > 0
+            ? new AttentionSessionFeatures(
+                true,
+                posterior.Estimate,
+                posterior.PosteriorStandardDeviation,
+                posterior.ConfidenceLow,
+                posterior.ConfidenceHigh,
+                posterior.ObservationCount)
+            : AttentionSessionFeatures.Unavailable;
+    }
+
+    private sealed record CptDistributionFeatures(
+        bool IsAvailable,
+        double? MuMs,
+        double? SigmaMs,
+        double? TauMs,
+        double? ReactionTimeCv,
+        int ReactionTimeSampleCount,
+        double? HitRate,
+        double? FalseAlarmRate)
+    {
+        public static CptDistributionFeatures Unavailable { get; } = new(false, null, null, null, null, 0, null, null);
+    }
+
+    private sealed record AttentionSessionFeatures(
+        bool IsAvailable,
+        double Estimate,
+        double PosteriorStandardDeviation,
+        double ConfidenceLow,
+        double ConfidenceHigh,
+        int ObservationCount)
+    {
+        public static AttentionSessionFeatures Unavailable { get; } = new(false, 0, 0, 0, 0, 0);
     }
 
     private static string GetString(JsonElement el, params string[] names)
@@ -137,6 +375,48 @@ public static class FeatureExtractor
         return el.TryGetProperty(objectName, out JsonElement nested) &&
                nested.ValueKind == JsonValueKind.Object &&
                TryGetDouble(nested, out value, propertyName);
+    }
+
+    private static bool TryGetString(JsonElement el, out string value, params string[] names)
+    {
+        foreach (string name in names)
+        {
+            if (!el.TryGetProperty(name, out JsonElement property))
+                continue;
+
+            if (property.ValueKind == JsonValueKind.String)
+            {
+                value = property.GetString() ?? "";
+                return true;
+            }
+        }
+
+        value = "";
+        return false;
+    }
+
+    private static bool TryGetBool(JsonElement el, out bool value, params string[] names)
+    {
+        foreach (string name in names)
+        {
+            if (!el.TryGetProperty(name, out JsonElement property))
+                continue;
+
+            if (property.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                value = property.GetBoolean();
+                return true;
+            }
+
+            if (property.ValueKind == JsonValueKind.String &&
+                bool.TryParse(property.GetString(), out value))
+            {
+                return true;
+            }
+        }
+
+        value = false;
+        return false;
     }
 
     private static bool TryGetDouble(JsonElement el, out double value, params string[] names)

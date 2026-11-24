@@ -13,10 +13,17 @@ public record SessionFeatures
 {
     public double Score { get; init; }
     public bool HasScoreData { get; init; } = true;
+    public int ScoreFormulaVersion { get; init; }
     public double Tr2 { get; init; }
     public bool HasTr2Data { get; init; } = true;
     public double PrecizieGonogo { get; init; }
     public bool HasPrecizieGonogoData { get; init; } = true;
+    public double CptMuMs { get; init; }
+    public double CptSigmaMs { get; init; }
+    public double CptTauMs { get; init; }
+    public double CptReactionTimeCv { get; init; }
+    public int CptReactionTimeSampleCount { get; init; }
+    public bool HasCptExGaussianData { get; init; }
     public double HrMean { get; init; }
     public double HrStd { get; init; }
     public double HrMin { get; init; }
@@ -37,11 +44,23 @@ public record SessionFeatures
     public double EcgRange { get; init; }
     public int EcgSampleCount { get; init; }
     public bool HasEcgData { get; init; }
+    public double HrvSdnnMs { get; init; }
+    public double HrvRmssdMs { get; init; }
+    public double HrvDfaAlpha1 { get; init; }
+    public double HrvSampleEntropy { get; init; }
+    public int RrSampleCount { get; init; }
+    public bool HasHrvData { get; init; }
     public double MapXVar { get; init; }
     public double MapYVar { get; init; }
     public double MapTotalPath { get; init; }
     public int MapSampleCount { get; init; }
     public bool HasMapData { get; init; }
+    public double AttentionEstimate { get; init; }
+    public double AttentionPosteriorStandardDeviation { get; init; }
+    public double AttentionConfidenceLow { get; init; }
+    public double AttentionConfidenceHigh { get; init; }
+    public int AttentionObservationCount { get; init; }
+    public bool HasAttentionData { get; init; }
     public double DurationMinutes { get; init; }
     public DateTime DateTime { get; init; } = System.DateTime.MinValue;
 }

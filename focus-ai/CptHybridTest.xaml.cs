@@ -26,6 +26,9 @@ namespace focus_ai
         public double HitRate { get; set; }
         public double FalseAlarmRate { get; set; }
         public double MeanReactionTimeMs { get; set; }
+        public double? ReactionTimeStandardDeviationMs { get; set; }
+        public double? ReactionTimeCoefficientOfVariation { get; set; }
+        public ExGaussianFitResult ReactionTimeDistribution { get; set; } = ExGaussianFitResult.Unavailable(0);
         public int Hits { get; set; }
         public int Misses { get; set; }
         public int FalseAlarms { get; set; }
@@ -242,6 +245,12 @@ namespace focus_ai
 
             ResultAccuracyText.Text = $"{Result.Accuracy:F1}%";
             ResultMeanRtText.Text = Result.MeanReactionTimeMs > 0 ? $"{Result.MeanReactionTimeMs:F0} ms" : LanguageManager.T("N/A");
+            ResultMuText.Text = FormatDistributionMetric(Result.ReactionTimeDistribution.IsAvailable, Result.ReactionTimeDistribution.MuMs, "ms");
+            ResultSigmaText.Text = FormatDistributionMetric(Result.ReactionTimeDistribution.IsAvailable, Result.ReactionTimeDistribution.SigmaMs, "ms");
+            ResultTauText.Text = FormatDistributionMetric(Result.ReactionTimeDistribution.IsAvailable, Result.ReactionTimeDistribution.TauMs, "ms");
+            ResultIivText.Text = Result.ReactionTimeCoefficientOfVariation is double cv
+                ? $"{cv:F2}"
+                : LanguageManager.T("N/A");
             ResultHitRateText.Text = $"{Result.HitRate:F2}";
             ResultFalseAlarmRateText.Text = $"{Result.FalseAlarmRate:F2}";
             ResultHitsText.Text = Result.Hits.ToString();
@@ -250,6 +259,11 @@ namespace focus_ai
             ResultCorrectRejectionsText.Text = Result.CorrectRejections.ToString();
             ResultInterpretationText.Text = Result.Interpretation;
         }
+
+        private static string FormatDistributionMetric(bool isAvailable, double value, string unit) =>
+            isAvailable && double.IsFinite(value) && value > 0
+                ? $"{value:F0} {unit}"
+                : LanguageManager.T("N/A");
 
         private static void FinalizeTrial(CptTrialResult trial)
         {
@@ -271,11 +285,19 @@ namespace focus_ai
             int totalTargets = hits + misses;
             int totalNonTargets = falseAlarms + correctRejections;
             double accuracy = trials.Count > 0 ? (double)(hits + correctRejections) / trials.Count * 100.0 : 0;
-            double meanRt = trials
+            double[] hitReactionTimes = trials
                 .Where(t => t.ResponseType == "HIT" && t.ReactionTimeMs.HasValue)
                 .Select(t => (double)t.ReactionTimeMs!.Value)
-                .DefaultIfEmpty(0)
-                .Average();
+                .Where(value => double.IsFinite(value) && value > 0)
+                .ToArray();
+            double meanRt = hitReactionTimes.Length > 0 ? hitReactionTimes.Average() : 0;
+            double? rtStandardDeviation = hitReactionTimes.Length > 1
+                ? Math.Sqrt(hitReactionTimes.Sum(value => (value - meanRt) * (value - meanRt)) / (hitReactionTimes.Length - 1))
+                : null;
+            double? rtCoefficientOfVariation = rtStandardDeviation.HasValue && meanRt > 0
+                ? rtStandardDeviation.Value / meanRt
+                : null;
+            ExGaussianFitResult distribution = ExGaussianFitter.Fit(hitReactionTimes);
 
             var result = new CptHybridResult
             {
@@ -287,6 +309,9 @@ namespace focus_ai
                 HitRate = totalTargets > 0 ? (double)hits / totalTargets : 0,
                 FalseAlarmRate = totalNonTargets > 0 ? (double)falseAlarms / totalNonTargets : 0,
                 MeanReactionTimeMs = meanRt,
+                ReactionTimeStandardDeviationMs = rtStandardDeviation,
+                ReactionTimeCoefficientOfVariation = rtCoefficientOfVariation,
+                ReactionTimeDistribution = distribution,
                 Trials = trials
             };
             result.Interpretation = BuildInterpretation(result);
@@ -305,6 +330,10 @@ namespace focus_ai
                 parts.Add(LanguageManager.T("Many misses: possible sustained attention deficit."));
             if (result.MeanReactionTimeMs >= 900)
                 parts.Add(LanguageManager.T("Very high RT: slow processing or hesitation in maintaining the rule."));
+            if (result.ReactionTimeDistribution.IsAvailable && result.ReactionTimeDistribution.TauMs >= 350)
+                parts.Add(LanguageManager.T("A pronounced slow-response tail (τ) suggests intermittent attention lapses; interpret it with the sample count and clinical context."));
+            if (result.ReactionTimeDistribution.IsAvailable && !result.ReactionTimeDistribution.IsReliable)
+                parts.Add(LanguageManager.T("The ex-Gaussian estimate is exploratory because few valid target responses were available."));
 
             return parts.Count > 0
                 ? string.Join(Environment.NewLine, parts)
