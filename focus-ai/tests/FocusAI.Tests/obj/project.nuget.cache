@@ -1,11 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "brTmijiJv3M=",
+  "dgSpecHash": "aqKhTlYARFE=",
   "success": true,
   "projectFilePath": "D:\\Scoala\\25-26\\CEX GL\\Robotica\\Focus AI\\focus-ai\\tests\\FocusAI.Tests\\FocusAI.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Condrici\\.nuget\\packages\\coverlet.collector\\6.0.2\\coverlet.collector.6.0.2.nupkg.sha512",
-    "C:\\Users\\Condrici\\.nuget\\packages\\facebook\\7.0.10-beta\\facebook.7.0.10-beta.nupkg.sha512",
     "C:\\Users\\Condrici\\.nuget\\packages\\firebase.auth\\1.0.0\\firebase.auth.1.0.0.nupkg.sha512",
     "C:\\Users\\Condrici\\.nuget\\packages\\lightgbm\\4.6.0\\lightgbm.4.6.0.nupkg.sha512",
     "C:\\Users\\Condrici\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\9.0.4\\microsoft.bcl.asyncinterfaces.9.0.4.nupkg.sha512",
@@ -115,18 +114,5 @@
     "C:\\Users\\Condrici\\.nuget\\packages\\xunit.extensibility.execution\\2.9.3\\xunit.extensibility.execution.2.9.3.nupkg.sha512",
     "C:\\Users\\Condrici\\.nuget\\packages\\xunit.runner.visualstudio\\2.8.2\\xunit.runner.visualstudio.2.8.2.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1701",
-      "level": "Warning",
-      "message": "Package 'Facebook 7.0.10-beta' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net9.0-windows7.0'. This package may not be fully compatible with your project.",
-      "projectPath": "D:\\Scoala\\25-26\\CEX GL\\Robotica\\Focus AI\\focus-ai\\tests\\FocusAI.Tests\\FocusAI.Tests.csproj",
-      "warningLevel": 1,
-      "filePath": "D:\\Scoala\\25-26\\CEX GL\\Robotica\\Focus AI\\focus-ai\\tests\\FocusAI.Tests\\FocusAI.Tests.csproj",
-      "libraryId": "Facebook",
-      "targetGraphs": [
-        "net9.0-windows7.0"
-      ]
-    }
-  ]
+  "logs": []
 }

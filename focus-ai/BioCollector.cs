@@ -1,204 +1,314 @@
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.IO.Ports;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
 namespace focus_ai
 {
+    /// <summary>
+    /// A timestamped PPG pulse-to-pulse interval. These are PRV intervals from
+    /// MAX30102, not ECG-derived RR intervals.
+    /// </summary>
+    public readonly record struct PpgRrSample(uint DeviceTimestampMs, double IntervalMs, uint IrAmplitude);
+
     public readonly struct BioDataFrame
     {
         public BioDataFrame(
-            int ecgDreapta,
-            int ecgStanga,
+            uint deviceTimestampMs,
+            int ecgChannel1,
+            int ecgChannel2,
             int heartRate,
             int spo2,
-            bool distance,
-            double? rrIntervalMs = null)
+            bool fingerDetected,
+            bool ppgReady,
+            int distanceCm = -1,
+            bool distanceUpdated = false,
+            bool hasLegacyDistanceFlag = false,
+            bool legacyDistanceFlag = false)
         {
-            EcgDreapta = ecgDreapta;
-            EcgStanga = ecgStanga;
+            DeviceTimestampMs = deviceTimestampMs;
+            EcgDreapta = ecgChannel1;
+            EcgStanga = ecgChannel2;
             HeartRate = heartRate;
             SpO2 = spo2;
-            Distance = distance;
-            RrIntervalMs = rrIntervalMs;
+            FingerDetected = fingerDetected;
+            PpgReady = ppgReady;
+            DistanceCm = distanceCm;
+            DistanceAvailable = distanceUpdated && distanceCm >= 0;
+            HasLegacyDistanceFlag = hasLegacyDistanceFlag;
+            Distance = DistanceAvailable
+                ? distanceCm > 0 && distanceCm < 30
+                : hasLegacyDistanceFlag && legacyDistanceFlag;
         }
 
+        public uint DeviceTimestampMs { get; }
         public int EcgDreapta { get; }
         public int EcgStanga { get; }
         public int HeartRate { get; }
         public int SpO2 { get; }
+        public bool FingerDetected { get; }
+        public bool PpgReady { get; }
+        public int DistanceCm { get; }
+        public bool DistanceAvailable { get; }
+        public bool HasLegacyDistanceFlag { get; }
         public bool Distance { get; }
-        public double? RrIntervalMs { get; }
+        public double? RrIntervalMs => null;
     }
 
     public struct EcgSample
     {
+        public uint DeviceTimestampMs { get; set; }
         public int EcgDreapta { get; set; }
+        /// <summary>-1 means the optional second MyoWare channel is not wired.</summary>
         public int EcgStanga { get; set; }
     }
 
     public sealed class BioCollector
     {
-        private static BioCollector? _instance;
-
-        public static BioCollector Instance =>
-            _instance ??= new BioCollector();
-
-        private const string ArduinoPortName = "COM5";
         private const int ArduinoBaudRate = 115200;
+        private const string ExpectedHandshake = "PONG,FOCUS_AI,2";
+        private static readonly TimeSpan PortHandshakeTimeout = TimeSpan.FromMilliseconds(700);
+        private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(2);
+
+        private static BioCollector? _instance;
+        public static BioCollector Instance => _instance ??= new BioCollector();
 
         public List<EcgSample> Ecg { get; } = new();
         public List<int> HeartRate { get; } = new();
         public List<int> SpO2 { get; } = new();
+        /// <summary>Legacy collection; remains empty because no distance sensor is installed.</summary>
         public List<bool> Distance { get; } = new();
-        /// <summary>Beat-to-beat NN/RR intervals received from the device, in milliseconds.</summary>
+        /// <summary>Valid ultrasonic readings in centimetres (only fresh measurements).</summary>
+        public List<int> DistanceCm { get; } = new();
+        /// <summary>PPG-derived pulse-to-pulse intervals, milliseconds (PRV).</summary>
         public List<double> RrIntervalsMs { get; } = new();
+        public List<PpgRrSample> PpgRrSamples { get; } = new();
 
         public int LiveHr { get; private set; }
         public int LiveSpo2 { get; private set; }
         public int LiveEcgDr { get; private set; }
-        public int LiveEcgSt { get; private set; }
-
-        public bool LiveDist { get; private set; } = true;
+        public int LiveEcgSt { get; private set; } = -1;
+        public bool LiveDist { get; private set; }
+        public bool PpgSensorReady { get; private set; }
+        public bool FingerDetected { get; private set; }
 
         public string LastNfcUid { get; private set; } = "";
-        public string ConnectedPortName => _serial?.PortName ?? "";
+        public string ConnectedPortName => _serial?.IsOpen == true ? _serial.PortName : "";
         public string LastDetectedPortName { get; private set; } = "";
+        public bool IsConnected => _serial?.IsOpen == true;
 
         public event Action<int, int, int, int, bool>? SampleReceived;
         public event Action<string>? NfcUidReceived;
+        public event Action<uint>? TouchDetected;
+        public event Action<uint>? BuzzerStarted;
+        public event Action<string, bool>? ConnectionStateChanged;
 
+        private readonly Dispatcher? _ui = Application.Current?.Dispatcher;
+        private readonly SemaphoreSlim _connectGate = new(1, 1);
+        private readonly object _reconnectSync = new();
         private SerialPort? _serial;
-        private bool _streaming;
+        private volatile bool _streaming;
+        private CancellationTokenSource? _reconnectCts;
 
-        private readonly Dispatcher _ui =
-            Application.Current.Dispatcher;
+        private BioCollector() { }
 
-        private BioCollector()
+        /// <summary>
+        /// Finds the Arduino by protocol handshake. COM numbers are discovered
+        /// dynamically; DTR/RTS are disabled so probing does not reset unrelated
+        /// serial devices or repeatedly reset the Uno bootloader.
+        /// </summary>
+        public async Task<bool> TryOpenAsync(CancellationToken cancellationToken = default)
         {
+            bool connected = await TryConnectCoreAsync(cancellationToken).ConfigureAwait(false);
+            if (!connected)
+                EnsureReconnectLoop();
+            return connected;
         }
 
-        // Deschide exclusiv COM5.
+        /// <summary>Compatibility entry point for older synchronous callers.</summary>
         public bool TryOpen()
         {
-            if (_serial?.IsOpen == true)
-                return true;
-
-            if (TryOpenPort(ArduinoPortName, out Exception? error))
-                return true;
-
-            MessageBox.Show(
-                $"Nu pot conecta Arduino pe {ArduinoPortName}.\n" +
-                $"{error?.Message ?? "Portul serial nu este disponibil."}\n\n" +
-                "Verifică dacă Arduino este conectat la COM5.",
-                "Focus AI - Serial",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-
-            _serial = null;
-            return false;
+            try
+            {
+                return TryOpenAsync().GetAwaiter().GetResult();
+            }
+            catch
+            {
+                EnsureReconnectLoop();
+                return false;
+            }
         }
 
         public void RememberDetectedPort(string portName)
         {
             if (!string.IsNullOrWhiteSpace(portName))
-                LastDetectedPortName = portName;
+                LastDetectedPortName = portName.Trim();
         }
 
-        private bool TryOpenPort(string portName, out Exception? error)
+        private async Task<bool> TryConnectCoreAsync(CancellationToken cancellationToken)
         {
-            error = null;
-            SerialPort? serial = null;
-
+            await _connectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                serial = new SerialPort(portName, ArduinoBaudRate)
-                {
-                    ReadTimeout = 250,
-                    WriteTimeout = 500,
-                    NewLine = "\n",
-                    DtrEnable = true,
-                    RtsEnable = true
-                };
+                if (_serial?.IsOpen == true)
+                    return true;
 
-                serial.Open();
-
-                // Arduino se poate reseta la deschiderea portului.
-                Thread.Sleep(2500);
-
-                if (!WaitForArduinoReady(
-                    serial,
-                    TimeSpan.FromSeconds(5)))
-                {
-                    throw new TimeoutException(
-                        $"{portName} nu a transmis READY, DATA sau NFC.");
-                }
-
-                serial.DiscardInBuffer();
-                serial.DataReceived += OnDataReceived;
-
-                _serial = serial;
-
-                return true;
+                return await Task.Run(() => DiscoverAndConnect(cancellationToken), cancellationToken)
+                    .ConfigureAwait(false);
             }
-            catch (Exception ex)
+            finally
             {
-                error = ex;
+                _connectGate.Release();
+            }
+        }
 
-                try
-                {
-                    if (serial?.IsOpen == true)
-                        serial.Close();
-                }
-                catch
-                {
-                }
-
-                try
-                {
-                    serial?.Dispose();
-                }
-                catch
-                {
-                }
-
-                _serial = null;
+        private bool DiscoverAndConnect(CancellationToken cancellationToken)
+        {
+            string[] ports;
+            try
+            {
+                ports = SerialPort.GetPortNames();
+            }
+            catch
+            {
                 return false;
             }
+
+            IEnumerable<string> orderedPorts = ports
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(p => string.Equals(p, LastDetectedPortName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(GetComPortNumber);
+
+            foreach (string portName in orderedPorts)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                SerialPort? probe = null;
+                try
+                {
+                    probe = new SerialPort(portName, ArduinoBaudRate)
+                    {
+                        ReadTimeout = 100,
+                        WriteTimeout = 300,
+                        NewLine = "\n",
+                        DtrEnable = false,
+                        RtsEnable = false,
+                        Handshake = Handshake.None
+                    };
+                    probe.Open();
+                    probe.DiscardInBuffer();
+                    probe.DiscardOutBuffer();
+                    probe.WriteLine("PING,FOCUS_AI");
+
+                    DateTime deadline = DateTime.UtcNow + PortHandshakeTimeout;
+                    bool matched = false;
+                    while (DateTime.UtcNow < deadline && !cancellationToken.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            string response = probe.ReadLine().Trim();
+                            if (response.Equals(ExpectedHandshake, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matched = true;
+                                break;
+                            }
+                        }
+                        catch (TimeoutException) { }
+                    }
+
+                    if (!matched)
+                        continue;
+
+                    probe.DiscardInBuffer();
+                    if (_streaming)
+                        probe.WriteLine("START_TEST");
+
+                    probe.DataReceived += OnDataReceived;
+                    _serial = probe;
+                    LastDetectedPortName = portName;
+                    RaiseConnectionState(portName, true);
+                    probe = null; // ownership transferred to _serial
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // A non-Focus-AI device, busy port, or transient USB error.
+                }
+                finally
+                {
+                    if (probe != null)
+                    {
+                        try { probe.DataReceived -= OnDataReceived; } catch { }
+                        try { if (probe.IsOpen) probe.Close(); } catch { }
+                        try { probe.Dispose(); } catch { }
+                    }
+                }
+            }
+
+            return false;
         }
 
-        public void Close()
+        private static int GetComPortNumber(string portName)
+        {
+            string digits = new string(portName.Where(char.IsDigit).ToArray());
+            return int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                ? n
+                : int.MaxValue;
+        }
+
+        private void EnsureReconnectLoop()
+        {
+            lock (_reconnectSync)
+            {
+                if (_reconnectCts != null)
+                    return;
+
+                var cts = new CancellationTokenSource();
+                _reconnectCts = cts;
+                _ = Task.Run(() => ReconnectLoopAsync(cts));
+            }
+        }
+
+        private async Task ReconnectLoopAsync(CancellationTokenSource owner)
         {
             try
             {
-                Send("STOP_TEST");
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (_serial != null)
+                while (!owner.IsCancellationRequested && _serial?.IsOpen != true)
                 {
-                    _serial.DataReceived -= OnDataReceived;
-
-                    if (_serial.IsOpen)
-                        _serial.Close();
-
-                    _serial.Dispose();
+                    try
+                    {
+                        if (await TryConnectCoreAsync(owner.Token).ConfigureAwait(false))
+                            return;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                    await Task.Delay(ReconnectInterval, owner.Token).ConfigureAwait(false);
                 }
             }
-            catch
+            catch (OperationCanceledException) { }
+            finally
             {
+                lock (_reconnectSync)
+                {
+                    if (ReferenceEquals(_reconnectCts, owner))
+                    {
+                        _reconnectCts = null;
+                        owner.Dispose();
+                    }
+                }
             }
-
-            _serial = null;
-            _streaming = false;
         }
 
         public void StartStreaming(bool reset = false)
@@ -209,11 +319,14 @@ namespace focus_ai
                 HeartRate.Clear();
                 SpO2.Clear();
                 Distance.Clear();
+                DistanceCm.Clear();
                 RrIntervalsMs.Clear();
+                PpgRrSamples.Clear();
             }
 
             _streaming = true;
-            Send("START_TEST");
+            if (!Send("START_TEST"))
+                EnsureReconnectLoop();
         }
 
         public void StopStreaming()
@@ -222,44 +335,87 @@ namespace focus_ai
             Send("STOP_TEST");
         }
 
-        public void Send(string cmd)
+        /// <summary>Requests a short hardware buzzer cue from the Arduino.</summary>
+        public bool TriggerBuzzer() => Send("BEEP");
+
+        public bool Send(string command)
         {
+            SerialPort? serial = _serial;
+            if (serial?.IsOpen != true)
+                return false;
+
             try
             {
-                if (_serial?.IsOpen == true)
-                    _serial.WriteLine(cmd);
+                serial.WriteLine(command);
+                return true;
             }
             catch
             {
+                MarkDisconnected(serial);
+                return false;
             }
         }
 
-        public void ClearLastNfcUid()
+        public void Close()
         {
-            LastNfcUid = "";
+            _streaming = false;
+            lock (_reconnectSync)
+            {
+                _reconnectCts?.Cancel();
+            }
+
+            SerialPort? serial = _serial;
+            _serial = null;
+            if (serial != null)
+            {
+                try { serial.WriteLine("STOP_TEST"); } catch { }
+                try { serial.DataReceived -= OnDataReceived; } catch { }
+                try { if (serial.IsOpen) serial.Close(); } catch { }
+                try { serial.Dispose(); } catch { }
+            }
+            RaiseConnectionState("", false);
         }
 
-        private void OnDataReceived(
-            object sender,
-            SerialDataReceivedEventArgs e)
+        public void ClearLastNfcUid() => LastNfcUid = "";
+
+        private void OnDataReceived(object sender, SerialDataReceivedEventArgs e)
         {
+            if (sender is not SerialPort serial)
+                return;
+
             try
             {
-                SerialPort? serial = _serial;
-
-                if (serial == null || !serial.IsOpen)
-                    return;
-
-                while (serial.BytesToRead > 0)
+                while (serial.IsOpen && serial.BytesToRead > 0)
                 {
-                    string line = serial.ReadLine().Trim();
+                    string line;
+                    try { line = serial.ReadLine().Trim(); }
+                    catch (TimeoutException) { break; }
 
-                    _ui.InvokeAsync(() => HandleLine(line));
+                    if (_ui != null && !_ui.CheckAccess())
+                        _ui.BeginInvoke(new Action(() => HandleLine(line)));
+                    else
+                        HandleLine(line);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException || ex is InvalidOperationException || ex is UnauthorizedAccessException)
             {
+                MarkDisconnected(serial);
             }
+        }
+
+        private void MarkDisconnected(SerialPort expected)
+        {
+            if (!ReferenceEquals(_serial, expected))
+                return;
+
+            _serial = null;
+            try { expected.DataReceived -= OnDataReceived; } catch { }
+            try { if (expected.IsOpen) expected.Close(); } catch { }
+            try { expected.Dispose(); } catch { }
+
+            RaiseConnectionState("", false);
+            if (_streaming)
+                EnsureReconnectLoop();
         }
 
         private void HandleLine(string line)
@@ -267,12 +423,26 @@ namespace focus_ai
             if (string.IsNullOrWhiteSpace(line))
                 return;
 
-            if (line == "READY" || line == "TEST_STARTED")
+            if (line.Equals("READY,FOCUS_AI,2", StringComparison.OrdinalIgnoreCase) ||
+                line.Equals("PONG,FOCUS_AI,2", StringComparison.OrdinalIgnoreCase) ||
+                line.Equals("TEST_STARTED", StringComparison.OrdinalIgnoreCase) ||
+                line.Equals("TEST_STOPPED", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            // Citire NFC.
-            string nfcUid = ExtractNfcUid(line);
+            if (TryParseTimestampedEvent(line, "TOUCH_DETECTED", out uint touchTimestamp))
+            {
+                if (_streaming)
+                    TouchDetected?.Invoke(touchTimestamp);
+                return;
+            }
 
+            if (TryParseTimestampedEvent(line, "BEEP_STARTED", out uint buzzerTimestamp))
+            {
+                BuzzerStarted?.Invoke(buzzerTimestamp);
+                return;
+            }
+
+            string nfcUid = ExtractNfcUid(line);
             if (!string.IsNullOrWhiteSpace(nfcUid))
             {
                 LastNfcUid = nfcUid;
@@ -280,42 +450,54 @@ namespace focus_ai
                 return;
             }
 
-            if (TryParseRrLine(line, out double standaloneRr))
+            if (TryParsePpgRrLine(line, out PpgRrSample pulseSample))
             {
                 if (_streaming)
-                    RrIntervalsMs.Add(standaloneRr);
+                {
+                    PpgRrSamples.Add(pulseSample);
+                    RrIntervalsMs.Add(pulseSample.IntervalMs);
+                }
                 return;
             }
 
-            // Citire date senzori.
-            if (line.StartsWith(
-                "DATA,",
-                StringComparison.OrdinalIgnoreCase))
+            if (line.StartsWith("DATA,", StringComparison.OrdinalIgnoreCase) &&
+                TryParseDataFrame(line, out BioDataFrame frame))
             {
-                if (!TryParseDataFrame(line, out var frame))
-                    return;
-
                 LiveEcgDr = frame.EcgDreapta;
                 LiveEcgSt = frame.EcgStanga;
                 LiveHr = frame.HeartRate;
                 LiveSpo2 = frame.SpO2;
-
-                // Distanța este permanent 1.
-                LiveDist = true;
+                LiveDist = frame.Distance;
+                PpgSensorReady = frame.PpgReady;
+                FingerDetected = frame.FingerDetected;
 
                 if (_streaming)
                 {
-                    Ecg.Add(new EcgSample
+                    if (frame.EcgDreapta >= 0)
                     {
-                        EcgDreapta = frame.EcgDreapta,
-                        EcgStanga = frame.EcgStanga
-                    });
+                        Ecg.Add(new EcgSample
+                        {
+                            DeviceTimestampMs = frame.DeviceTimestampMs,
+                            EcgDreapta = frame.EcgDreapta,
+                            EcgStanga = frame.EcgStanga
+                        });
+                    }
 
-                    HeartRate.Add(frame.HeartRate);
-                    SpO2.Add(frame.SpO2);
-                    Distance.Add(true);
-                    if (frame.RrIntervalMs.HasValue)
-                        RrIntervalsMs.Add(frame.RrIntervalMs.Value);
+                    if (frame.HeartRate >= 30 && frame.HeartRate <= 220)
+                        HeartRate.Add(frame.HeartRate);
+                    if (frame.SpO2 >= 70 && frame.SpO2 <= 100)
+                        SpO2.Add(frame.SpO2);
+                    if (frame.DistanceAvailable)
+                    {
+                        Distance.Add(frame.Distance);
+                        DistanceCm.Add(frame.DistanceCm);
+                    }
+                    else if (frame.HasLegacyDistanceFlag)
+                    {
+                        // Preserve the historic proximity bit, but do not
+                        // fabricate a centimetre value from a boolean flag.
+                        Distance.Add(frame.Distance);
+                    }
                 }
 
                 SampleReceived?.Invoke(
@@ -323,56 +505,98 @@ namespace focus_ai
                     frame.EcgStanga,
                     frame.HeartRate,
                     frame.SpO2,
-                    true);
+                    false);
             }
         }
 
-        public static bool TryParseDataFrame(
-            string line,
-            out BioDataFrame frame)
+        public static bool TryParseDataFrame(string line, out BioDataFrame frame)
         {
             frame = default;
-
             if (string.IsNullOrWhiteSpace(line) ||
-                !line.StartsWith(
-                    "DATA,",
-                    StringComparison.OrdinalIgnoreCase))
-            {
+                !line.StartsWith("DATA,", StringComparison.OrdinalIgnoreCase))
                 return false;
-            }
 
             string[] parts = line.Split(',');
+            if (parts.Length >= 8)
+            {
+                if (!uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint timestamp) ||
+                    !TryParseInt(parts[2], out int a0) ||
+                    !TryParseInt(parts[3], out int a1) ||
+                    !TryParseInt(parts[4], out int hr) ||
+                    !TryParseInt(parts[5], out int spo2))
+                    return false;
 
-            if (parts.Length < 6)
+                bool finger = parts[6] == "1";
+                bool ppgReady = parts[7] == "1";
+                int distanceCm = -1;
+                bool distanceUpdated = false;
+                if (parts.Length >= 10)
+                {
+                    if (!TryParseInt(parts[8], out distanceCm) || !TryParseInt(parts[9], out int updatedFlag))
+                        return false;
+                    distanceUpdated = updatedFlag == 1;
+                }
+                else if (parts.Length >= 9)
+                {
+                    if (!TryParseInt(parts[8], out distanceCm))
+                        return false;
+                    distanceUpdated = distanceCm >= 0;
+                }
+
+                frame = new BioDataFrame(timestamp, a0, a1, hr, spo2, finger, ppgReady,
+                    distanceCm, distanceUpdated);
+                return true;
+            }
+
+            // Compatibility with the old DATA,ECG1,ECG2,HR,SPO2,DISTANCE format.
+            if (parts.Length >= 6 &&
+                TryParseInt(parts[1], out int oldA0) &&
+                TryParseInt(parts[2], out int oldA1) &&
+                TryParseInt(parts[3], out int oldHr) &&
+                TryParseInt(parts[4], out int oldSpo2))
+            {
+                bool oldDistance = parts[5] == "1";
+                frame = new BioDataFrame(0, oldA0, oldA1, oldHr, oldSpo2,
+                    oldHr > 0, oldHr > 0 || oldSpo2 > 0,
+                    distanceCm: -1, distanceUpdated: false,
+                    hasLegacyDistanceFlag: true, legacyDistanceFlag: oldDistance);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Parses PPG_RR,timestamp_ms,interval_ms,IR_amplitude.</summary>
+        public static bool TryParsePpgRrLine(string line, out PpgRrSample sample)
+        {
+            sample = default;
+            if (string.IsNullOrWhiteSpace(line))
                 return false;
 
-            if (!TryParseOptionalInt(parts[1], out int ecgDr))
+            string[] parts = line.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 4 || !parts[0].Equals("PPG_RR", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            if (!TryParseOptionalInt(parts[2], out int ecgSt))
+            if (!uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint timestamp) ||
+                !double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out double rr) ||
+                !uint.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out uint ir) ||
+                !HrvMetrics.IsValidRrInterval(rr) || ir < 10000)
                 return false;
 
-            if (!TryParseOptionalInt(parts[3], out int hr))
-                return false;
-
-            if (!TryParseOptionalInt(parts[4], out int spo2))
-                return false;
-
-            double? rrIntervalMs = null;
-            if (parts.Length >= 7)
-                TryParseOptionalRrInterval(parts[6], out rrIntervalMs);
-
-            // Ignorăm valoarea distanței primită de la Arduino.
-            // În aplicație aceasta este permanent TRUE.
-            frame = new BioDataFrame(
-                ecgDr,
-                ecgSt,
-                hr,
-                spo2,
-                true,
-                rrIntervalMs);
-
+            sample = new PpgRrSample(timestamp, rr, ir);
             return true;
+        }
+
+        public static bool TryParseTimestampedEvent(string line, string eventName, out uint timestampMs)
+        {
+            timestampMs = 0;
+            if (string.IsNullOrWhiteSpace(line) || string.IsNullOrWhiteSpace(eventName))
+                return false;
+
+            string[] parts = line.Split(',', StringSplitOptions.TrimEntries);
+            return parts.Length == 2 &&
+                   parts[0].Equals(eventName, StringComparison.OrdinalIgnoreCase) &&
+                   uint.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out timestampMs);
         }
 
         public static string ExtractNfcUid(string line)
@@ -381,107 +605,24 @@ namespace focus_ai
                 return "";
 
             const string nfcMarker = "NFC_DETECTED,";
-
-            if (line.StartsWith(
-                nfcMarker,
-                StringComparison.OrdinalIgnoreCase))
-            {
+            if (line.StartsWith(nfcMarker, StringComparison.OrdinalIgnoreCase))
                 return line[nfcMarker.Length..].Trim();
-            }
 
             const string uidMarker = "UID:";
-
-            int markerIndex = line.IndexOf(
-                uidMarker,
-                StringComparison.OrdinalIgnoreCase);
-
-            if (markerIndex < 0)
-                return "";
-
-            return line[(markerIndex + uidMarker.Length)..].Trim();
+            int markerIndex = line.IndexOf(uidMarker, StringComparison.OrdinalIgnoreCase);
+            return markerIndex < 0 ? "" : line[(markerIndex + uidMarker.Length)..].Trim();
         }
 
-        private static bool TryParseOptionalInt(
-            string value,
-            out int result)
+        private static bool TryParseInt(string value, out int result) =>
+            int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
+
+        private void RaiseConnectionState(string portName, bool connected)
         {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                result = 0;
-                return true;
-            }
-
-            return int.TryParse(value.Trim(), out result);
-        }
-
-        /// <summary>
-        /// Parses a standalone beat interval message: <c>RR,812.5</c>. It is
-        /// optional in the firmware protocol and accepted alongside DATA frames.
-        /// </summary>
-        public static bool TryParseRrLine(string line, out double rrIntervalMs)
-        {
-            rrIntervalMs = 0;
-            if (string.IsNullOrWhiteSpace(line))
-                return false;
-
-            string[] parts = line.Split(',', StringSplitOptions.TrimEntries);
-            if (parts.Length != 2 || !parts[0].Equals("RR", StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            return double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out rrIntervalMs) &&
-                   HrvMetrics.IsValidRrInterval(rrIntervalMs);
-        }
-
-        private static bool TryParseOptionalRrInterval(string value, out double? rrIntervalMs)
-        {
-            rrIntervalMs = null;
-            if (string.IsNullOrWhiteSpace(value))
-                return true;
-
-            if (!double.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed) ||
-                !HrvMetrics.IsValidRrInterval(parsed))
-                return false;
-
-            rrIntervalMs = parsed;
-            return true;
-        }
-
-        private static bool WaitForArduinoReady(
-            SerialPort serial,
-            TimeSpan timeout)
-        {
-            DateTime deadline = DateTime.UtcNow.Add(timeout);
-
-            while (DateTime.UtcNow < deadline)
-            {
-                try
-                {
-                    string line = serial.ReadLine().Trim();
-
-                    if (IsSupportedArduinoLine(line))
-                        return true;
-                }
-                catch (TimeoutException)
-                {
-                }
-            }
-
-            return false;
-        }
-
-        private static bool IsSupportedArduinoLine(string line)
-        {
-            return line.Equals(
-                       "READY",
-                       StringComparison.OrdinalIgnoreCase)
-                || line.Equals(
-                       "TEST_STARTED",
-                       StringComparison.OrdinalIgnoreCase)
-                || line.StartsWith(
-                       "DATA,",
-                       StringComparison.OrdinalIgnoreCase)
-                || TryParseRrLine(line, out _)
-                || !string.IsNullOrWhiteSpace(ExtractNfcUid(line));
+            void Raise() => ConnectionStateChanged?.Invoke(portName, connected);
+            if (_ui != null && !_ui.CheckAccess() && !_ui.HasShutdownStarted)
+                _ui.BeginInvoke(new Action(Raise));
+            else
+                Raise();
         }
     }
 }

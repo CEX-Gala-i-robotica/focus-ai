@@ -18,7 +18,7 @@ public static class PredictionModelService
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, string> FailedFingerprintCache = new(StringComparer.Ordinal);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private const string SchemaVersion = "next-session-v3";
+    private const string SchemaVersion = "next-session-v5";
 
     public static async Task<PredictionEngineResolution> GetEngineAsync(
         IReadOnlyList<SessionFeatures> history,
@@ -137,7 +137,7 @@ public static class PredictionModelService
         try
         {
             PredictionModelMetadata? metadata = JsonSerializer.Deserialize<PredictionModelMetadata>(File.ReadAllText(metadataPath), JsonOptions);
-            if (metadata is null || metadata.ArtifactVersion != 3 || metadata.FeatureSchemaVersion != SchemaVersion ||
+            if (metadata is null || metadata.ArtifactVersion != 5 || metadata.FeatureSchemaVersion != SchemaVersion ||
                 metadata.ScoreFormulaVersion != TestScoreCalculator.CurrentVersion ||
                 !string.Equals(metadata.DataFingerprint, fingerprint, StringComparison.Ordinal) ||
                 !double.IsFinite(metadata.ValidationMae) || !double.IsFinite(metadata.TestMae) || metadata.TestExamples <= 0)

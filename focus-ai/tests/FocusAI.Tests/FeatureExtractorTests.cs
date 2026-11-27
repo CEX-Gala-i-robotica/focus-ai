@@ -19,6 +19,8 @@ public sealed class FeatureExtractorTests
           "tr2": 0.41,
           "precizie_gonogo": 88,
           "rr_ms": "760,810,780,840,800,770,830,790,815,785,845,805,775,835,795,820,790,810,780,840,800,770,830,790,815,785",
+          "rr_source": "MAX30102_PPG",
+          "rr_measurement_type": "PRV",
           "cpt": {
             "accuracy": 90,
             "hit_rate": 0.9,
@@ -73,4 +75,66 @@ public sealed class FeatureExtractorTests
         Assert.Equal(41.25, features.Score, precision: 6);
         Assert.Equal(2, features.ScoreFormulaVersion);
     }
+    [Fact]
+    public void FromJsonElement_DoesNotTreatUnlabelledIntervalsAsHrvFeatures()
+    {
+        const string json = """
+        {
+          "scor": 70,
+          "rr_ms": "760,810,780,840,800,770,830,790,815,785,845,805,775,835,795,820,790,810,780,840,800,770,830,790,815,785"
+        }
+        """;
+
+        using JsonDocument doc = JsonDocument.Parse(json);
+        var features = FeatureExtractor.FromJsonElement(doc.RootElement);
+
+        Assert.False(features.HasHrvData);
+        Assert.Equal(0, features.RrSampleCount);
+    }
+
+    [Fact]
+    public void FromJsonElement_DoesNotTreatMyoWareRawAnalogSamplesAsValidatedEcg()
+    {
+        const string json = """
+        {
+          "scor": 70,
+          "analog_signal": "100,120;110,130;120,140",
+          "analog_signal_source": "MyoWare analog output A0 (raw ADC)",
+          "analog_signal_is_clinically_validated_ecg": false
+        }
+        """;
+
+        using JsonDocument doc = JsonDocument.Parse(json);
+        var features = FeatureExtractor.FromJsonElement(doc.RootElement);
+
+        Assert.False(features.HasEcgData);
+        Assert.Equal(0, features.EcgSampleCount);
+    }
+
+    [Fact]
+    public void FromJsonElement_ExcludesUnreliableExGaussianFitFromMlFeatures()
+    {
+        const string json = """
+        {
+          "scor": 70,
+          "cpt": {
+            "mu_ms": 410,
+            "sigma_ms": 55,
+            "tau_ms": 190,
+            "reaction_time_cv": 0.3,
+            "reaction_time_sample_count": 14,
+            "ex_gaussian_available": true,
+            "ex_gaussian_converged": false,
+            "ex_gaussian_reliable": false
+          }
+        }
+        """;
+
+        using JsonDocument doc = JsonDocument.Parse(json);
+        var features = FeatureExtractor.FromJsonElement(doc.RootElement);
+
+        Assert.False(features.HasCptExGaussianData);
+        Assert.Equal(0, features.CptTauMs);
+    }
+
 }

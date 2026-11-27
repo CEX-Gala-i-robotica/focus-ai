@@ -450,7 +450,7 @@ namespace focus_ai
             Close();
         }
 
-        private void SecventeGame_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void SecventeGame_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             Owner?.Show();
         }

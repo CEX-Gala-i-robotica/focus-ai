@@ -22,6 +22,8 @@ namespace focus_ai
         private bool _testStarted;
         private bool _finished;
         private bool _spaceDown;
+        private bool _cueStarted;
+        private uint? _arduinoCueTimestampMs;
 
         public BuzzerTest(bool isDark)
         {
@@ -44,6 +46,8 @@ namespace focus_ai
 
             PreviewKeyDown += BuzzerTest_PreviewKeyDown;
             PreviewKeyUp += BuzzerTest_PreviewKeyUp;
+            BioCollector.Instance.BuzzerStarted += BioCollector_BuzzerStarted;
+            BioCollector.Instance.TouchDetected += BioCollector_TouchDetected;
 
             Loaded += (_, _) => Keyboard.Focus(this);
 
@@ -79,16 +83,22 @@ namespace focus_ai
 
             try
             {
+                _cueStarted = false;
+                _arduinoCueTimestampMs = null;
+
+                // Prefer the physical Arduino buzzer. If no compatible device is
+                // connected or it does not acknowledge the cue, fall back to the
+                // Windows beep and keyboard response.
+                if (BioCollector.Instance.TriggerBuzzer())
+                {
+                    SetStatus(LanguageManager.T("Waiting for the hardware cue..."), StatusColor.Orange);
+                    await Task.Delay(450);
+                    if (!IsLoaded || _finished || _cueStarted)
+                        return;
+                }
+
                 SystemSounds.Beep.Play();
-
-                _stopwatch.Start();
-                _uiTimer.Start();
-
-                Keyboard.Focus(this);
-
-                SetStatus(
-                    LanguageManager.T("PRESS SPACE NOW!"),
-                    StatusColor.Green);
+                BeginCue(null);
             }
             catch (Exception ex)
             {
@@ -98,6 +108,43 @@ namespace focus_ai
                 BtnStart.IsEnabled = true;
                 _testStarted = false;
             }
+        }
+
+        private void BioCollector_BuzzerStarted(uint deviceTimestampMs)
+        {
+            if (!IsLoaded || _finished || _cueStarted)
+                return;
+
+            _arduinoCueTimestampMs = deviceTimestampMs;
+            BeginCue(deviceTimestampMs);
+        }
+
+        private void BioCollector_TouchDetected(uint deviceTimestampMs)
+        {
+            if (!IsLoaded || _finished || !_cueStarted || !_arduinoCueTimestampMs.HasValue)
+                return;
+
+            // Unsigned subtraction is wrap-safe for Arduino millis() rollover.
+            uint elapsedMs = unchecked(deviceTimestampMs - _arduinoCueTimestampMs.Value);
+            if (elapsedMs > 15000)
+                return;
+
+            CompleteReaction(elapsedMs / 1000.0, "touch sensor");
+        }
+
+        private void BeginCue(uint? arduinoTimestampMs)
+        {
+            if (_cueStarted || _finished)
+                return;
+
+            _arduinoCueTimestampMs = arduinoTimestampMs;
+            _cueStarted = true;
+            _stopwatch.Start();
+            _uiTimer.Start();
+            Keyboard.Focus(this);
+            SetStatus(
+                LanguageManager.T("PRESS SPACE NOW OR TOUCH THE SENSOR!"),
+                StatusColor.Green);
         }
 
         private void BuzzerTest_PreviewKeyDown(
@@ -127,32 +174,30 @@ namespace focus_ai
 
         private void HandleSpacePress()
         {
-            if (!_testStarted ||
-                _finished ||
-                !_stopwatch.IsRunning)
-            {
+            if (!_testStarted || _finished || !_stopwatch.IsRunning)
                 return;
-            }
+
+            CompleteReaction(_stopwatch.Elapsed.TotalSeconds, "keyboard");
+        }
+
+        private void CompleteReaction(double elapsed, string responseSource)
+        {
+            if (_finished || !_cueStarted || !double.IsFinite(elapsed) || elapsed < 0)
+                return;
 
             _finished = true;
-
             _stopwatch.Stop();
-
-            ReactionTime = _stopwatch.Elapsed.TotalSeconds;
-
+            ReactionTime = elapsed;
             _uiTimer.Stop();
-
-            double elapsed = _stopwatch.Elapsed.TotalSeconds;
-
             TxtTimer.Text = elapsed.ToString("F3") + " s";
 
             SetStatus(
-                $"{LanguageManager.T("Nice! Time:")} {elapsed:F3} s",
+                $"{LanguageManager.T("Nice! Time:")} {elapsed:F3} s ({responseSource})",
                 StatusColor.Blue);
 
             MessageBox.Show(
                 $"{LanguageManager.T("Result:")} {elapsed:F3} " +
-                $"{LanguageManager.T("seconds")}",
+                $"{LanguageManager.T("seconds")} ({responseSource})",
                 LanguageManager.T("Test completed"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -192,6 +237,8 @@ namespace focus_ai
         {
             _uiTimer.Stop();
             _stopwatch.Stop();
+            BioCollector.Instance.BuzzerStarted -= BioCollector_BuzzerStarted;
+            BioCollector.Instance.TouchDetected -= BioCollector_TouchDetected;
 
             base.OnClosed(e);
         }

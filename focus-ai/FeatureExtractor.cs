@@ -40,7 +40,13 @@ public static class FeatureExtractor
             ? dist.Count(v => v > 0.5) / (double)dist.Length
             : 0;
 
-        var (ecgDrMean, ecgStMean, ecgRange, ecgCount) = EcgStats(GetString(el, "ecg"));
+        // Raw MyoWare ADC samples are not a validated ECG waveform. Only
+        // admit data into the legacy ECG feature slots when the producer has
+        // explicitly marked the signal as clinically validated ECG.
+        bool isValidatedEcg = TryGetBool(el, out bool validatedEcg, "analog_signal_is_clinically_validated_ecg") && validatedEcg;
+        var (ecgDrMean, ecgStMean, ecgRange, ecgCount) = isValidatedEcg
+            ? EcgStats(GetString(el, "analog_signal", "ecg"))
+            : (0d, 0d, 0d, 0);
         var (mapXVar, mapYVar, mapPath, mapCount) = MapStats(GetString(el, "map"));
         CptDistributionFeatures cpt = ExtractCptDistribution(el);
         HrvMetricsResult hrv = ExtractHrvMetrics(el);
@@ -59,8 +65,8 @@ public static class FeatureExtractor
             hrv);
 
         // A valid legacy score remains historical data. Recomputing v1/v2 rows
-        // under the v3 state-space model would silently change the longitudinal
-        // record. Only records with no usable score receive a best-effort v3
+        // under the v5 state-space model would silently change the longitudinal
+        // record. Only records with no usable score receive a best-effort v5
         // estimate from their raw measurements.
         bool scoreWithinRange = hasScore && score >= 0 && score <= 100;
         if (!scoreWithinRange && attention.IsAvailable)
@@ -184,6 +190,18 @@ public static class FeatureExtractor
         }
 
         int sampleCount = Math.Max(storedSampleCount, hitReactionTimes.Length);
+        bool hasReliabilityFlag = TryGetBool(cpt, out bool reportedReliable, "ex_gaussian_reliable");
+        bool reliabilityAccepted = hasReliabilityFlag ? reportedReliable : sampleCount >= 8;
+        if (!reliabilityAccepted)
+        {
+            // Keep the numeric fields out of ML when the fit failed convergence
+            // or did not meet the minimum response-count threshold. The raw
+            // values remain in Firebase for exploratory inspection.
+            mu = null;
+            sigma = null;
+            tau = null;
+        }
+
         return new CptDistributionFeatures(
             tau.HasValue,
             mu,
@@ -220,6 +238,18 @@ public static class FeatureExtractor
 
     private static HrvMetricsResult ExtractHrvMetrics(JsonElement root)
     {
+        // The numeric series alone cannot identify whether intervals came from
+        // ECG R-peaks or PPG pulse peaks. Never mix unlabelled/legacy sources in
+        // the physiological feature columns.
+        string source = GetString(root, "rr_source");
+        string measurementType = GetString(root, "rr_measurement_type");
+        bool isSupportedPpgPrv = source.Equals("MAX30102_PPG", StringComparison.OrdinalIgnoreCase) &&
+                                 measurementType.Equals("PRV", StringComparison.OrdinalIgnoreCase);
+        bool isSupportedEcgRr = source.Contains("ECG", StringComparison.OrdinalIgnoreCase) &&
+                                measurementType.Equals("RR", StringComparison.OrdinalIgnoreCase);
+        if (!isSupportedPpgPrv && !isSupportedEcgRr)
+            return new HrvMetricsResult();
+
         double[] rrIntervals = ParseCsvDoubles(GetString(root, "rr_ms", "rrMs", "rr"))
             .Where(HrvMetrics.IsValidRrInterval)
             .ToArray();
@@ -540,8 +570,8 @@ public static class FeatureExtractor
             if (pts.Length < 2)
                 continue;
 
-            bool hasDr = double.TryParse(pts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double dr) && double.IsFinite(dr);
-            bool hasSt = double.TryParse(pts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double st) && double.IsFinite(st);
+            bool hasDr = double.TryParse(pts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double dr) && double.IsFinite(dr) && dr >= 0;
+            bool hasSt = double.TryParse(pts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double st) && double.IsFinite(st) && st >= 0;
 
             if (hasDr)
             {
@@ -564,7 +594,7 @@ public static class FeatureExtractor
             drValues.Count > 0 ? drValues.Average() : 0,
             stValues.Count > 0 ? stValues.Average() : 0,
             allValues.Max() - allValues.Min(),
-            validPairs);
+            drValues.Count);
     }
 
     private static (double xVar, double yVar, double totalPath, int count) MapStats(string raw)

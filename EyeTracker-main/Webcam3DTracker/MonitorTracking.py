@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import csv
 import mediapipe as mp
 import time
 import math
@@ -213,6 +214,10 @@ recording_start_t  = None
 RECORDING_DURATION = 60.0
 last_record_second = -1
 recorded_coords    = []
+recorded_samples   = []
+last_record_sample_t = -1.0
+RECORDING_SAMPLE_INTERVAL = 0.10  # 10 Hz; independent of camera FPS
+TARGET_AOI_RADIUS_PX = 52.0
 
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -402,6 +407,7 @@ def send_coords_to_csharp(coords):
 
 def start_recording():
     global recording_active, recording_start_t, last_record_second, recorded_coords
+    global recorded_samples, last_record_sample_t
     if not monitor_tuned:
         print("[Inregistrare] Calibreaza mai intai colturile in ecranul de calibrare.", file=sys.stderr)
         return
@@ -409,7 +415,9 @@ def start_recording():
     recording_start_t  = time.time()
     last_record_second = -1
     recorded_coords    = []
-    print("[Inregistrare] START - 60 de secunde (30s imagine + 30s puncte miscatoare).", file=sys.stderr)
+    recorded_samples   = []
+    last_record_sample_t = -1.0
+    print("[Inregistrare] START - 60 de secunde (30s imagine + 30s puncte miscatoare), esantionare 10 Hz.", file=sys.stderr)
     show_stimulus_window()
 
 
@@ -423,17 +431,75 @@ def stop_recording_and_save():
 
 
 def save_results():
-    if not recorded_coords:
-        print("[Salvare] Nu exista coordonate de salvat.", file=sys.stderr)
-        return
     txt_path = os.path.join(OUTPUT_DIR, "gaze_coords.txt")
     with open(txt_path, "w", encoding="utf-8") as f:
-        f.write("# secunda, mx, my\n")
+        f.write("# secunda, mx, my (coordonate valide pe monitor)\n")
         f.write("coords = [\n")
         for (sec, mx, my) in recorded_coords:
-            f.write(f"    ({sec:3d}, {mx:.4f}, {my:.4f}),\n")
+            f.write(f"    ({sec:3d}, {mx:.6f}, {my:.6f}),\n")
         f.write("]\n")
-    print(f"[Salvare] Salvat in: {txt_path}", file=sys.stderr)
+
+    samples_path = os.path.join(OUTPUT_DIR, "gaze_samples.csv")
+    with open(samples_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "elapsed_ms", "phase", "gaze_valid", "gaze_x_px", "gaze_y_px",
+            "target_available", "target_x_px", "target_y_px", "target_radius_px"
+        ])
+        writer.writerows(recorded_samples)
+
+    print(f"[Salvare] {len(recorded_coords)} coordonate valide; {len(recorded_samples)} esantioane gaze (inclusiv pierderile de tracking).", file=sys.stderr)
+    print(f"[Salvare] Fisiere: {txt_path} si {samples_path}", file=sys.stderr)
+
+
+def record_frame_sample(gaze_norm):
+    """Store a timestamped 10 Hz sample, including tracking dropouts.
+
+    gaze_norm follows the calibrated monitor axes (0,0 = bottom-right). The
+    export converts it to conventional top-left-origin display pixels.
+    During phase 2 the orange dot is the explicit area of interest (AOI).
+    """
+    global last_record_sample_t
+    if not recording_active or recording_start_t is None:
+        return
+
+    now = time.time()
+    elapsed = now - recording_start_t
+    if elapsed < 0 or elapsed > RECORDING_DURATION:
+        return
+    if last_record_sample_t >= 0 and now - last_record_sample_t < RECORDING_SAMPLE_INTERVAL:
+        return
+    last_record_sample_t = now
+
+    phase = 1 if elapsed < PHASE1_DURATION else 2
+    gaze_valid = 0
+    gaze_x_px = -1.0
+    gaze_y_px = -1.0
+    mx = my = None
+
+    if gaze_norm is not None:
+        try:
+            mx, my = float(gaze_norm[0]), float(gaze_norm[1])
+            if math.isfinite(mx) and math.isfinite(my) and 0.0 <= mx <= 1.0 and 0.0 <= my <= 1.0:
+                gaze_valid = 1
+                gaze_x_px = (1.0 - mx) * MONITOR_WIDTH
+                gaze_y_px = (1.0 - my) * MONITOR_HEIGHT
+                recorded_coords.append((int(elapsed), mx, my))
+        except (TypeError, ValueError, IndexError):
+            gaze_valid = 0
+
+    target_available = 1 if phase == 2 and len(_dots_pos) > 0 else 0
+    target_x_px = target_y_px = -1.0
+    if target_available:
+        tx, ty = _dots_pos[_dot_orange_idx]
+        target_x_px = float(tx)
+        target_y_px = float(ty)
+
+    recorded_samples.append((
+        int(round(elapsed * 1000)), phase, gaze_valid,
+        round(gaze_x_px, 3), round(gaze_y_px, 3), target_available,
+        round(target_x_px, 3), round(target_y_px, 3), TARGET_AOI_RADIUS_PX
+    ))
 
 
 def show_gaze_map(coords):
@@ -998,6 +1064,7 @@ while cap.isOpened():
     ret, frame = cap.read()
     if not ret: break
 
+    current_gaze_norm = None
     combined_dir=None; sphere_world_l=None; sphere_world_r=None
     scaled_radius_l=None; scaled_radius_r=None; avg_combined_direction=None
 
@@ -1145,20 +1212,10 @@ while cap.isOpened():
             cv2.line(frame,(int(co[0]),int(co[1])),(int(ct[0]),int(ct[1])),(255,255,10),3)
 
             if recording_active and monitor_tuned:
-                elapsed=time.time()-recording_start_t; cur_sec=int(elapsed)
-                if cur_sec > last_record_second:
-                    O=(sphere_world_l+sphere_world_r)/2
-                    res2=intersect_gaze_with_tuned_monitor(O,avg_combined_direction)
-                    if res2 is not None:
-                        mx,my=res2
-                        phase = 1 if elapsed < PHASE1_DURATION else 2
-                        recorded_coords.append((cur_sec,mx,my))
-                        last_record_second=cur_sec
-                        dot_info = f"  punct=#{_dot_orange_idx+1}" if phase == 2 else ""
-                        print(f"  [INREG t={cur_sec:3d}s F{phase}]  mx={mx:.3f}  my={my:.3f}{dot_info}", file=sys.stderr)
-
-            if recording_active:
-                _update_stimulus_overlay()
+                O=(sphere_world_l+sphere_world_r)/2
+                res2=intersect_gaze_with_tuned_monitor(O,avg_combined_direction)
+                if res2 is not None:
+                    current_gaze_norm = res2
 
             texts=[f"{tr('Screen')}: ({sx}, {sy})"]
             if recording_active and recording_start_t is not None:
@@ -1186,6 +1243,13 @@ while cap.isOpened():
             landmarks3d=landmarks3d,combined_dir=avg_combined_direction,gaze_len=5230,
             monitor_corners=monitor_corners,monitor_center=monitor_center_w,monitor_normal=monitor_normal_w,
             gaze_markers_arg=gaze_markers,corner_world_pts_arg=corner_world_pts,corner_calib_step_arg=corner_calib_step)
+
+    # Update the stimulus even when the face is not detected, then record an
+    # explicit invalid sample. This prevents tracking loss from disappearing
+    # from the denominator and inflating the apparent on-screen fraction.
+    if recording_active:
+        _update_stimulus_overlay()
+        record_frame_sample(current_gaze_norm)
 
     show_window(tr("Eye Tracker"), frame)
 
@@ -1248,5 +1312,7 @@ while cap.isOpened():
                             gaze_markers.append((a,b)); print(f"[X] Marker a={a:.3f} b={b:.3f}", file=sys.stderr)
         else: print("[X] Monitor/privire nu e gata.", file=sys.stderr)
 
+if recording_active:
+    stop_recording_and_save()
 cap.release()
 cv2.destroyAllWindows()

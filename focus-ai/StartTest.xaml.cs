@@ -33,9 +33,7 @@ namespace focus_ai
         private static readonly Color CardDoneBg = Color.FromRgb(14, 30, 14);
         private static readonly Color CardDoneBorder = Color.FromRgb(34, 197, 94);
 
-        private static readonly string EyeTrackerDir = Path.GetFullPath(
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                         @"..\..\..\..\EyeTracker-main\Webcam3DTracker"));
+        private static string EyeTrackerDir => ResolveEyeTrackerDirectory();
         private const string PythonScript = "MonitorTracking.py";
 
         private readonly string _dbUrl = AppSettings.Get("RealtimeDatabaseUrl");
@@ -45,6 +43,7 @@ namespace focus_ai
         private double _reactionTimeSec = 0;
         private double _goNoGoAccuracy = 0;
         private CptHybridResult? _cptResult;
+        private GazeSessionSummary _gazeSession = GazeSessionSummary.Empty;
 
         private static readonly HttpClient _http = new();
 
@@ -62,13 +61,30 @@ namespace focus_ai
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
 
+            BioCollector.Instance.ConnectionStateChanged += BioCollector_ConnectionStateChanged;
             Loaded += StartTest_Loaded;
             Closing += StartTest_Closing;
         }
 
-        private void StartTest_Loaded(object sender, RoutedEventArgs e)
+        private async void StartTest_Loaded(object sender, RoutedEventArgs e)
         {
-            BioCollector.Instance.TryOpen();
+            DeviceStatusText.Text = "Arduino: searching serial ports...";
+            bool connected = await BioCollector.Instance.TryOpenAsync();
+            if (!connected && !BioCollector.Instance.IsConnected)
+                DeviceStatusText.Text = "Arduino: not detected — automatic reconnect active";
+        }
+
+        private void BioCollector_ConnectionStateChanged(string portName, bool connected)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(new Action(() => BioCollector_ConnectionStateChanged(portName, connected)));
+                return;
+            }
+
+            DeviceStatusText.Text = connected
+                ? $"Arduino: connected on {portName}"
+                : "Arduino: disconnected — reconnecting automatically";
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
@@ -168,6 +184,8 @@ namespace focus_ai
 
         private async Task<bool> RunEyeTrackerAsync()
         {
+            _mapData = "";
+            _gazeSession = GazeSessionSummary.Empty;
             string scriptPath = Path.Combine(EyeTrackerDir, PythonScript);
 
             if (!Directory.Exists(EyeTrackerDir))
@@ -185,6 +203,19 @@ namespace focus_ai
             }
 
             string pythonExe = ResolveEyeTrackerPythonExecutable();
+            string gazeSamplesPath = Path.Combine(EyeTrackerDir, "gaze_samples.csv");
+            string legacyCoordsPath = Path.Combine(EyeTrackerDir, "gaze_coords.txt");
+            try
+            {
+                if (File.Exists(gazeSamplesPath)) File.Delete(gazeSamplesPath);
+                if (File.Exists(legacyCoordsPath)) File.Delete(legacyCoordsPath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Cannot prepare eye-tracker output files:\n{ex.Message}",
+                    "Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
 
             var psi = new ProcessStartInfo
             {
@@ -215,16 +246,25 @@ namespace focus_ai
 
                 string coordsPayload = ExtractCoordinatePayload(stdoutData);
                 if (string.IsNullOrWhiteSpace(coordsPayload))
-                    coordsPayload = TryReadCoordinatePayloadFromFile(Path.Combine(EyeTrackerDir, "gaze_coords.txt"), scriptStartTime);
+                    coordsPayload = TryReadCoordinatePayloadFromFile(legacyCoordsPath, scriptStartTime);
 
-                if (!string.IsNullOrWhiteSpace(coordsPayload))
+                _mapData = coordsPayload;
+                _gazeSession = GazeSessionSummary.ReadCsv(gazeSamplesPath);
+
+                if (_gazeSession.TotalSamples > 0)
                 {
-                    _mapData = coordsPayload;
+                    if (_gazeSession.ValidSamples == 0)
+                    {
+                        MessageBox.Show(
+                            "The eye-tracker session completed, but no valid gaze intersections were recorded. " +
+                            "The session will be saved with gaze marked as unavailable; no attention values will be fabricated.",
+                            "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                     return true;
                 }
 
                 string details = BuildEyeTrackerErrorDetails(process.ExitCode, stdoutData, stderrData);
-                MessageBox.Show(LanguageManager.T("The script did not return coordinates.\nCheck the eye tracker.") + details,
+                MessageBox.Show(LanguageManager.T("The script did not return timestamped gaze samples.\nCheck the eye tracker.") + details,
                     "Focus AI – Eye Tracker", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
@@ -345,6 +385,7 @@ namespace focus_ai
             string hrStr = string.Join(",", bio.HeartRate.Where(v => v != 0));
             string spo2Str = string.Join(",", bio.SpO2.Where(v => v != 0));
             string distStr = string.Join(",", bio.Distance.Select(d => d ? "1" : "0"));
+            string distCmStr = string.Join(",", bio.DistanceCm.Select(v => v.ToString(CultureInfo.InvariantCulture)));
             string rrStr = string.Join(",", bio.RrIntervalsMs.Select(value => value.ToString("F3", CultureInfo.InvariantCulture)));
 
             HrvMetricsResult hrv = HrvMetrics.Analyze(bio.RrIntervalsMs);
@@ -361,7 +402,11 @@ namespace focus_ai
                     : null,
                 CptReactionTimeCv = _cptResult?.ReactionTimeCoefficientOfVariation,
                 CptReactionTimeSampleCount = _cptResult?.ReactionTimeDistribution.SampleCount ?? 0,
-                Hrv = hrv
+                Hrv = hrv,
+                GazeOnTargetFraction = _gazeSession.OnTargetFraction,
+                GazeTargetSampleCount = _gazeSession.TrackedTargetSamples,
+                GazeTargetTrackingCoverage = _gazeSession.TargetTrackingCoverage,
+                GazeValidFraction = _gazeSession.ValidFraction
             });
             double scor = attention.Score;
 
@@ -376,11 +421,56 @@ namespace focus_ai
                 dateTime,
                 duration,
                 map = _mapData,
+                // Keep the historical Firebase key for older app versions, but
+                // mark the new measurements as raw analogue sensor values.
                 ecg = ecgStr,
+                analog_signal = ecgStr,
+                analog_signal_source = "MyoWare analog output A0 (raw ADC; not a clinically validated ECG waveform)",
+                analog_signal_is_clinically_validated_ecg = false,
                 hr = hrStr,
                 spo2 = spo2Str,
                 dist = distStr,
+                dist_cm = distCmStr,
+                analog_samples = bio.Ecg.Select(sample => new
+                {
+                    device_timestamp_ms = sample.DeviceTimestampMs,
+                    channel_a0_raw = sample.EcgDreapta,
+                    channel_a1_raw = sample.EcgStanga >= 0 ? sample.EcgStanga : (int?)null
+                }).ToList(),
                 rr_ms = rrStr,
+                rr_source = "MAX30102_PPG",
+                rr_measurement_type = "PRV",
+                ppg_rr_samples = bio.PpgRrSamples.Select(sample => new
+                {
+                    device_timestamp_ms = sample.DeviceTimestampMs,
+                    interval_ms = sample.IntervalMs,
+                    ir_amplitude = sample.IrAmplitude
+                }).ToList(),
+                bio_device = new
+                {
+                    connected_port = bio.ConnectedPortName,
+                    last_detected_port = bio.LastDetectedPortName,
+                    ppg_sensor_ready = bio.PpgSensorReady,
+                    finger_detected = bio.FingerDetected,
+                    analog_channel_source = "MyoWare raw analog output A0",
+                    analog_channel_is_clinically_validated_ecg = false,
+                    second_analog_channel_available = bio.Ecg.Any(sample => sample.EcgStanga >= 0),
+                    distance_sensor_available = bio.DistanceCm.Count > 0,
+                    valid_distance_sample_count = bio.DistanceCm.Count
+                },
+                gaze = new
+                {
+                    total_samples = _gazeSession.TotalSamples,
+                    valid_samples = _gazeSession.ValidSamples,
+                    valid_fraction = _gazeSession.ValidFraction,
+                    phase2_target_samples = _gazeSession.TargetSamples,
+                    phase2_tracked_target_samples = _gazeSession.TrackedTargetSamples,
+                    on_target_samples = _gazeSession.OnTargetSamples,
+                    on_target_fraction = _gazeSession.OnTargetFraction,
+                    target_tracking_coverage = _gazeSession.TargetTrackingCoverage,
+                    pupil_measurement_available = false,
+                    pupil_measurement_note = "The current MediaPipe face-mesh pipeline does not measure pupil diameter."
+                },
                 hrv = new
                 {
                     rr_sample_count = hrv.RrSampleCount,
@@ -447,7 +537,10 @@ namespace focus_ai
                     behavioral_subscore = attention.BehavioralSubscore,
                     gaze_on_screen_fraction = attention.GazeOnScreenFraction,
                     gaze_sample_count = attention.GazeSampleCount,
-                    hrv_adaptivity_subscore = attention.HrvAdaptivitySubscore,
+                    gaze_on_target_fraction = attention.GazeOnTargetFraction,
+                    gaze_target_sample_count = attention.GazeTargetSampleCount,
+                    gaze_valid_fraction = attention.GazeValidFraction,
+                    prv_descriptive_composite = attention.HrvAdaptivitySubscore,
                     pupil_engagement_subscore = attention.PupilEngagementSubscore,
                     tau_subscore = attention.TauSubscore,
                     updates = attention.Posterior.Updates.Select(update => new
@@ -617,6 +710,24 @@ namespace focus_ai
             return true;
         }
 
+        private static string ResolveEyeTrackerDirectory()
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string[] candidates =
+            {
+                Path.Combine(baseDirectory, "EyeTracker-main", "Webcam3DTracker"),
+                Path.GetFullPath(Path.Combine(baseDirectory, @"..\..\..\..\EyeTracker-main\Webcam3DTracker")),
+                Path.Combine(Environment.CurrentDirectory, "EyeTracker-main", "Webcam3DTracker"),
+                Path.Combine(Environment.CurrentDirectory, "..", "EyeTracker-main", "Webcam3DTracker")
+            };
+
+            return candidates
+                .Select(Path.GetFullPath)
+                .FirstOrDefault(path => Directory.Exists(path) &&
+                    File.Exists(Path.Combine(path, PythonScript)))
+                ?? candidates[1];
+        }
+
         private static string ResolveEyeTrackerPythonExecutable()
         {
             string venv312Python = Path.Combine(EyeTrackerDir, "eyetracker_env312", "Scripts", "python.exe");
@@ -742,9 +853,10 @@ namespace focus_ai
             }
         }
 
-        private void StartTest_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void StartTest_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             _timer.Stop();
+            BioCollector.Instance.ConnectionStateChanged -= BioCollector_ConnectionStateChanged;
             BioCollector.Instance.Close();
             if (!_dashboard.IsVisible)
                 _dashboard.Show();

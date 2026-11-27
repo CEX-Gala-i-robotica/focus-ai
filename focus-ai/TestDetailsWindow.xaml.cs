@@ -19,11 +19,14 @@ namespace focus_ai
         private readonly string _distRaw;
         private readonly string _cptRaw;
         private readonly string _rrRaw;
+        private readonly string _rrSource;
+        private readonly string _rrMeasurementType;
         private readonly string _attentionRaw;
         
         public TestDetailsWindow(string mapRaw, string ecgRaw,
                                   string spo2Raw, string hrRaw, string distRaw,
-                                  string cptRaw = "", string rrRaw = "", string attentionRaw = "")
+                                  string cptRaw = "", string rrRaw = "", string attentionRaw = "",
+                                  string rrSource = "", string rrMeasurementType = "")
         {
             InitializeComponent();
             _mapRaw = mapRaw;
@@ -33,10 +36,12 @@ namespace focus_ai
             _distRaw = distRaw;
             _cptRaw = cptRaw;
             _rrRaw = rrRaw;
+            _rrSource = rrSource;
+            _rrMeasurementType = rrMeasurementType;
             _attentionRaw = attentionRaw;
             LanguageManager.Register(this);
             WindowHelper.MoveToPrimaryMonitor(this);
-            Loaded += (_, _) => DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw);
+            Loaded += (_, _) => DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw, _rrSource, _rrMeasurementType);
             LanguageManager.LanguageChanged += TestDetailsWindow_LanguageChanged;
             Closed += (_, _) => LanguageManager.LanguageChanged -= TestDetailsWindow_LanguageChanged;
         }
@@ -46,7 +51,7 @@ namespace focus_ai
             if (!IsLoaded) return;
 
             ClearChartVisuals();
-            DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw);
+            DrawAll(_mapRaw, _ecgRaw, _spo2Raw, _hrRaw, _distRaw, _cptRaw, _rrRaw, _attentionRaw, _rrSource, _rrMeasurementType);
         }
 
         private void ClearChartVisuals()
@@ -69,7 +74,8 @@ namespace focus_ai
         
         private void DrawAll(string mapRaw, string ecgRaw,
                               string spo2Raw, string hrRaw, string distRaw,
-                              string cptRaw, string rrRaw, string attentionRaw)
+                              string cptRaw, string rrRaw, string attentionRaw,
+                              string rrSource, string rrMeasurementType)
         {
             
             var mapPoints = ParseXY(mapRaw);
@@ -80,20 +86,33 @@ namespace focus_ai
             var ecgPairs = ParsePairs(ecgRaw);
             if (ecgPairs.Count > 0)
             {
-                var ch1 = ecgPairs.Select((p, i) => new Point(i, p.X)).ToList();
-                var ch2 = ecgPairs.Select((p, i) => new Point(i, p.Y)).ToList();
+                var ch1 = ecgPairs
+                    .Select((p, i) => new Point(i, p.X))
+                    .Where(p => p.Y >= 0)
+                    .ToList();
+                var ch2 = ecgPairs
+                    .Select((p, i) => new Point(i, p.Y))
+                    .Where(p => p.Y >= 0)
+                    .ToList();
 
-                double minY = Math.Min(ch1.Min(p => p.Y), ch2.Min(p => p.Y));
-                double maxY = Math.Max(ch1.Max(p => p.Y), ch2.Max(p => p.Y));
-                double minX = 0;
-                double maxX = ecgPairs.Count - 1;
+                var allChannels = ch1.Concat(ch2).ToList();
+                if (allChannels.Count > 0)
+                {
+                    double minY = allChannels.Min(p => p.Y);
+                    double maxY = allChannels.Max(p => p.Y);
+                    if (Math.Abs(maxY - minY) < 1e-9) maxY = minY + 1;
+                    double minX = 0;
+                    double maxX = Math.Max(1, ecgPairs.Count - 1);
 
-                DrawLineChart(EcgCanvas1, EcgXLabels, EcgYLabels,
-                    ch1, GradH(Color.FromRgb(201, 196, 255), Color.FromRgb(237, 237, 237)),
-                    minX, maxX, minY, maxY);
-                DrawLineChart(EcgCanvas1, null, null,
-                    ch2, GradH(Color.FromRgb(194, 194, 194), Color.FromRgb(201, 196, 255)),
-                    minX, maxX, minY, maxY, skipGrid: true);
+                    if (ch1.Count > 0)
+                        DrawLineChart(EcgCanvas1, EcgXLabels, EcgYLabels,
+                            ch1, GradH(Color.FromRgb(201, 196, 255), Color.FromRgb(237, 237, 237)),
+                            minX, maxX, minY, maxY);
+                    if (ch2.Count > 0)
+                        DrawLineChart(EcgCanvas1, null, null,
+                            ch2, GradH(Color.FromRgb(194, 194, 194), Color.FromRgb(201, 196, 255)),
+                            minX, maxX, minY, maxY, skipGrid: true);
+                }
             }
 
             
@@ -117,7 +136,7 @@ namespace focus_ai
 
             
             UpdateStats(mapPoints, ecgPairs, spo2, hr, dist, cptRaw);
-            UpdateScientificMetrics(cptRaw, rrRaw, attentionRaw);
+            UpdateScientificMetrics(cptRaw, rrRaw, attentionRaw, rrSource, rrMeasurementType);
         }
 
         private void UpdateStats(
@@ -139,7 +158,7 @@ namespace focus_ai
 
             StatsText.Text =
                 $"  MAP {mapPoints.Count} {pointLabel}   ·   " +
-                $"ECG {ecgPairs.Count} {pointLabel}   ·   " +
+                $"MyoWare analog {ecgPairs.Count} {pointLabel}   ·   " +
                 $"SPO2 [{FormatNumber(spo2Min, "F0")}–{FormatNumber(spo2Max, "F0")}]%   ·   " +
                 $"HR [{FormatNumber(hrMin, "F0")}–{FormatNumber(hrMax, "F0")}] bpm   ·   " +
                 $"DIST {distActive}/{dist.Count} {activeLabel}" +
@@ -172,10 +191,11 @@ namespace focus_ai
             }
         }
 
-        private void UpdateScientificMetrics(string cptRaw, string rrRaw, string attentionRaw)
+        private void UpdateScientificMetrics(string cptRaw, string rrRaw, string attentionRaw,
+                                             string rrSource, string rrMeasurementType)
         {
             UpdateCptTailMetric(cptRaw);
-            UpdateHrvMetrics(rrRaw);
+            UpdateHrvMetrics(rrRaw, rrSource, rrMeasurementType);
             UpdateAttentionMetric(attentionRaw);
         }
 
@@ -212,13 +232,20 @@ namespace focus_ai
             }
         }
 
-        private void UpdateHrvMetrics(string rrRaw)
+        private void UpdateHrvMetrics(string rrRaw, string rrSource, string rrMeasurementType)
         {
+            if (!rrSource.Equals("MAX30102_PPG", StringComparison.OrdinalIgnoreCase) ||
+                !rrMeasurementType.Equals("PRV", StringComparison.OrdinalIgnoreCase))
+            {
+                HrvMetricsText.Text = LanguageManager.T("No verified PPG pulse intervals recorded");
+                return;
+            }
+
             double[] rr = ParseValues(rrRaw).Where(HrvMetrics.IsValidRrInterval).ToArray();
             HrvMetricsResult hrv = HrvMetrics.Analyze(rr);
             if (!hrv.IsAvailable)
             {
-                HrvMetricsText.Text = LanguageManager.T("No beat-to-beat RR intervals recorded");
+                HrvMetricsText.Text = LanguageManager.T("No valid PPG pulse intervals recorded");
                 return;
             }
 
@@ -226,7 +253,7 @@ namespace focus_ai
             string rmssd = hrv.RmssdMs.HasValue ? $"RMSSD {FormatNumber(hrv.RmssdMs.Value, "F1")} ms" : "RMSSD —";
             string dfa = hrv.DfaAlpha1.HasValue ? $"DFA α1 {FormatNumber(hrv.DfaAlpha1.Value, "F2")}" : "DFA α1 —";
             string entropy = hrv.SampleEntropy.HasValue ? $"SampEn {FormatNumber(hrv.SampleEntropy.Value, "F2")}" : "SampEn —";
-            HrvMetricsText.Text = $"{sdnn}   ·   {rmssd}\n{dfa}   ·   {entropy}   ·   n={hrv.RrSampleCount} RR";
+            HrvMetricsText.Text = $"{sdnn}   ·   {rmssd}\n{dfa}   ·   {entropy}   ·   n={hrv.RrSampleCount} PRV intervals";
         }
 
         private void UpdateAttentionMetric(string attentionRaw)

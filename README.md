@@ -19,27 +19,27 @@
 
 > Proiectul F.O.C.U.S. AI propune o stație neuro-cognitivă bimodală de ultimă generație, concepută pentru a măsura, analiza și antrena capacitatea de concentrare umană într-un context digital tot mai fragmentat. În centrul inovației noastre se află tranziția de la evaluările psihologice subiective la o diagnoză bazată pe date biometrice și vizuale colectate în timp real.
 >
-> Sistemul este construit pe o infrastructură hardware robustă, utilizând un mini PC Lenovo ThinkCenter neo 50q Gen 4 ce rulează Windows 11, echipat cu un sistem dual-monitor portabil YoDoIt de 16.5 inch. Această configurație permite o separare clară a fluxurilor de lucru: un monitor este dedicat pacientului (pentru teste și stimuli vizuali generați software), iar celălalt medicului/specialistului (pentru monitorizarea parametrilor ECG, hărților de căldură ale privirii și gestionarea sesiunii).
+> Sistemul este construit pe o infrastructură hardware robustă, utilizând un mini PC Lenovo ThinkCenter neo 50q Gen 4 ce rulează Windows 11, echipat cu un sistem dual-monitor portabil YoDoIt de 16.5 inch. Această configurație permite o separare clară a fluxurilor de lucru: un monitor este dedicat pacientului (pentru teste și stimuli vizuali generați software), iar celălalt medicului/specialistului (pentru monitorizarea rezultatelor cognitive, a semnalelor PPG/PRV și a măsurătorilor privirii).
 >
-> Integrarea senzoristică este realizată prin intermediul unui microcontroler Arduino Uno, care gestionează un senzor de touch (pentru timpi de reacție), un buzzer (stimuli auditivi), un pulsoximetru și un shield ECG MyoWare (stres fiziologic). Securitatea accesului este garantată printr-un sistem hibrid de autentificare: card NFC urmat de un cod PIN secret introdus pe un NumPad fizic.
+> În versiunea software livrată, Arduino Uno gestionează un senzor digital de touch (D2), un buzzer (D3), un senzor ultrasonic opțional (D4/D5), un MAX30102 pentru PPG și un semnal analogic brut de la MyoWare (A0). Semnalul MyoWare nu este tratat drept ECG clinic, iar intervalele de puls MAX30102 sunt etichetate PRV, nu RR provenite din ECG. Autentificarea NFC + PIN pe NumPad rămâne o extensie propusă; modelul cititorului și cablarea nu sunt specificate în sursele hardware ale proiectului.
 >
-> Datele colectate sunt procesate de un algoritm de fuziune matematică pentru a genera un „Indice de Concentrare" și sunt stocate în Firebase Realtime Database. În premieră, am implementat un algoritm de predictibilitate a progresului, care analizează tendințele cognitive pe termen lung. Pacienții își pot urmări evoluția prin intermediul unei aplicații mobile dedicate, dezvoltată în Kotlin Multiplatform, asigurând accesibilitatea pe orice dispozitiv (Android/iOS).
+> Datele colectate sunt procesate de un algoritm de fuziune matematică pentru a genera un „Indice de Concentrare" și sunt stocate în Firebase Realtime Database. Aplicația WPF salvează sesiunile în Firebase și include un model de predicție a următoarei sesiuni. O aplicație mobilă Kotlin Multiplatform este menționată ca extensie a ecosistemului, dar sursele ei nu sunt incluse în această arhivă.
 
 ## 3. Descriere detaliată a proiectului
 
 ### a. Scop
 
-Scopul proiectului F.O.C.U.S. AI este dezvoltarea unei platforme hibride avansate (Hardware-Software) destinate evaluării, analizei și antrenării capacității de concentrare umană. Într-un context global definit de „economia atenției" și fragmentarea cognitivă cauzată de mediile digitale suprastimulante, proiectul își propune să ofere o stație de diagnoză obiectivă. Prin combinarea analizei vizuale computerizate (AI) cu date biometrice (ECG, pulsoximetru), posturologie și reacții neuromotorii (touch), sistemul transformă datele brute într-un profil cognitiv complet, oferind în același timp instrumente de reeducare prin exerciții interactive.
+Scopul proiectului F.O.C.U.S. AI este dezvoltarea unei platforme hibride (Hardware-Software) pentru evaluarea experimentală și antrenarea atenției. Implementarea curentă combină estimarea privirii prin cameră, rezultate comportamentale din teste cognitive și măsurători hardware auxiliare (PPG/PRV, semnal analogic MyoWare, touch și distanță ultrasonică atunci când senzorul este conectat). Aceste măsurători sunt indicatori de cercetare/prototip și nu constituie diagnostic medical sau biomarkeri clinici validați.
 
 ### b. Obiective
 
 i. **Integrarea unei infrastructuri de calcul performante:** Utilizarea unui mini PC Lenovo ThinkCenter neo 50q Gen 4 și a unui sistem de afișare dual-monitor (YoDoIt 16.5") pentru a separa interfața pacientului de cea a specialistului.
 
-ii. **Dezvoltarea unui modul de monitorizare vizuală:** Implementarea unui algoritm de eye-tracking în Python (OpenCV/dlib) capabil să ruleze la minimum 30 FPS pentru detectarea precisă a atenției.
+ii. **Dezvoltarea unui modul de monitorizare vizuală:** Implementarea unui algoritm de estimare a privirii în Python folosind OpenCV și MediaPipe Face Mesh. În faza cu punct mobil se calculează proporția eșantioanelor urmărite în zona-țintă; pierderile de tracking sunt păstrate explicit în fișierul de sesiune.
 
-iii. **Construcția modulului hardware de achiziție:** Utilizarea unui microcontroler Arduino Uno pentru gestionarea senzorilor de touch, buzzer-ului, pulsoximetrului și a shield-ului ECG MyoWare.
+iii. **Construcția modulului hardware de achiziție:** Utilizarea unui Arduino Uno pentru touch, buzzer, MAX30102 PPG, semnalul analogic MyoWare și senzor ultrasonic opțional. MyoWare este salvat ca semnal analogic brut, nu ca ECG validat.
 
-iv. **Securizarea datelor și autentificarea:** Implementarea unui sistem de acces hibrid bazat pe carduri NFC și validare prin cod PIN introdus pe un NumPad fizic.
+iv. **Extensie planificată – securizarea accesului:** Integrarea unui cititor NFC și a unui NumPad poate fi adăugată după stabilirea modelelor hardware, a pinilor și a protocolului. Această funcționalitate nu este inclusă în firmware-ul curent.
 
 v. **Extinderea ecosistemului în Cloud și Mobile:** Sincronizarea datelor prin Firebase și dezvoltarea unei aplicații mobile cross-platform folosind Kotlin Multiplatform (KMP).
 
@@ -49,7 +49,7 @@ vi. **Modelarea matematică a performanței:** Crearea unui algoritm de predicț
 
 **Problema identificată:** Mediul digital contemporan, dominat de conținut de tip „short-form" (TikTok, Reels), antrenează creierul pentru recompense rapide și atenție de scurtă durată. Acest fenomen duce la o degradare a concentrării profunde și la creșterea ratelor de ADHD indus digital. Metodele clasice de evaluare (chestionarele) sunt subiective, iar pacienții nu pot identifica momentul exact în care atenția lor colapsează.
 
-**Studiul de piață:** Soluțiile profesionale de eye-tracking (ex. Tobii) sunt extrem de costisitoare (mii de euro) și se concentrează strict pe privire, ignorând starea fiziologică sau postura. Dispozitivele clinice ECG sunt voluminoase și nu sunt integrate în platforme de antrenament cognitiv. F.O.C.U.S. AI ocupă această nișă, oferind o soluție portabilă, accesibilă și integrată, care corelează privirea cu stresul cardiac și postura corporală într-un singur „Indice de Concentrare".
+**Studiul de piață:** Soluțiile profesionale de eye-tracking (ex. Tobii) sunt extrem de costisitoare (mii de euro) și se concentrează strict pe privire, ignorând starea fiziologică sau postura. Dispozitivele clinice ECG sunt voluminoase și nu sunt integrate în platforme de antrenament cognitiv. F.O.C.U.S. AI ocupă această nișă, oferind o soluție portabilă, accesibilă și integrată, care explorează corelarea privirii cu indicatori PPG/PRV și măsurători auxiliare de distanță; aceste măsurători nu reprezintă, în forma curentă, o evaluare clinică a stresului sau posturii.
 
 ### d. Etapele parcurse
 
@@ -57,9 +57,9 @@ i. **Cercetare și Design (Septembrie - Noiembrie 2025):** Studiul impactului st
 
 ii. **Dezvoltare AI și Backend (Decembrie 2025 - Ianuarie 2026):** Antrenarea algoritmului de landmark detection și configurarea bazei de date Firebase.
 
-iii. **Prototipare Hardware (Februarie - Martie 2026):** Integrarea senzorului de touch, a buzzer-ului și a cititorului NFC.
+iii. **Prototipare Hardware (Februarie - Martie 2026):** Integrarea senzorului de touch, a buzzer-ului și a modulelor PPG/analogice; NFC rămâne extensie planificată.
 
-iv. **Integrare și UI/UX (Aprilie 2026):** Dezvoltarea interfeței WPF în C# și a logicii de comunicare serială. Crearea aplicației mobile în Kotlin Multiplatform.
+iv. **Integrare și UI/UX (Aprilie 2026):** Dezvoltarea interfeței WPF în C# și a logicii de comunicare serială. Componenta mobilă KMP nu este inclusă în această arhivă.
 
 v. **Validare și Calibrare (Mai 2026):** Testarea sistemului pe eșantioane de control și ajustarea algoritmului de predicție a progresului.
 
@@ -71,17 +71,17 @@ Sistemul este fundamentat pe o arhitectură *Edge-to-Cloud* compusă din:
 
 Modulul de AI funcționează ca un „ochi digital" care analizează comportamentul utilizatorului fără a necesita senzori invazivi.
 
-- **Tehnologie:** Folosim Python cu librăriile opencv-python pentru procesare video și dlib pentru extragerea celor 68 de puncte faciale (landmarks).
-- **Funcționalitate:** Algoritmul identifică zona ochilor și calculează unghiul privirii (gaze estimation) în timp real. Sistemul poate detecta dacă utilizatorul privește stimulul generat pe ecran sau dacă este distras de mediu. De asemenea, monitorizează frecvența clipitului (blink rate) ca indicator al oboselii oculare.
+- **Tehnologie:** Modulul folosește OpenCV, NumPy și MediaPipe Face Mesh pentru estimarea direcției privirii și intersecția acesteia cu monitorul calibrat.
+- **Funcționalitate:** Sesiunea salvează eșantioane temporizate, inclusiv perioadele în care fața/privirea nu este detectată. În faza 2 este urmărit punctul portocaliu, iar fixarea este aproximată printr-o zonă de interes (AOI). Pipeline-ul curent nu măsoară diametrul pupilei și nu calculează blink rate.
 
 #### ii. Dezvoltare Hardware (Arduino UNO R3)
 
 Nucleul fizic este bazat pe **Arduino Uno**, ales pentru stabilitatea sa în aplicații de timp real.
 
 - **Stimuli și Reacție:** Stimulii vizuali sunt generați software pe monitorul YoDoIt, iar cei auditivi prin **buzzer**. Reacția este captată instantaneu de un **senzor de touch**, eliminând erorile mecanice.
-- **Monitorizarea Posturii:** Un **senzor** verifică distanța utilizatorului față de monitor. Dacă acesta se apleacă prea mult (stres) sau se retrage (lipsă de interes), sistemul invalidează datele.
-- **Biometrie:** Shield-ul **MyoWare ECG** înregistrează activitatea cardiacă, permițând corelarea momentelor de efort cognitiv cu variațiile pulsului.
-- **Securitate:** Cititorul **NFC** solicită un card valid, după care utilizatorul trebuie să introducă un PIN pe un **NumPad** fizic conectat, asigurând un mediu de testare securizat pentru datele sensibile.
+- **Măsurare auxiliară a distanței:** Senzorul ultrasonic (dacă este montat) transmite distanța în centimetri. În versiunea curentă aceasta este salvată ca măsurătoare auxiliară; nu este folosită pentru a deduce stresul/postura și nu invalidează automat sesiunea.
+- **Biometrie:** MAX30102 captează PPG și intervale dintre pulsuri (PRV). MyoWare este colectat separat ca semnal analogic brut pe A0; acesta nu este interpretat sau prezentat ca ECG clinic.
+- **Extensii hardware neincluse:** NFC și NumPad nu sunt implementate în firmware-ul livrat, deoarece arhiva-sursă nu identifică modulele, interfața electrică sau protocolul necesar. Acestea nu trebuie considerate funcționalități existente.
 
 #### iii. Dezvoltare UI/UX Desktop (WPF, C#)
 
@@ -94,9 +94,8 @@ Aplicația principală este dezvoltată în **WPF (C#)**, rulând pe **Lenovo Th
 
 #### iv. Dezvoltare aplicație mobilă
 
-- Pentru a permite pacienților să își urmărească progresul de acasă, am dezvoltat o aplicație în Kotlin Multiplatform (KMP).
-- Cross-Platform: Codul este partajat între Android și iOS, reducând timpul de dezvoltare și erorile de sincronizare.
-- Funcții: Vizualizarea istoricului sesiunilor și accesarea statisticilor generate de algoritmul de predicție a progresului direct pe smartphone.
+- Arhiva curentă conține aplicația desktop WPF și integrarea Firebase.
+- O aplicație Kotlin Multiplatform (Android/iOS) poate fi livrată separat, dar codul ei nu se află în această arhivă și nu este inclusă în verificarea implementării de aici.
 
 #### v. Analiza Matematică a Concentrării
 
@@ -108,9 +107,9 @@ Se folosește o funcție compusă:
 
 Validarea preliminară, efectuată pe un eșantion de control, confirmă stabilitatea și precizia arhitecturii hibride F.O.C.U.S.:
 
-- **Performanță vizuală (AI Python):** Modulul de procesare a imaginii demonstrează o fluiditate remarcabilă, rulând constant la **30 FPS**. Algoritmul bazat pe dlib oferă o **rată de încredere de 85-90%** în monitorizarea atenției, fiind capabil să identifice cu precizie micro-deviațiile privirii și stările de distragere, fără a necesita echipamente costisitoare de tip infraroșu.
-- **Acuratețe hardware (Arduino Uno):** Interacțiunea în timp real este garantată de latența de transmisie extrem de scăzută, de sub **10 ms**.
-- **Sincronizare și Cloud (WPF & Firebase):** Fluxul bimodal de stimuli (vizual și sonor) este corelat cu reacțiile motorii și datele ECG MyoWare în timp real. Toate informațiile sunt structurate și securizate în Firebase sub formă de obiecte JSON, cu o latență de scriere în Cloud de maximum **200 ms**, asigurând un istoric medical și cognitiv permanent și ușor de accesat.
+- **Validare vizuală:** Trackerul exportă eșantioane cu timestamp, validitatea privirii și zona-țintă. FPS-ul, acuratețea și calibrarea trebuie raportate doar după măsurători reproductibile pe configurația camerei și a monitorului folosit; arhiva nu conține un studiu care să valideze o rată de clasificare de 85–90%.
+- **Achiziție hardware:** Firmware-ul transmite cadre seriale la o perioadă nominală de 10 ms și măsurători ultrasonice actualizate la aproximativ 250 ms. Latența reală trebuie măsurată pe placa și cablajul folosite.
+- **Sincronizare și Cloud (WPF & Firebase):** Datele sunt serializate în Firebase împreună cu sursa semnalului. PRV derivat din PPG și MyoWare analogic nu sunt etichetate ca ECG. Latența de scriere și fiabilitatea trebuie măsurate în rețeaua de utilizare; nu sunt declarate aici valori nevalidate.
 
 ### g. Concluzie
 
@@ -144,110 +143,8 @@ vii. .NET Windows Presentation Foundation (WPF) Documentation [https://learn.mic
 
 #### iii. Codul pentru Arduino UNO
 
-```cpp
-#include <Wire.h>
-#include <MAX30100_PulseOximeter.h>
+Codul de firmware complet este păstrat în folderul `cod_arduino/` (`cod_arduino.ino`, `spo2_algorithm.cpp`, `spo2_algorithm.h`). Protocolul serial este versiunea 2 și include handshake-ul `PING,FOCUS_AI` / `PONG,FOCUS_AI,2`, evenimente temporizate pentru touch/buzzer, cadre de date și intervale PPG-PRV. Instrucțiunile de cablare, instalare și încărcare sunt în [HARDWARE_INTEGRATION.md](HARDWARE_INTEGRATION.md). Nu utilizați fragmentul MAX30100 din versiunile vechi ale documentației: nu mai corespunde firmware-ului livrat.
 
-const int TOUCH_PIN = 2;
-const int BUZZER_PIN = 3;
-const int TRIG_PIN = 4;
-const int ECHO_PIN = 5;
-const int ECG_DR = A0;
-const int ECG_ST = A1;
-
-#define REPORTING_PERIOD_MS 1000
-
-PulseOximeter pox;
-
-bool isCollecting = false;
-bool lastTouchState = LOW;
-uint32_t lastDebounceTime = 0;
-uint32_t tsLastReport = 0;
-
-void beep(int freq, int durationMs) {
-  tone(BUZZER_PIN, freq, durationMs);
-}
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(TOUCH_PIN, INPUT);
-  pinMode(BUZZER_PIN, OUTPUT);
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  Wire.begin();
-  if (pox.begin()) {
-    pox.setIRLedCurrent(MAX30100_LED_CURR_7_6MA);
-  }
-  analogReadResolution(12);
-  Serial.println("READY");
-}
-
-long readDistanceCm() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long duration = pulseIn(ECHO_PIN, HIGH, 30000); // timeout 30ms
-  if (duration == 0) return -1; // nimic detectat
-  long distance = duration * 0.034 / 2;
-  return distance;
-}
-
-void loop() {
-  // ===== COMENZI DIN PC =====
-  if (Serial.available() > 0) {
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    if (cmd == "START_TEST") {
-      isCollecting = true;
-      tsLastReport = millis();
-    }
-    else if (cmd == "STOP_TEST") {
-      isCollecting = false;
-    }
-    else if (cmd == "BEEP") {
-      beep(2000, 150); // 🔊 DOAR aici sună
-    }
-  }
-
-  pox.update();
-
-  // ===== TOUCH =====
-  bool curTouch = digitalRead(TOUCH_PIN);
-  if (curTouch == HIGH && lastTouchState == LOW) {
-    if (millis() - lastDebounceTime > 50) {
-      lastDebounceTime = millis();
-      Serial.println("TOUCH_DETECTED");
-    }
-  }
-  lastTouchState = curTouch;
-
-  // ===== DATA =====
-  if (isCollecting) {
-    uint32_t now = millis();
-    if (now - tsLastReport >= REPORTING_PERIOD_MS) {
-      tsLastReport = now;
-      int ecgDr = analogRead(ECG_DR);
-      int ecgSt = analogRead(ECG_ST);
-      uint8_t hr = (uint8_t)pox.getHeartRate();
-      uint8_t spo2 = (uint8_t)pox.getSpO2();
-      long distance = readDistanceCm();
-      // transformăm în flag (0 / 1)
-      int distFlag = 0;
-      if (distance > 0 && distance < 30) { // sub 30 cm = aproape
-        distFlag = 1;
-      }
-      Serial.print("DATA,");
-      Serial.print(ecgDr); Serial.print(",");
-      Serial.print(ecgSt); Serial.print(",");
-      Serial.print(hr); Serial.print(",");
-      Serial.print(spo2); Serial.print(",");
-      Serial.println(distFlag);
-    }
-  }
-}
-```
 
 #### iv. Secvențe din Codul pentru modulul AI cu Python
 

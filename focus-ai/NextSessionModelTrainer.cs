@@ -10,7 +10,7 @@ namespace focus_ai.Prediction;
 public static class NextSessionModelTrainer
 {
     private const double CalibrationLevel = 0.90;
-    private const string FeatureSchemaVersion = "next-session-v3";
+    private const string FeatureSchemaVersion = "next-session-v5";
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     public static TrainingReport TrainAndSave(
@@ -179,7 +179,7 @@ public static class NextSessionModelTrainer
 
         var metadata = new PredictionModelMetadata
         {
-            ArtifactVersion = 3,
+            ArtifactVersion = 5,
             SelectedModel = selectedModel,
             TrainedAtUtc = DateTime.UtcNow,
             TrainingExamples = validationEnd,

@@ -55,7 +55,7 @@ public sealed class PredictionEngine
         _metadata = JsonSerializer.Deserialize<PredictionModelMetadata>(File.ReadAllText(metadataPath))
                     ?? throw new InvalidDataException("Fișierul de metadate al modelului este invalid.");
 
-        if (_metadata.ArtifactVersion != 3 || _metadata.FeatureSchemaVersion != "next-session-v3")
+        if (_metadata.ArtifactVersion != 5 || _metadata.FeatureSchemaVersion != "next-session-v5")
             throw new InvalidDataException(
                 $"Schema modelului ({_metadata.FeatureSchemaVersion}) nu este compatibilă cu această versiune de FeatureBuilder.");
 

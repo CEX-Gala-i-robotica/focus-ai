@@ -637,7 +637,9 @@ namespace focus_ai
                     root.TryGetProperty("dist", out var d) ? d.GetString() ?? "" : "",
                     root.TryGetProperty("cpt", out var cpt) ? cpt.GetRawText() : "",
                     root.TryGetProperty("rr_ms", out var rr) ? rr.GetString() ?? "" : "",
-                    root.TryGetProperty("attention", out var attention) ? attention.GetRawText() : ""
+                    root.TryGetProperty("attention", out var attention) ? attention.GetRawText() : "",
+                    root.TryGetProperty("rr_source", out var rrSource) ? rrSource.GetString() ?? "" : "",
+                    root.TryGetProperty("rr_measurement_type", out var rrType) ? rrType.GetString() ?? "" : ""
                 );
                 win.Show();
             };

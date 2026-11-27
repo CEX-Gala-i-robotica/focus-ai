@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FocusAI.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2e75273dd01cf9ecc4cbc1868e07e1b4494ff8a8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+87f3fabbcfe0e6bd3be0ee614433f131fefd3ab9")]
 [assembly: System.Reflection.AssemblyProductAttribute("FocusAI.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FocusAI.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
